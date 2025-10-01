@@ -51,8 +51,9 @@ public function authenticate(): void
         ]);
     }
 
-    // ✅ UPDATE: Track last login
-    Auth::user()->update(['last_login_at' => now()]);
+    /** @var \App\Models\User $user */
+    $user = Auth::user();
+    $user->update(['last_login_at' => now()]);
 
     RateLimiter::clear($this->throttleKey());
 }
