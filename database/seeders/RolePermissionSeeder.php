@@ -122,20 +122,24 @@ class RolePermissionSeeder extends Seeder
         $this->command->info('✅ Admin role: ALL permissions assigned');
 
         // EDITOR: Can create, edit, delete dashboard data (Quota, Purchase Orders, Master Data, Reports)
-        // TIDAK bisa manage users, roles, dan permissions
+        // Can VIEW administrator section (Users, Roles, Permissions) but CANNOT edit, create, or delete
         $editorPermissions = Permission::whereIn('name', [
             'read dashboard',
-            // Quota Management
+            // Quota Management - FULL ACCESS
             'read quota', 'create quota', 'update quota', 'delete quota',
-            // Purchase Orders
+            // Purchase Orders - FULL ACCESS
             'read purchase_orders', 'create purchase_orders', 'update purchase_orders', 'delete purchase_orders',
-            // Master Data
+            // Master Data - FULL ACCESS
             'read master_data', 'create master_data', 'update master_data', 'delete master_data',
-            // Reports
+            // Reports - FULL ACCESS
             'read reports', 'create reports', 'update reports', 'delete reports',
+            // Administrator Section - READ ONLY (can view but cannot edit, create, or delete)
+            'read users',
+            'read roles',
+            'read permissions',
         ])->pluck('id');
         $editorRole->permissions()->sync($editorPermissions);
-        $this->command->info('✅ Editor role: permissions assigned');
+        $this->command->info('✅ Editor role: permissions assigned (Full data management + View-only administrator)');
 
         // MANAGER: Can manage users, roles & permissions (except admin role)
         // + Can VIEW data (Quota, Purchase Orders, Master Data, Reports)

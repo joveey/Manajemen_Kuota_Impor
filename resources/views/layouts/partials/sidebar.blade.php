@@ -39,7 +39,7 @@
                 </li>
 
                 <!-- Quota Management -->
-                @can('quota.view')
+                @can('read quota')
                 <li class="nav-item {{ request()->is('quota*') ? 'menu-open' : '' }}">
                     <a href="#" class="nav-link {{ request()->is('quota*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-chart-pie"></i>
@@ -55,19 +55,11 @@
                                 <p>Quota List</p>
                             </a>
                         </li>
-                        @can('quota.create')
+                        @can('create quota')
                         <li class="nav-item">
                             <a href="#" class="nav-link {{ request()->routeIs('quota.create') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Create Quota</p>
-                            </a>
-                        </li>
-                        @endcan
-                        @can('quota.approve')
-                        <li class="nav-item">
-                            <a href="#" class="nav-link">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Approve Quota</p>
                             </a>
                         </li>
                         @endcan
@@ -76,7 +68,7 @@
                 @endcan
 
                 <!-- Purchase Orders -->
-                @can('po.view')
+                @can('read purchase_orders')
                 <li class="nav-item {{ request()->is('po*') ? 'menu-open' : '' }}">
                     <a href="#" class="nav-link {{ request()->is('po*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-shopping-cart"></i>
@@ -92,11 +84,11 @@
                                 <p>PO List</p>
                             </a>
                         </li>
-                        @can('po.import')
+                        @can('create purchase_orders')
                         <li class="nav-item">
                             <a href="#" class="nav-link">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Import from SAP</p>
+                                <p>Create PO</p>
                             </a>
                         </li>
                         @endcan
@@ -105,7 +97,7 @@
                 @endcan
 
                 <!-- Master Data -->
-                @can('master.view')
+                @can('read master_data')
                 <li class="nav-item {{ request()->is('master*') ? 'menu-open' : '' }}">
                     <a href="#" class="nav-link {{ request()->is('master*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-database"></i>
@@ -138,7 +130,7 @@
                 @endcan
 
                 <!-- Reports -->
-                @can('reports.view')
+                @can('read reports')
                 <li class="nav-item {{ request()->is('reports*') ? 'menu-open' : '' }}">
                     <a href="#" class="nav-link {{ request()->is('reports*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-chart-bar"></i>

@@ -16,9 +16,11 @@
             <div class="card-header">
                 <h3 class="card-title">All Users (Non-Admin)</h3>
                 <div class="card-tools">
+                    @can('create users')
                     <a href="{{ route('admin.users.create') }}" class="btn btn-primary btn-sm">
                         <i class="fas fa-plus"></i> Create User
                     </a>
+                    @endcan
                 </div>
             </div>
             <div class="card-body">
@@ -66,19 +68,24 @@
                                            title="View">
                                             <i class="fas fa-eye"></i>
                                         </a>
+                                        @can('update users')
                                         <a href="{{ route('admin.users.edit', $user) }}" 
                                            class="btn btn-warning btn-sm" 
                                            title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </a>
+                                        @endcan
+                                        @can('delete users')
                                         <button type="button" 
                                                 class="btn btn-danger btn-sm" 
                                                 onclick="deleteUser({{ $user->id }})"
                                                 title="Delete">
                                             <i class="fas fa-trash"></i>
                                         </button>
+                                        @endcan
                                     </div>
                                     
+                                    @can('delete users')
                                     <form id="delete-form-{{ $user->id }}" 
                                           action="{{ route('admin.users.destroy', $user) }}" 
                                           method="POST" 
@@ -86,6 +93,7 @@
                                         @csrf
                                         @method('DELETE')
                                     </form>
+                                    @endcan
                                 </td>
                             </tr>
                             @endforeach

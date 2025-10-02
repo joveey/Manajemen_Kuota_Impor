@@ -48,7 +48,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'is_active' => 'boolean',
+            'is_active' => 'required|in:0,1',
             'roles' => 'nullable|array',
             'roles.*' => 'exists:roles,id',
         ]);
@@ -63,7 +63,7 @@ class UserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'is_active' => $request->has('is_active') ? true : false,
+            'is_active' => (bool) $request->is_active,
         ]);
 
         // Assign roles (pastikan tidak ada admin role)
@@ -128,7 +128,7 @@ class UserController extends Controller
         $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
-            'is_active' => 'boolean',
+            'is_active' => 'required|in:0,1',
             'roles' => 'nullable|array',
             'roles.*' => 'exists:roles,id',
         ];
@@ -149,7 +149,7 @@ class UserController extends Controller
         $userData = [
             'name' => $request->name,
             'email' => $request->email,
-            'is_active' => $request->has('is_active') ? true : false,
+            'is_active' => (bool) $request->is_active,
         ];
 
         // Update password hanya jika diisi
