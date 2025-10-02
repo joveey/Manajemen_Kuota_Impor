@@ -13,6 +13,7 @@
     <div class="row">
         
         <!-- Total Users -->
+        @if(Auth::user()->hasPermission('read users'))
         <div class="col-lg-3 col-6">
             <div class="small-box bg-info">
                 <div class="inner">
@@ -27,6 +28,7 @@
                 </a>
             </div>
         </div>
+        @endif
 
         <!-- Total Admins -->
         @if(Auth::user()->isAdmin())
@@ -47,6 +49,7 @@
         @endif
 
         <!-- Total Roles -->
+        @if(Auth::user()->hasPermission('read roles'))
         <div class="col-lg-3 col-6">
             <div class="small-box bg-warning">
                 <div class="inner">
@@ -61,8 +64,10 @@
                 </a>
             </div>
         </div>
+        @endif
 
         <!-- Total Permissions -->
+        @if(Auth::user()->hasPermission('read permissions'))
         <div class="col-lg-3 col-6">
             <div class="small-box bg-danger">
                 <div class="inner">
@@ -77,13 +82,14 @@
                 </a>
             </div>
         </div>
+        @endif
 
     </div>
 
     <div class="row">
         
         <!-- Welcome Card -->
-        <div class="col-lg-8">
+        <div class="col-lg-{{ (Auth::user()->hasPermission('read users') || Auth::user()->hasPermission('read roles')) ? '8' : '12' }}">
             <div class="card">
                 <div class="card-header border-0">
                     <h3 class="card-title">
@@ -109,29 +115,38 @@
 
                     <hr>
 
+                    @if(Auth::user()->hasPermission('read users') || Auth::user()->hasPermission('read roles') || Auth::user()->hasPermission('read permissions'))
                     <h5>Quick Links</h5>
                     <div class="row">
+                        @if(Auth::user()->hasPermission('read users'))
                         <div class="col-md-4">
                             <a href="{{ route('admin.users.index') }}" class="btn btn-primary btn-block">
                                 <i class="fas fa-users"></i> Manage Users
                             </a>
                         </div>
+                        @endif
+                        @if(Auth::user()->hasPermission('read roles'))
                         <div class="col-md-4">
                             <a href="{{ route('admin.roles.index') }}" class="btn btn-info btn-block">
                                 <i class="fas fa-user-tag"></i> Manage Roles
                             </a>
                         </div>
+                        @endif
+                        @if(Auth::user()->hasPermission('read permissions'))
                         <div class="col-md-4">
                             <a href="{{ route('admin.permissions.index') }}" class="btn btn-success btn-block">
                                 <i class="fas fa-key"></i> Manage Permissions
                             </a>
                         </div>
+                        @endif
                     </div>
+                    @endif
                 </div>
             </div>
         </div>
 
         <!-- Users by Role -->
+        @if(Auth::user()->hasPermission('read users') || Auth::user()->hasPermission('read roles'))
         <div class="col-lg-4">
             <div class="card">
                 <div class="card-header border-0">
@@ -166,10 +181,12 @@
                 </div>
             </div>
         </div>
+        @endif
 
     </div>
 
     <!-- Recent Users -->
+    @if(Auth::user()->hasPermission('read users'))
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -178,11 +195,13 @@
                         <i class="fas fa-users mr-1"></i>
                         Recent Users
                     </h3>
+                    @if(Auth::user()->hasPermission('create users'))
                     <div class="card-tools">
                         <a href="{{ route('admin.users.create') }}" class="btn btn-sm btn-primary">
                             <i class="fas fa-user-plus"></i> Add User
                         </a>
                     </div>
+                    @endif
                 </div>
                 <div class="card-body table-responsive p-0">
                     <table class="table table-striped table-valign-middle">
@@ -243,6 +262,7 @@
             </div>
         </div>
     </div>
+    @endif
 
 @endsection
 
