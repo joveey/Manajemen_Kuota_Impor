@@ -1,3 +1,33 @@
+/* Tailwind (optional) */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom Styles */
+body {
+    font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.brand-link {
+    transition: all 0.3s;
+}
+
+.brand-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Sidebar styling */
+.sidebar-dark-primary .nav-sidebar > .nav-item > .nav-link.active {
+    background-color: #007bff;
+    color: #fff;
+}
+
+/* Custom card styling */
+.small-box {
+    border-radius: 0.5rem;
+}
+
+/* Alert styling */
+.alert {
+    border-radius: 0.5rem;
+}
