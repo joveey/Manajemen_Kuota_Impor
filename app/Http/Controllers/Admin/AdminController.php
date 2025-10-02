@@ -13,14 +13,6 @@ use Illuminate\Validation\Rules;
 class AdminController extends Controller
 {
     /**
-     * Apply middleware to ensure user is authenticated
-     */
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-
-    /**
      * Display a listing of admin users.
      */
     public function index()
@@ -202,17 +194,38 @@ class AdminController extends Controller
 
     /**
      * Remove the specified admin from storage.
-     * Note: This should not be directly accessible. Admins must be converted to users first.
      */
     public function destroy(User $admin)
     {
-        // Prevent deleting admin users directly
-        if ($admin->isAdmin()) {
+        // Verify user is admin
+        if (!$admin->isAdmin()) {
             return redirect()->route('admin.admins.index')
-                ->with('error', 'Cannot delete admin directly. Please convert to regular user first.');
+                ->with('error', 'This user is not an admin.');
         }
 
+        // Prevent deleting current user
+        if ($admin->id === auth()->id()) {
+            return redirect()->route('admin.admins.index')
+                ->with('error', 'Cannot delete your own admin account.');
+        }
+
+        // Check if this is the last admin
+        $adminCount = User::whereHas('roles', function ($query) {
+            $query->where('name', 'admin');
+        })->count();
+
+        if ($adminCount <= 1) {
+            return redirect()->route('admin.admins.index')
+                ->with('error', 'Cannot delete the last admin user. System must have at least one admin.');
+        }
+
+        // Detach all roles
+        $admin->roles()->detach();
+        
+        // Delete the user
+        $admin->delete();
+
         return redirect()->route('admin.admins.index')
-            ->with('error', 'This user is not an admin.');
+            ->with('success', 'Admin deleted successfully.');
     }
 }

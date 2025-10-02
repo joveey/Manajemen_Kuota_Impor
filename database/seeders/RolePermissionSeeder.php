@@ -17,59 +17,55 @@ class RolePermissionSeeder extends Seeder
         // Permissions harus dimulai dengan: create, read, update, delete
         $permissions = [
             // Dashboard
-            ['name' => 'read dashboard', 'display_name' => 'View Dashboard', 'group' => 'Dashboard', 'description' => 'View dashboard and statistics'],
+            ['name' => 'read dashboard', 'description' => 'View dashboard and statistics'],
             
             // User Management
-            ['name' => 'read users', 'display_name' => 'View Users', 'group' => 'User Management', 'description' => 'View users list and details'],
-            ['name' => 'create users', 'display_name' => 'Create Users', 'group' => 'User Management', 'description' => 'Create new users'],
-            ['name' => 'update users', 'display_name' => 'Update Users', 'group' => 'User Management', 'description' => 'Edit existing users'],
-            ['name' => 'delete users', 'display_name' => 'Delete Users', 'group' => 'User Management', 'description' => 'Delete users'],
+            ['name' => 'read users', 'description' => 'View users list and details'],
+            ['name' => 'create users', 'description' => 'Create new users'],
+            ['name' => 'update users', 'description' => 'Edit existing users'],
+            ['name' => 'delete users', 'description' => 'Delete users'],
             
             // Role Management
-            ['name' => 'read roles', 'display_name' => 'View Roles', 'group' => 'Role Management', 'description' => 'View roles list and details'],
-            ['name' => 'create roles', 'display_name' => 'Create Roles', 'group' => 'Role Management', 'description' => 'Create new roles'],
-            ['name' => 'update roles', 'display_name' => 'Update Roles', 'group' => 'Role Management', 'description' => 'Edit existing roles'],
-            ['name' => 'delete roles', 'display_name' => 'Delete Roles', 'group' => 'Role Management', 'description' => 'Delete roles'],
+            ['name' => 'read roles', 'description' => 'View roles list and details'],
+            ['name' => 'create roles', 'description' => 'Create new roles'],
+            ['name' => 'update roles', 'description' => 'Edit existing roles'],
+            ['name' => 'delete roles', 'description' => 'Delete roles'],
             
             // Permission Management
-            ['name' => 'read permissions', 'display_name' => 'View Permissions', 'group' => 'Permission Management', 'description' => 'View permissions list and details'],
-            ['name' => 'create permissions', 'display_name' => 'Create Permissions', 'group' => 'Permission Management', 'description' => 'Create new permissions'],
-            ['name' => 'update permissions', 'display_name' => 'Update Permissions', 'group' => 'Permission Management', 'description' => 'Edit existing permissions'],
-            ['name' => 'delete permissions', 'display_name' => 'Delete Permissions', 'group' => 'Permission Management', 'description' => 'Delete permissions'],
+            ['name' => 'read permissions', 'description' => 'View permissions list and details'],
+            ['name' => 'create permissions', 'description' => 'Create new permissions'],
+            ['name' => 'update permissions', 'description' => 'Edit existing permissions'],
+            ['name' => 'delete permissions', 'description' => 'Delete permissions'],
             
             // Quota Management
-            ['name' => 'read quota', 'display_name' => 'View Quota', 'group' => 'Quota Management', 'description' => 'View quota data'],
-            ['name' => 'create quota', 'display_name' => 'Create Quota', 'group' => 'Quota Management', 'description' => 'Create new quota'],
-            ['name' => 'update quota', 'display_name' => 'Update Quota', 'group' => 'Quota Management', 'description' => 'Edit quota data'],
-            ['name' => 'delete quota', 'display_name' => 'Delete Quota', 'group' => 'Quota Management', 'description' => 'Delete quota data'],
+            ['name' => 'read quota', 'description' => 'View quota data'],
+            ['name' => 'create quota', 'description' => 'Create new quota'],
+            ['name' => 'update quota', 'description' => 'Edit quota data'],
+            ['name' => 'delete quota', 'description' => 'Delete quota data'],
             
             // Purchase Orders
-            ['name' => 'read purchase_orders', 'display_name' => 'View Purchase Orders', 'group' => 'Purchase Orders', 'description' => 'View purchase orders'],
-            ['name' => 'create purchase_orders', 'display_name' => 'Create Purchase Orders', 'group' => 'Purchase Orders', 'description' => 'Create new purchase orders'],
-            ['name' => 'update purchase_orders', 'display_name' => 'Update Purchase Orders', 'group' => 'Purchase Orders', 'description' => 'Edit purchase orders'],
-            ['name' => 'delete purchase_orders', 'display_name' => 'Delete Purchase Orders', 'group' => 'Purchase Orders', 'description' => 'Delete purchase orders'],
+            ['name' => 'read purchase_orders', 'description' => 'View purchase orders'],
+            ['name' => 'create purchase_orders', 'description' => 'Create new purchase orders'],
+            ['name' => 'update purchase_orders', 'description' => 'Edit purchase orders'],
+            ['name' => 'delete purchase_orders', 'description' => 'Delete purchase orders'],
             
             // Master Data
-            ['name' => 'read master_data', 'display_name' => 'View Master Data', 'group' => 'Master Data', 'description' => 'View master data'],
-            ['name' => 'create master_data', 'display_name' => 'Create Master Data', 'group' => 'Master Data', 'description' => 'Create new master data'],
-            ['name' => 'update master_data', 'display_name' => 'Update Master Data', 'group' => 'Master Data', 'description' => 'Edit master data'],
-            ['name' => 'delete master_data', 'display_name' => 'Delete Master Data', 'group' => 'Master Data', 'description' => 'Delete master data'],
+            ['name' => 'read master_data', 'description' => 'View master data'],
+            ['name' => 'create master_data', 'description' => 'Create new master data'],
+            ['name' => 'update master_data', 'description' => 'Edit master data'],
+            ['name' => 'delete master_data', 'description' => 'Delete master data'],
             
             // Reports
-            ['name' => 'read reports', 'display_name' => 'View Reports', 'group' => 'Reports', 'description' => 'View reports'],
-            ['name' => 'create reports', 'display_name' => 'Create Reports', 'group' => 'Reports', 'description' => 'Create new reports'],
-            ['name' => 'update reports', 'display_name' => 'Update Reports', 'group' => 'Reports', 'description' => 'Edit reports'],
-            ['name' => 'delete reports', 'display_name' => 'Delete Reports', 'group' => 'Reports', 'description' => 'Delete reports'],
+            ['name' => 'read reports', 'description' => 'View reports'],
+            ['name' => 'create reports', 'description' => 'Create new reports'],
+            ['name' => 'update reports', 'description' => 'Edit reports'],
+            ['name' => 'delete reports', 'description' => 'Delete reports'],
         ];
 
         foreach ($permissions as $permission) {
             Permission::firstOrCreate(
                 ['name' => $permission['name']],
-                [
-                    'display_name' => $permission['display_name'],
-                    'group' => $permission['group'],
-                    'description' => $permission['description']
-                ]
+                ['description' => $permission['description']]
             );
         }
 
@@ -102,6 +98,15 @@ class RolePermissionSeeder extends Seeder
             [
                 'display_name' => 'Manager',
                 'description' => 'Can manage users, roles, and permissions (except admin role)',
+                'is_active' => true
+            ]
+        );
+
+        $viewerRole = Role::firstOrCreate(
+            ['name' => 'viewer'],
+            [
+                'display_name' => 'Viewer',
+                'description' => 'Can only view dashboard and reports (read-only access)',
                 'is_active' => true
             ]
         );
@@ -145,6 +150,19 @@ class RolePermissionSeeder extends Seeder
         ])->pluck('id');
         $managerRole->permissions()->sync($managerPermissions);
         $this->command->info('✅ Manager role: permissions assigned');
+
+        // VIEWER: Can only view dashboard and reports (read-only)
+        // TIDAK bisa manage users, roles, permissions, atau edit data apapun
+        $viewerPermissions = Permission::whereIn('name', [
+            'read dashboard',
+            // Read-only access to data
+            'read quota',
+            'read purchase_orders',
+            'read master_data',
+            'read reports',
+        ])->pluck('id');
+        $viewerRole->permissions()->sync($viewerPermissions);
+        $this->command->info('✅ Viewer role: permissions assigned');
 
         $this->command->info('🎉 Role & Permission seeding completed!');
     }
