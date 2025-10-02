@@ -13,6 +13,14 @@ use Illuminate\Validation\Rules;
 class UserController extends Controller
 {
     /**
+     * Apply middleware to ensure user is authenticated
+     */
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
+    /**
      * Display a listing of users (non-admin users).
      */
     public function index()
@@ -123,14 +131,21 @@ class UserController extends Controller
                 ->with('error', 'Cannot edit admin user here.');
         }
 
-        $validator = Validator::make($request->all(), [
+        // Validasi rules
+        $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
-            'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
             'is_active' => 'boolean',
             'roles' => 'nullable|array',
             'roles.*' => 'exists:roles,id',
-        ]);
+        ];
+
+        // Hanya validasi password jika diisi
+        if ($request->filled('password')) {
+            $rules['password'] = ['required', 'confirmed', Rules\Password::defaults()];
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return redirect()->back()
@@ -144,7 +159,7 @@ class UserController extends Controller
             'is_active' => $request->has('is_active') ? true : false,
         ];
 
-        // Update password jika diisi
+        // Update password hanya jika diisi
         if ($request->filled('password')) {
             $userData['password'] = Hash::make($request->password);
         }
@@ -164,7 +179,7 @@ class UserController extends Controller
         }
 
         return redirect()->route('admin.users.index')
-            ->with('success', 'User updated successfully.');
+            ->with('success', 'User updated successfully. ' . ($request->filled('password') ? 'Password has been changed.' : 'Password unchanged.'));
     }
 
     /**

@@ -16,9 +16,11 @@
             <div class="card-header">
                 <h3 class="card-title">All Permissions</h3>
                 <div class="card-tools">
+                    @if(auth()->user()->hasPermission('create permissions'))
                     <a href="{{ route('admin.permissions.create') }}" class="btn btn-primary btn-sm">
                         <i class="fas fa-plus"></i> Create Permission
                     </a>
+                    @endif
                 </div>
             </div>
             <div class="card-body">
@@ -59,17 +61,21 @@
                                            title="View">
                                             <i class="fas fa-eye"></i>
                                         </a>
+                                        @if(auth()->user()->hasPermission('update permissions'))
                                         <a href="{{ route('admin.permissions.edit', $permission) }}" 
                                            class="btn btn-warning btn-sm" 
                                            title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </a>
+                                        @endif
+                                        @if(auth()->user()->hasPermission('delete permissions'))
                                         <button type="button" 
                                                 class="btn btn-danger btn-sm" 
                                                 onclick="deletePermission({{ $permission->id }})"
                                                 title="Delete">
                                             <i class="fas fa-trash"></i>
                                         </button>
+                                        @endif
                                     </div>
                                     
                                     <form id="delete-form-{{ $permission->id }}" 

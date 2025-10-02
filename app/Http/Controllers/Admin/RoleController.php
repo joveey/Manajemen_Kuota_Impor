@@ -12,6 +12,14 @@ use Illuminate\Support\Facades\Validator;
 class RoleController extends Controller
 {
     /**
+     * Apply middleware to ensure user is authenticated
+     */
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
+    /**
      * Display a listing of the roles.
      */
     public function index()
@@ -28,6 +36,12 @@ class RoleController extends Controller
      */
     public function create()
     {
+        // Check permission
+        if (!auth()->user()->hasPermission('create roles')) {
+            return redirect()->route('admin.roles.index')
+                ->with('error', 'You do not have permission to create roles.');
+        }
+
         $permissions = Permission::orderBy('name', 'asc')->get();
         
         return view('admin.roles.create', compact('permissions'));
@@ -38,6 +52,12 @@ class RoleController extends Controller
      */
     public function store(Request $request)
     {
+        // Check permission
+        if (!auth()->user()->hasPermission('create roles')) {
+            return redirect()->route('admin.roles.index')
+                ->with('error', 'You do not have permission to create roles.');
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:roles,name',
             'description' => 'nullable|string|max:500',
@@ -81,6 +101,18 @@ class RoleController extends Controller
      */
     public function edit(Role $role)
     {
+        // Check permission
+        if (!auth()->user()->hasPermission('update roles')) {
+            return redirect()->route('admin.roles.index')
+                ->with('error', 'You do not have permission to edit roles.');
+        }
+
+        // Prevent non-admin from editing admin role
+        if ($role->name === 'admin' && !auth()->user()->hasRole('admin')) {
+            return redirect()->route('admin.roles.index')
+                ->with('error', 'You cannot modify the Admin role.');
+        }
+
         $permissions = Permission::orderBy('name', 'asc')->get();
         $rolePermissions = $role->permissions->pluck('id')->toArray();
         
@@ -92,6 +124,18 @@ class RoleController extends Controller
      */
     public function update(Request $request, Role $role)
     {
+        // Check permission
+        if (!auth()->user()->hasPermission('update roles')) {
+            return redirect()->route('admin.roles.index')
+                ->with('error', 'You do not have permission to update roles.');
+        }
+
+        // Prevent non-admin from updating admin role
+        if ($role->name === 'admin' && !auth()->user()->hasRole('admin')) {
+            return redirect()->route('admin.roles.index')
+                ->with('error', 'You cannot modify the Admin role.');
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:roles,name,' . $role->id,
             'description' => 'nullable|string|max:500',
@@ -126,10 +170,22 @@ class RoleController extends Controller
      */
     public function destroy(Role $role)
     {
-        // Prevent deleting admin role
+        // Check permission
+        if (!auth()->user()->hasPermission('delete roles')) {
+            return redirect()->route('admin.roles.index')
+                ->with('error', 'You do not have permission to delete roles.');
+        }
+
+        // Prevent deleting admin role (by anyone)
         if ($role->name === 'admin' || $role->name === 'super-admin') {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'Cannot delete system role.');
+        }
+
+        // Prevent non-admin from deleting any role (additional check)
+        if ($role->name === 'admin' && !auth()->user()->hasRole('admin')) {
+            return redirect()->route('admin.roles.index')
+                ->with('error', 'You cannot delete the Admin role.');
         }
 
         // Detach role dari semua users
