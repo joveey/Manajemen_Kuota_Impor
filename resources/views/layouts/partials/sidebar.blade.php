@@ -171,9 +171,12 @@
                 @endcan
 
                 <!-- Administration Section -->
+                @if(Auth::user()->hasPermission('read permissions') || Auth::user()->hasPermission('read roles') || Auth::user()->hasPermission('read users') || Auth::user()->isAdmin())
                 <li class="nav-header">ADMINISTRATION</li>
+                @endif
 
                 <!-- Permissions Management -->
+                @if(Auth::user()->hasPermission('read permissions'))
                 <li class="nav-item">
                     <a href="{{ route('admin.permissions.index') }}" 
                        class="nav-link {{ request()->is('admin/permissions*') ? 'active' : '' }}">
@@ -181,8 +184,10 @@
                         <p>Permissions</p>
                     </a>
                 </li>
+                @endif
 
                 <!-- Roles Management -->
+                @if(Auth::user()->hasPermission('read roles'))
                 <li class="nav-item">
                     <a href="{{ route('admin.roles.index') }}" 
                        class="nav-link {{ request()->is('admin/roles*') ? 'active' : '' }}">
@@ -190,8 +195,10 @@
                         <p>Roles</p>
                     </a>
                 </li>
+                @endif
 
                 <!-- Users Management -->
+                @if(Auth::user()->hasPermission('read users'))
                 <li class="nav-item">
                     <a href="{{ route('admin.users.index') }}" 
                        class="nav-link {{ request()->is('admin/users*') ? 'active' : '' }}">
@@ -199,6 +206,7 @@
                         <p>Users</p>
                     </a>
                 </li>
+                @endif
 
                 <!-- Admins Management -->
                 @if(Auth::user()->isAdmin())

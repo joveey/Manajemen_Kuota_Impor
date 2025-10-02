@@ -13,14 +13,6 @@ use Illuminate\Support\Facades\Validator;
 class PermissionController extends Controller
 {
     /**
-     * Apply middleware to ensure user is authenticated
-     */
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-
-    /**
      * Display a listing of the permissions.
      */
     public function index()

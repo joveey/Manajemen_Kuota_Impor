@@ -13,14 +13,6 @@ use Illuminate\Validation\Rules;
 class UserController extends Controller
 {
     /**
-     * Apply middleware to ensure user is authenticated
-     */
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-
-    /**
      * Display a listing of users (non-admin users).
      */
     public function index()
