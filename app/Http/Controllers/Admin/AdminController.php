@@ -46,7 +46,7 @@ class AdminController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'is_active' => 'boolean',
+            'is_active' => 'nullable|boolean',
             'roles' => 'nullable|array',
             'roles.*' => 'exists:roles,id',
         ]);
@@ -61,7 +61,7 @@ class AdminController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'is_active' => $request->has('is_active') ? true : false,
+            'is_active' => $request->input('is_active', 0) == 1,
         ]);
 
         // Assign admin role
@@ -127,7 +127,7 @@ class AdminController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $admin->id,
             'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
-            'is_active' => 'boolean',
+            'is_active' => 'nullable|boolean',
             'roles' => 'nullable|array',
             'roles.*' => 'exists:roles,id',
         ]);
@@ -141,7 +141,7 @@ class AdminController extends Controller
         $userData = [
             'name' => $request->name,
             'email' => $request->email,
-            'is_active' => $request->has('is_active') ? true : false,
+            'is_active' => $request->input('is_active', 0) == 1,
         ];
 
         // Update password jika diisi
