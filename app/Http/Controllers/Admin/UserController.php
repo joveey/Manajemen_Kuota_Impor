@@ -17,10 +17,11 @@ class UserController extends Controller
      */
     public function index()
     {
-        // Get users yang bukan admin
+        // Get users yang bukan admin dan bukan user yang sedang login
         $users = User::whereDoesntHave('roles', function ($query) {
             $query->where('name', 'admin');
         })
+        ->where('id', '!=', auth()->id()) // Exclude current logged-in user
         ->orderBy('created_at', 'desc')
         ->paginate(10);
         

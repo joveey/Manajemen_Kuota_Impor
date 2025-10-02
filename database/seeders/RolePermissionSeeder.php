@@ -137,8 +137,8 @@ class RolePermissionSeeder extends Seeder
         $editorRole->permissions()->sync($editorPermissions);
         $this->command->info('✅ Editor role: permissions assigned');
 
-        // MANAGER: Can manage users (change role without password, edit, delete)
-        // Can manage roles & permissions (except admin role)
+        // MANAGER: Can manage users, roles & permissions (except admin role)
+        // + Can VIEW data (Quota, Purchase Orders, Master Data, Reports)
         $managerPermissions = Permission::whereIn('name', [
             'read dashboard',
             // User Management
@@ -147,6 +147,11 @@ class RolePermissionSeeder extends Seeder
             'read roles', 'create roles', 'update roles', 'delete roles',
             // Permission Management
             'read permissions', 'create permissions', 'update permissions', 'delete permissions',
+            // View Data (read-only)
+            'read quota',
+            'read purchase_orders',
+            'read master_data',
+            'read reports',
         ])->pluck('id');
         $managerRole->permissions()->sync($managerPermissions);
         $this->command->info('✅ Manager role: permissions assigned');
