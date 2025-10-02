@@ -16,9 +16,11 @@
             <div class="card-header">
                 <h3 class="card-title">All Roles</h3>
                 <div class="card-tools">
+                    @if(auth()->user()->hasPermission('create roles'))
                     <a href="{{ route('admin.roles.create') }}" class="btn btn-primary btn-sm">
                         <i class="fas fa-plus"></i> Create Role
                     </a>
+                    @endif
                 </div>
             </div>
             <div class="card-body">
@@ -58,12 +60,14 @@
                                            title="View">
                                             <i class="fas fa-eye"></i>
                                         </a>
+                                        @if(auth()->user()->hasPermission('update roles'))
                                         <a href="{{ route('admin.roles.edit', $role) }}" 
                                            class="btn btn-warning btn-sm" 
                                            title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        @if($role->name !== 'admin' && $role->name !== 'super-admin')
+                                        @endif
+                                        @if(auth()->user()->hasPermission('delete roles') && $role->name !== 'admin' && $role->name !== 'super-admin')
                                         <button type="button" 
                                                 class="btn btn-danger btn-sm" 
                                                 onclick="deleteRole({{ $role->id }})"

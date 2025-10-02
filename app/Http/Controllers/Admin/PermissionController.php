@@ -5,10 +5,21 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Permission;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth; 
 use Illuminate\Support\Facades\Validator;
+
+
 
 class PermissionController extends Controller
 {
+    /**
+     * Apply middleware to ensure user is authenticated
+     */
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
     /**
      * Display a listing of the permissions.
      */
@@ -24,6 +35,12 @@ class PermissionController extends Controller
      */
     public function create()
     {
+        // Check permission
+        if (!Auth::user()->hasPermission('create permissions')) {
+            return redirect()->route('admin.permissions.index')
+                ->with('error', 'You do not have permission to create permissions.');
+        }
+
         return view('admin.permissions.create');
     }
 
@@ -32,6 +49,12 @@ class PermissionController extends Controller
      */
     public function store(Request $request)
     {
+        // Check permission
+        if (!Auth::user()->hasPermission('create permissions')) {
+            return redirect()->route('admin.permissions.index')
+                ->with('error', 'You do not have permission to create permissions.');
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:permissions,name',
             'description' => 'nullable|string|max:500',
@@ -84,6 +107,12 @@ class PermissionController extends Controller
      */
     public function edit(Permission $permission)
     {
+        // Check permission
+        if (!Auth::user()->hasPermission('update permissions')) {
+            return redirect()->route('admin.permissions.index')
+                ->with('error', 'You do not have permission to edit permissions.');
+        }
+
         return view('admin.permissions.edit', compact('permission'));
     }
 
@@ -92,6 +121,12 @@ class PermissionController extends Controller
      */
     public function update(Request $request, Permission $permission)
     {
+        // Check permission
+        if (!Auth::user()->hasPermission('update permissions')) {
+            return redirect()->route('admin.permissions.index')
+                ->with('error', 'You do not have permission to update permissions.');
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:permissions,name,' . $permission->id,
             'description' => 'nullable|string|max:500',
@@ -134,6 +169,12 @@ class PermissionController extends Controller
      */
     public function destroy(Permission $permission)
     {
+        // Check permission
+        if (!Auth::user()->hasPermission('delete permissions')) {
+            return redirect()->route('admin.permissions.index')
+                ->with('error', 'You do not have permission to delete permissions.');
+        }
+
         // Detach permission dari semua roles sebelum dihapus
         $permission->roles()->detach();
         
