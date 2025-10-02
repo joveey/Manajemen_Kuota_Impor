@@ -12,55 +12,55 @@ class UserSeeder extends Seeder
     {
         // ADMIN USER
         $admin = User::firstOrCreate(
-            ['email' => 'admin@quotamonitor.com'],
+            ['email' => 'admin@example.com'],
             [
                 'name' => 'Super Administrator',
-                'password' => Hash::make('admin123'),
+                'password' => Hash::make('password'),
                 'is_active' => true,
                 'email_verified_at' => now(),
             ]
         );
         $admin->assignRole('admin');
-        $this->command->info('✅ Admin user created: admin@quotamonitor.com / admin123');
+        $this->command->info('✅ Admin user created: admin@example.com / password');
 
-        // IMPORT MANAGER USER
-        $importManager = User::firstOrCreate(
-            ['email' => 'irman@quotamonitor.com'],
+        // MANAGER USER
+        $manager = User::firstOrCreate(
+            ['email' => 'manager@example.com'],
             [
-                'name' => 'Irman (Import Manager)',
-                'password' => Hash::make('irman123'),
+                'name' => 'Manager User',
+                'password' => Hash::make('password'),
                 'is_active' => true,
                 'email_verified_at' => now(),
             ]
         );
-        $importManager->assignRole('import_manager');
-        $this->command->info('✅ Import Manager created: irman@quotamonitor.com / irman123');
+        $manager->assignRole('manager');
+        $this->command->info('✅ Manager user created: manager@example.com / password');
 
-        // MARKETING USER
-        $marketing = User::firstOrCreate(
-            ['email' => 'marketing@quotamonitor.com'],
+        // EDITOR USER
+        $editor = User::firstOrCreate(
+            ['email' => 'editor@example.com'],
             [
-                'name' => 'Marketing User',
-                'password' => Hash::make('marketing123'),
+                'name' => 'Editor User',
+                'password' => Hash::make('password'),
                 'is_active' => true,
                 'email_verified_at' => now(),
             ]
         );
-        $marketing->assignRole('marketing');
-        $this->command->info('✅ Marketing user created: marketing@quotamonitor.com / marketing123');
+        $editor->assignRole('editor');
+        $this->command->info('✅ Editor user created: editor@example.com / password');
 
         // VIEWER USER
         $viewer = User::firstOrCreate(
-            ['email' => 'viewer@quotamonitor.com'],
+            ['email' => 'viewer@example.com'],
             [
                 'name' => 'Viewer User',
-                'password' => Hash::make('viewer123'),
+                'password' => Hash::make('password'),
                 'is_active' => true,
                 'email_verified_at' => now(),
             ]
         );
         $viewer->assignRole('viewer');
-        $this->command->info('✅ Viewer user created: viewer@quotamonitor.com / viewer123');
+        $this->command->info('✅ Viewer user created: viewer@example.com / password');
 
         $this->command->info('🎉 User seeding completed!');
     }

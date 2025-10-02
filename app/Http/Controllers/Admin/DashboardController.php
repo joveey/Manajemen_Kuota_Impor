@@ -16,7 +16,17 @@ class DashboardController extends Controller
         $totalUsers = User::count();
         $activeUsers = User::where('is_active', true)->count();
         $inactiveUsers = User::where('is_active', false)->count();
-        $totalRoles = Role::where('is_active', true)->count();
+        
+        // Count admins and regular users
+        $totalAdmins = User::whereHas('roles', function ($query) {
+            $query->where('name', 'admin');
+        })->count();
+        
+        $totalRegularUsers = User::whereDoesntHave('roles', function ($query) {
+            $query->where('name', 'admin');
+        })->count();
+        
+        $totalRoles = Role::count();
         $totalPermissions = Permission::count();
 
         // Recent users
@@ -32,6 +42,8 @@ class DashboardController extends Controller
             'totalUsers',
             'activeUsers',
             'inactiveUsers',
+            'totalAdmins',
+            'totalRegularUsers',
             'totalRoles',
             'totalPermissions',
             'recentUsers',

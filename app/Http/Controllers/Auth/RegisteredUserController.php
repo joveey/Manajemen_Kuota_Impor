@@ -39,7 +39,11 @@ class RegisteredUserController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'is_active' => true, // Set user as active
         ]);
+
+        // Auto-assign "viewer" role to new registered users
+        $user->assignRole('viewer');
 
         event(new Registered($user));
 

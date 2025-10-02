@@ -1,13 +1,4 @@
-/* Import Font Awesome */
-@import '@fortawesome/fontawesome-free/css/all.min.css';
-
-/* Import Bootstrap */
-@import 'bootstrap/dist/css/bootstrap.min.css';
-
-/* Import AdminLTE */
-@import 'admin-lte/dist/css/adminlte.min.css';
-
-/* Tailwind (jika masih mau pakai) */
+/* Tailwind (optional) */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

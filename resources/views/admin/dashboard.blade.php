@@ -13,7 +13,6 @@
     <div class="row">
         
         <!-- Total Users -->
-        @can('users.view')
         <div class="col-lg-3 col-6">
             <div class="small-box bg-info">
                 <div class="inner">
@@ -23,51 +22,47 @@
                 <div class="icon">
                     <i class="fas fa-users"></i>
                 </div>
-                <a href="#" class="small-box-footer">
+                <a href="{{ route('admin.users.index') }}" class="small-box-footer">
                     More info <i class="fas fa-arrow-circle-right"></i>
                 </a>
             </div>
         </div>
-        @endcan
 
-        <!-- Active Users -->
-        @can('users.view')
+        <!-- Total Admins -->
+        @if(Auth::user()->isAdmin())
         <div class="col-lg-3 col-6">
             <div class="small-box bg-success">
                 <div class="inner">
-                    <h3>{{ $activeUsers }}</h3>
-                    <p>Active Users</p>
+                    <h3>{{ $totalAdmins }}</h3>
+                    <p>Administrators</p>
                 </div>
                 <div class="icon">
-                    <i class="fas fa-user-check"></i>
+                    <i class="fas fa-user-shield"></i>
                 </div>
-                <a href="#" class="small-box-footer">
+                <a href="{{ route('admin.admins.index') }}" class="small-box-footer">
                     More info <i class="fas fa-arrow-circle-right"></i>
                 </a>
             </div>
         </div>
-        @endcan
+        @endif
 
         <!-- Total Roles -->
-        @can('roles.view')
         <div class="col-lg-3 col-6">
             <div class="small-box bg-warning">
                 <div class="inner">
                     <h3>{{ $totalRoles }}</h3>
-                    <p>Active Roles</p>
+                    <p>Roles</p>
                 </div>
                 <div class="icon">
                     <i class="fas fa-user-tag"></i>
                 </div>
-                <a href="#" class="small-box-footer">
+                <a href="{{ route('admin.roles.index') }}" class="small-box-footer">
                     More info <i class="fas fa-arrow-circle-right"></i>
                 </a>
             </div>
         </div>
-        @endcan
 
         <!-- Total Permissions -->
-        @can('permissions.view')
         <div class="col-lg-3 col-6">
             <div class="small-box bg-danger">
                 <div class="inner">
@@ -77,12 +72,11 @@
                 <div class="icon">
                     <i class="fas fa-key"></i>
                 </div>
-                <a href="#" class="small-box-footer">
+                <a href="{{ route('admin.permissions.index') }}" class="small-box-footer">
                     More info <i class="fas fa-arrow-circle-right"></i>
                 </a>
             </div>
         </div>
-        @endcan
 
     </div>
 
@@ -101,7 +95,7 @@
                     <p>Hello, <strong>{{ Auth::user()->name }}</strong>!</p>
                     <p>Your roles: 
                         @foreach(Auth::user()->roles as $role)
-                            <span class="badge badge-info">{{ $role->display_name }}</span>
+                            <span class="badge badge-info">{{ $role->name }}</span>
                         @endforeach
                     </p>
                     <p>Last login: 
@@ -117,36 +111,27 @@
 
                     <h5>Quick Links</h5>
                     <div class="row">
-                        @can('quota.create')
                         <div class="col-md-4">
-                            <a href="#" class="btn btn-primary btn-block">
-                                <i class="fas fa-plus"></i> Create Quota
+                            <a href="{{ route('admin.users.index') }}" class="btn btn-primary btn-block">
+                                <i class="fas fa-users"></i> Manage Users
                             </a>
                         </div>
-                        @endcan
-
-                        @can('po.import')
                         <div class="col-md-4">
-                            <a href="#" class="btn btn-info btn-block">
-                                <i class="fas fa-file-import"></i> Import PO
+                            <a href="{{ route('admin.roles.index') }}" class="btn btn-info btn-block">
+                                <i class="fas fa-user-tag"></i> Manage Roles
                             </a>
                         </div>
-                        @endcan
-
-                        @can('reports.view')
                         <div class="col-md-4">
-                            <a href="#" class="btn btn-success btn-block">
-                                <i class="fas fa-chart-bar"></i> View Reports
+                            <a href="{{ route('admin.permissions.index') }}" class="btn btn-success btn-block">
+                                <i class="fas fa-key"></i> Manage Permissions
                             </a>
                         </div>
-                        @endcan
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Users by Role -->
-        @can('users.view')
         <div class="col-lg-4">
             <div class="card">
                 <div class="card-header border-0">
@@ -168,7 +153,7 @@
                                 @foreach($usersByRole as $role)
                                 <tr>
                                     <td>
-                                        <span class="badge badge-info">{{ $role->display_name }}</span>
+                                        <span class="badge badge-info">{{ $role->name }}</span>
                                     </td>
                                     <td class="text-right">
                                         <strong>{{ $role->users_count }}</strong>
@@ -181,12 +166,10 @@
                 </div>
             </div>
         </div>
-        @endcan
 
     </div>
 
     <!-- Recent Users -->
-    @can('users.view')
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -196,7 +179,7 @@
                         Recent Users
                     </h3>
                     <div class="card-tools">
-                        <a href="#" class="btn btn-sm btn-primary">
+                        <a href="{{ route('admin.users.create') }}" class="btn btn-sm btn-primary">
                             <i class="fas fa-user-plus"></i> Add User
                         </a>
                     </div>
@@ -224,7 +207,7 @@
                                 <td>{{ $user->email }}</td>
                                 <td>
                                     @foreach($user->roles as $role)
-                                        <span class="badge badge-info badge-sm">{{ $role->display_name }}</span>
+                                        <span class="badge badge-info badge-sm">{{ $role->name }}</span>
                                     @endforeach
                                 </td>
                                 <td>
@@ -242,9 +225,15 @@
                                     @endif
                                 </td>
                                 <td>
-                                    <a href="#" class="btn btn-sm btn-primary">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
+                                    @if($user->isAdmin())
+                                        <a href="{{ route('admin.admins.show', $user) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    @else
+                                        <a href="{{ route('admin.users.show', $user) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    @endif
                                 </td>
                             </tr>
                             @endforeach
@@ -254,7 +243,6 @@
             </div>
         </div>
     </div>
-    @endcan
 
 @endsection
 

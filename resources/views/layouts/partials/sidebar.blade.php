@@ -30,7 +30,6 @@
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
                 
                 <!-- Dashboard -->
-                @can('dashboard.view')
                 <li class="nav-item">
                     <a href="{{ route('dashboard') }}" 
                        class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
@@ -38,7 +37,6 @@
                         <p>Dashboard</p>
                     </a>
                 </li>
-                @endcan
 
                 <!-- Quota Management -->
                 @can('quota.view')
@@ -173,39 +171,45 @@
                 @endcan
 
                 <!-- Administration Section -->
-                @canany(['users.view', 'roles.view'])
                 <li class="nav-header">ADMINISTRATION</li>
-                @endcanany
 
-                <!-- User Management -->
-                @can('users.view')
+                <!-- Permissions Management -->
                 <li class="nav-item">
-                    <a href="#" class="nav-link {{ request()->is('users*') ? 'active' : '' }}">
-                        <i class="nav-icon fas fa-users"></i>
-                        <p>User Management</p>
-                    </a>
-                </li>
-                @endcan
-
-                <!-- Role Management -->
-                @can('roles.view')
-                <li class="nav-item">
-                    <a href="#" class="nav-link {{ request()->is('roles*') ? 'active' : '' }}">
-                        <i class="nav-icon fas fa-user-tag"></i>
-                        <p>Role Management</p>
-                    </a>
-                </li>
-                @endcan
-
-                <!-- Permission Management -->
-                @can('permissions.view')
-                <li class="nav-item">
-                    <a href="#" class="nav-link {{ request()->is('permissions*') ? 'active' : '' }}">
+                    <a href="{{ route('admin.permissions.index') }}" 
+                       class="nav-link {{ request()->is('admin/permissions*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-key"></i>
                         <p>Permissions</p>
                     </a>
                 </li>
-                @endcan
+
+                <!-- Roles Management -->
+                <li class="nav-item">
+                    <a href="{{ route('admin.roles.index') }}" 
+                       class="nav-link {{ request()->is('admin/roles*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-user-tag"></i>
+                        <p>Roles</p>
+                    </a>
+                </li>
+
+                <!-- Users Management -->
+                <li class="nav-item">
+                    <a href="{{ route('admin.users.index') }}" 
+                       class="nav-link {{ request()->is('admin/users*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-users"></i>
+                        <p>Users</p>
+                    </a>
+                </li>
+
+                <!-- Admins Management -->
+                @if(Auth::user()->isAdmin())
+                <li class="nav-item">
+                    <a href="{{ route('admin.admins.index') }}" 
+                       class="nav-link {{ request()->is('admin/admins*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-user-shield"></i>
+                        <p>Admins</p>
+                    </a>
+                </li>
+                @endif
 
                 <!-- Divider -->
                 <li class="nav-header">SYSTEM</li>
