@@ -7,6 +7,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+/**
+ * @method bool hasRole(string|array $roles)
+ * @method bool hasPermission(string $permissionName)
+ * @method void assignRole(\App\Models\Role|string $role)
+ * @method void removeRole(\App\Models\Role|string $role)
+ * @method bool isAdmin()
+ * @method void syncRoles(array $roleIds)
+ */
 class User extends Authenticatable
 {
     use HasFactory, Notifiable;
@@ -29,7 +37,6 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
-            'password' => 'hashed',
             'is_active' => 'boolean',
         ];
     }

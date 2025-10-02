@@ -13,6 +13,14 @@ use Illuminate\Validation\Rules;
 class AdminController extends Controller
 {
     /**
+     * Apply middleware to ensure user is authenticated
+     */
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
+    /**
      * Display a listing of admin users.
      */
     public function index()
