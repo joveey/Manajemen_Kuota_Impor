@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 
 // Redirect root to login or dashboard
 Route::get('/', function () {
-    return auth::check() 
+    return Auth::check() 
         ? redirect()->route('dashboard') 
         : redirect()->route('login');
 });
