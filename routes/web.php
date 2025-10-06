@@ -105,7 +105,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Rute Pengiriman (Shipment)
     Route::get('shipment', function () {
         return view('admin.shipment.index');
-    })->name('admins.shipment.index');
+    })->name('shipment.index');
 
 });
 
