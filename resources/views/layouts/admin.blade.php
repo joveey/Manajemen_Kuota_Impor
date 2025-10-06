@@ -17,6 +17,18 @@
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css">
+    
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    
+    <!-- Flatpickr CSS (for date picker) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
     <style>
         :root {
             --primary-color: #5D87FF;
@@ -207,6 +219,11 @@
             background: #F6F9FC;
         }
 
+        .submenu-link.active {
+            color: var(--primary-color);
+            background: #ECF2FF;
+        }
+
         .submenu-link::before {
             content: '';
             width: 5px;
@@ -293,42 +310,6 @@
             color: #C5D3E8;
         }
 
-        /* Header Tabs */
-        .header-tabs {
-            display: flex;
-            gap: 8px;
-        }
-
-        .header-tab {
-            padding: 8px 16px;
-            border: 1px solid #e5eaef;
-            border-radius: 8px;
-            background: white;
-            color: #5A6A85;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s ease;
-        }
-
-        .header-tab:hover {
-            background: #F6F9FC;
-            color: #2A3547;
-        }
-
-        .header-tab.active {
-            background: #ECF2FF;
-            color: var(--primary-color);
-            border-color: var(--primary-color);
-        }
-
-        .header-tab i {
-            font-size: 16px;
-        }
-
         /* Header Right */
         .header-right {
             display: flex;
@@ -379,6 +360,7 @@
             align-items: center;
             gap: 8px;
             transition: all 0.2s ease;
+            cursor: pointer;
         }
 
         .btn-add:hover {
@@ -425,6 +407,9 @@
             border-bottom: 1px solid #e5eaef;
             padding: 20px 24px;
             border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .card-title {
@@ -449,6 +434,92 @@
 
         .alert i {
             margin-right: 8px;
+        }
+
+        /* DataTables Custom Styling */
+        .dataTables_wrapper .dataTables_length select,
+        .dataTables_wrapper .dataTables_filter input {
+            border: 1px solid #e5eaef;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_filter {
+            margin-bottom: 1rem;
+        }
+
+        table.dataTable thead th {
+            border-bottom: 2px solid #e5eaef;
+            font-weight: 600;
+            color: #2A3547;
+            padding: 12px;
+        }
+
+        table.dataTable tbody td {
+            padding: 12px;
+            vertical-align: middle;
+        }
+
+        /* Select2 Custom Styling */
+        .select2-container--bootstrap-5 .select2-selection {
+            border: 1px solid #e5eaef;
+            border-radius: 6px;
+            min-height: 38px;
+        }
+
+        /* Flatpickr Custom Styling */
+        .flatpickr-input {
+            border: 1px solid #e5eaef;
+            border-radius: 6px;
+            padding: 8px 12px;
+        }
+
+        /* Form Controls */
+        .form-control, .form-select {
+            border: 1px solid #e5eaef;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(93, 135, 255, 0.15);
+        }
+
+        .form-label {
+            font-weight: 500;
+            color: #2A3547;
+            margin-bottom: 8px;
+        }
+
+        /* Buttons */
+        .btn {
+            border-radius: 6px;
+            padding: 8px 16px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background: #4570EA;
+            border-color: #4570EA;
+        }
+
+        /* Badge Styles */
+        .badge {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
         }
 
         /* Responsive */
@@ -493,75 +564,59 @@
         <!-- Menu -->
         <nav class="sidebar-menu">
             <ul style="list-style: none; padding: 0; margin: 0;">
+                <!-- Dashboard -->
                 <li class="menu-item">
                     <a href="{{ route('dashboard') }}" class="menu-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                         <i class="fas fa-th-large"></i>
-                        <span>Dashboards</span>
+                        <span>Dashboard</span>
                     </a>
                 </li>
 
-                @can('read quota')
-                <li class="menu-item {{ request()->is('quota*') ? 'menu-open' : '' }}">
-                    <a href="#" class="menu-link" onclick="toggleSubmenu(this); return false;">
-                        <i class="fas fa-chart-pie"></i>
-                        <span>Quota Management</span>
-                        <i class="fas fa-chevron-right menu-arrow"></i>
-                    </a>
-                    <ul class="menu-submenu">
-                        <li><a href="#" class="submenu-link">Quota List</a></li>
-                        @can('create quota')
-                        <li><a href="#" class="submenu-link">Create Quota</a></li>
-                        @endcan
-                    </ul>
-                </li>
-                @endcan
+                <!-- MANAJEMEN KUOTA IMPOR Section -->
+                <div class="menu-section-divider"></div>
+                <li class="menu-section">MANAJEMEN KUOTA IMPOR</li>
 
-                @can('read purchase_orders')
+                <!-- Master Data -->
                 <li class="menu-item">
-                    <a href="#" class="menu-link" onclick="toggleSubmenu(this); return false;">
-                        <i class="fas fa-shopping-cart"></i>
-                        <span>Purchase Orders</span>
-                        <i class="fas fa-chevron-right menu-arrow"></i>
-                    </a>
-                    <ul class="menu-submenu">
-                        <li><a href="#" class="submenu-link">PO List</a></li>
-                        @can('create purchase_orders')
-                        <li><a href="#" class="submenu-link">Create PO</a></li>
-                        @endcan
-                    </ul>
-                </li>
-                @endcan
-
-                @can('read master_data')
-                <li class="menu-item">
-                    <a href="#" class="menu-link" onclick="toggleSubmenu(this); return false;">
+                    <a href="/admin/master-data" class="menu-link {{ request()->is('admin/master-data*') ? 'active' : '' }}">
                         <i class="fas fa-database"></i>
                         <span>Master Data</span>
-                        <i class="fas fa-chevron-right menu-arrow"></i>
                     </a>
-                    <ul class="menu-submenu">
-                        <li><a href="#" class="submenu-link">Products</a></li>
-                        <li><a href="#" class="submenu-link">Suppliers</a></li>
-                        <li><a href="#" class="submenu-link">Categories</a></li>
-                    </ul>
                 </li>
-                @endcan
 
-                @can('read reports')
+                <!-- Manajemen Kuota -->
                 <li class="menu-item">
-                    <a href="#" class="menu-link" onclick="toggleSubmenu(this); return false;">
-                        <i class="fas fa-chart-bar"></i>
-                        <span>Reports</span>
-                        <i class="fas fa-chevron-right menu-arrow"></i>
+                    <a href="/admin/kuota" class="menu-link {{ request()->is('admin/kuota*') ? 'active' : '' }}">
+                        <i class="fas fa-chart-pie"></i>
+                        <span>Manajemen Kuota</span>
                     </a>
-                    <ul class="menu-submenu">
-                        <li><a href="#" class="submenu-link">Quota Reports</a></li>
-                        <li><a href="#" class="submenu-link">PO Reports</a></li>
-                        <li><a href="#" class="submenu-link">Analytics</a></li>
-                    </ul>
                 </li>
-                @endcan
 
+                <!-- Input Order (PO) -->
+                <li class="menu-item">
+                    <a href="/admin/purchase-order/create" class="menu-link {{ request()->is('admin/purchase-order/create') ? 'active' : '' }}">
+                        <i class="fas fa-file-invoice"></i>
+                        <span>Input Order (PO)</span>
+                    </a>
+                </li>
+
+                <!-- Daftar Purchase Order -->
+                <li class="menu-item">
+                    <a href="/admin/purchase-order" class="menu-link {{ request()->is('admin/purchase-order') || request()->is('admin/purchase-order/index') ? 'active' : '' }}">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Daftar Purchase Order</span>
+                    </a>
+                </li>
+
+                <!-- Pengiriman (Shipment) -->
+                <li class="menu-item">
+                    <a href="/admin/shipment" class="menu-link {{ request()->is('admin/shipment*') ? 'active' : '' }}">
+                        <i class="fas fa-shipping-fast"></i>
+                        <span>Pengiriman (Shipment)</span>
+                    </a>
+                </li>
+
+                <!-- ADMINISTRATION Section -->
                 @if(Auth::user()->hasPermission('read permissions') || Auth::user()->hasPermission('read roles') || Auth::user()->hasPermission('read users') || Auth::user()->isAdmin())
                 <div class="menu-section-divider"></div>
                 <li class="menu-section">ADMINISTRATION</li>
@@ -603,6 +658,7 @@
                 </li>
                 @endif
 
+                <!-- SYSTEM Section -->
                 <div class="menu-section-divider"></div>
                 <li class="menu-section">SYSTEM</li>
 
@@ -616,7 +672,7 @@
                 @endif
 
                 <li class="menu-item">
-                    <a href="{{ route('profile.edit') }}" class="menu-link">
+                    <a href="{{ route('profile.edit') }}" class="menu-link {{ request()->is('profile*') ? 'active' : '' }}">
                         <i class="fas fa-cog"></i>
                         <span>Settings</span>
                     </a>
@@ -645,14 +701,11 @@
                         <i class="far fa-comments"></i>
                         <span class="badge"></span>
                     </a>
-                    <button class="btn-add" onclick="window.location='{{ route('admin.users.create') }}'">
-                        <i class="fas fa-plus"></i>
-                        <span>Add</span>
-                    </button>
                     <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=5D87FF&color=fff" 
                          alt="User" 
                          class="user-avatar"
-                         onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                         onclick="event.preventDefault(); document.getElementById('logout-form').submit();"
+                         title="Click to logout">
                     <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
                         @csrf
                     </form>
@@ -662,53 +715,129 @@
 
         <!-- Content Area -->
         <main class="content-area">
-            @if(session('success'))
-                <div class="alert alert-success">
-                    <i class="fas fa-check-circle"></i> {{ session('success') }}
-                </div>
-            @endif
-
-            @if(session('error'))
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
-                </div>
-            @endif
-
-            @if(session('warning'))
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i> {{ session('warning') }}
-                </div>
-            @endif
-
-            @if(session('info'))
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i> {{ session('info') }}
-                </div>
-            @endif
-
-            @if($errors->any())
-                <div class="alert alert-danger">
-                    <strong><i class="fas fa-ban"></i> Error!</strong>
-                    <ul class="mb-0">
-                        @foreach($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
             @yield('content')
         </main>
     </div>
 
-    <!-- Scripts -->
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    
+    <!-- Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    
+    <!-- Global Scripts -->
     <script>
+        // Toggle Submenu
         function toggleSubmenu(element) {
             const menuItem = element.parentElement;
             menuItem.classList.toggle('menu-open');
         }
+
+        // Global SweetAlert2 Notification Handler
+        @if(session('success'))
+            Swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: '{{ session('success') }}',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true
+            });
+        @endif
+
+        @if(session('error'))
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: '{{ session('error') }}',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true
+            });
+        @endif
+
+        @if(session('warning'))
+            Swal.fire({
+                icon: 'warning',
+                title: 'Warning!',
+                text: '{{ session('warning') }}',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true
+            });
+        @endif
+
+        @if(session('info'))
+            Swal.fire({
+                icon: 'info',
+                title: 'Info',
+                text: '{{ session('info') }}',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true
+            });
+        @endif
+
+        @if($errors->any())
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error!',
+                html: '<ul style="text-align: left;">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>',
+                confirmButtonColor: '#d33'
+            });
+        @endif
+
+        // Initialize Select2
+        $(document).ready(function() {
+            if ($.fn.select2) {
+                $('.select2').select2({
+                    theme: 'bootstrap-5',
+                    width: '100%'
+                });
+            }
+        });
+
+        // Initialize Flatpickr
+        $(document).ready(function() {
+            if (typeof flatpickr !== 'undefined') {
+                flatpickr('.datepicker', {
+                    dateFormat: 'Y-m-d',
+                    allowInput: true
+                });
+            }
+        });
     </script>
+    
     @stack('scripts')
 </body>
 </html>
