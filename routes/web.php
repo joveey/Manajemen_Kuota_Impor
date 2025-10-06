@@ -33,6 +33,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
+<<<<<<< Updated upstream
     // Users Management - Requires user permissions
     Route::middleware(['permission:read users'])->group(function () {
         Route::get('users', [UserController::class, 'index'])->name('users.index');
@@ -92,6 +93,16 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::middleware(['permission:delete permissions'])->group(function () {
         Route::delete('permissions/{permission}', [PermissionController::class, 'destroy'])->name('permissions.destroy');
     });
+=======
+    // Manajemen Pengguna - Membutuhkan izin pengguna
+    Route::resource('users', UserController::class);
+    
+    // Manajemen Peran - Membutuhkan izin peran
+    Route::resource('roles', RoleController::class);
+    
+    // Manajemen Izin - Membutuhkan izin
+    Route::resource('permissions', PermissionController::class);
+>>>>>>> Stashed changes
     
     // Admins Management - Only for admin role
     Route::middleware(['role:admin'])->group(function () {
