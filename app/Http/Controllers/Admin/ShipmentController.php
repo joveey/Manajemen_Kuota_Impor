@@ -1,0 +1,99 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\PurchaseOrder;
+use App\Models\Shipment;
+use App\Services\PurchaseOrderService;
+use Illuminate\Contracts\Auth\Factory as AuthFactory;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+class ShipmentController extends Controller
+{
+    public function __construct(
+        private readonly PurchaseOrderService $service,
+        private readonly AuthFactory $auth
+    ) {
+    }
+
+    public function index(): View
+    {
+        $shipments = Shipment::query()
+            ->with(['purchaseOrder.product'])
+            ->latest('ship_date')
+            ->get();
+
+        $summary = [
+            'total' => $shipments->count(),
+            'in_transit' => $shipments->whereIn('status', [Shipment::STATUS_IN_TRANSIT, Shipment::STATUS_PARTIAL])->count(),
+            'delivered' => $shipments->where('status', Shipment::STATUS_DELIVERED)->count(),
+            'quantity_total' => $shipments->sum('quantity_planned'),
+        ];
+
+        return view('admin.shipment.index', compact('shipments', 'summary'));
+    }
+
+    public function create(): View
+    {
+        $purchaseOrders = PurchaseOrder::query()
+            ->with('product')
+            ->whereIn('status', [
+                PurchaseOrder::STATUS_ORDERED,
+                PurchaseOrder::STATUS_IN_TRANSIT,
+                PurchaseOrder::STATUS_PARTIAL,
+            ])
+            ->orderBy('order_date', 'desc')
+            ->get();
+
+        return view('admin.shipment.create', compact('purchaseOrders'));
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'purchase_order_id' => ['required', 'exists:purchase_orders,id'],
+            'quantity_planned' => ['required', 'integer', 'min:1'],
+            'ship_date' => ['required', 'date'],
+            'eta_date' => ['nullable', 'date', 'after_or_equal:ship_date'],
+            'detail' => ['nullable', 'string'],
+        ]);
+
+        $purchaseOrder = PurchaseOrder::findOrFail($data['purchase_order_id']);
+
+        if ($data['quantity_planned'] > $purchaseOrder->remaining_quantity) {
+            return back()->withInput()->withErrors([
+                'quantity_planned' => 'Qty pengiriman melebihi sisa kebutuhan PO.',
+            ]);
+        }
+
+        $shipment = $this->service->registerShipment($purchaseOrder, $data);
+
+        return redirect()
+            ->route('admin.shipments.index')
+            ->with('status', "Shipment {$shipment->shipment_number} berhasil dibuat");
+    }
+
+    public function receive(Request $request, Shipment $shipment): RedirectResponse
+    {
+        $data = $request->validate([
+            'receipt_date' => ['required', 'date'],
+            'quantity_received' => ['required', 'integer', 'min:1'],
+            'document_number' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        if ($data['quantity_received'] > ($shipment->quantity_planned - $shipment->quantity_received)) {
+            return back()->withInput()->withErrors([
+                'quantity_received' => 'Qty diterima melebihi sisa qty yang belum diterima.',
+            ]);
+        }
+
+        $user = $this->auth->guard()->user();
+        $this->service->registerShipmentReceipt($shipment, $data, $user);
+
+        return back()->with('status', 'Penerimaan barang berhasil dikonfirmasi');
+    }
+}

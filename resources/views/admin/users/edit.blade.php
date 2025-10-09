@@ -122,9 +122,11 @@
                     <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">
                         <i class="fas fa-times"></i> Cancel
                     </a>
+                    @if(Route::has('admin.users.show'))
                     <a href="{{ route('admin.users.show', $user) }}" class="btn btn-info">
                         <i class="fas fa-eye"></i> View Details
                     </a>
+                    @endif
                 </div>
             </form>
         </div>

@@ -40,8 +40,8 @@
 
                 <!-- Quota Management -->
                 @can('read quota')
-                <li class="nav-item {{ request()->is('quota*') ? 'menu-open' : '' }}">
-                    <a href="#" class="nav-link {{ request()->is('quota*') ? 'active' : '' }}">
+                <li class="nav-item {{ request()->is('admin/quotas*') ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ request()->is('admin/quotas*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-chart-pie"></i>
                         <p>
                             Quota Management
@@ -50,14 +50,14 @@
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            <a href="#" class="nav-link {{ request()->routeIs('quota.index') ? 'active' : '' }}">
+                            <a href="{{ route('admin.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.quotas.*') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Quota List</p>
                             </a>
                         </li>
                         @can('create quota')
                         <li class="nav-item">
-                            <a href="#" class="nav-link {{ request()->routeIs('quota.create') ? 'active' : '' }}">
+                            <a href="{{ route('admin.quotas.create') }}" class="nav-link {{ request()->routeIs('admin.quotas.create') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Create Quota</p>
                             </a>
@@ -69,8 +69,8 @@
 
                 <!-- Purchase Orders -->
                 @can('read purchase_orders')
-                <li class="nav-item {{ request()->is('po*') ? 'menu-open' : '' }}">
-                    <a href="#" class="nav-link {{ request()->is('po*') ? 'active' : '' }}">
+                <li class="nav-item {{ request()->is('admin/purchase-orders*') ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ request()->is('admin/purchase-orders*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-shopping-cart"></i>
                         <p>
                             Purchase Orders
@@ -79,14 +79,14 @@
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            <a href="#" class="nav-link">
+                            <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>PO List</p>
                             </a>
                         </li>
                         @can('create purchase_orders')
                         <li class="nav-item">
-                            <a href="#" class="nav-link">
+                            <a href="{{ route('admin.purchase-orders.create') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.create') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Create PO</p>
                             </a>
@@ -98,8 +98,8 @@
 
                 <!-- Master Data -->
                 @can('read master_data')
-                <li class="nav-item {{ request()->is('master*') ? 'menu-open' : '' }}">
-                    <a href="#" class="nav-link {{ request()->is('master*') ? 'active' : '' }}">
+                <li class="nav-item {{ request()->is('admin/master-data*') ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ request()->is('admin/master-data*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-database"></i>
                         <p>
                             Master Data
@@ -108,7 +108,7 @@
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            <a href="#" class="nav-link">
+                            <a href="{{ route('admin.master-data.index') }}" class="nav-link {{ request()->routeIs('admin.master-data.*') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Products</p>
                             </a>

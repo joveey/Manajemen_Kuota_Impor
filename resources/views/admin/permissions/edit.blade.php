@@ -73,9 +73,11 @@
                     <a href="{{ route('admin.permissions.index') }}" class="btn btn-secondary">
                         <i class="fas fa-times"></i> Cancel
                     </a>
+                    @if(Route::has('admin.permissions.show'))
                     <a href="{{ route('admin.permissions.show', $permission) }}" class="btn btn-info">
                         <i class="fas fa-eye"></i> View Details
                     </a>
+                    @endif
                 </div>
             </form>
         </div>

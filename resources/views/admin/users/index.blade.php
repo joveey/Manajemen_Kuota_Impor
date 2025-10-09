@@ -63,11 +63,13 @@
                                 <td>{{ $user->last_login_at ? $user->last_login_at->format('d M Y H:i') : 'Never' }}</td>
                                 <td>
                                     <div class="btn-group">
+                                        @if(Route::has('admin.users.show'))
                                         <a href="{{ route('admin.users.show', $user) }}" 
                                            class="btn btn-info btn-sm" 
                                            title="View">
                                             <i class="fas fa-eye"></i>
                                         </a>
+                                        @endif
                                         @can('update users')
                                         <a href="{{ route('admin.users.edit', $user) }}" 
                                            class="btn btn-warning btn-sm" 

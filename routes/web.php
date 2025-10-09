@@ -1,6 +1,10 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\QuotaController;
+use App\Http\Controllers\Admin\PurchaseOrderController;
+use App\Http\Controllers\Admin\ShipmentController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UserController;
@@ -98,48 +102,33 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     });
     
     // ============================================
-    // MANAJEMEN KUOTA IMPOR - PROTOTYPE FRONTEND
+    // MANAJEMEN KUOTA IMPOR
     // ============================================
-    
-    // Rute Master Data (Produk)
-    Route::get('master-data', function () {
-        return view('admin.master_data.index');
-    })->name('master-data.index');
-    
-    Route::get('master-data/create', function () {
-        return view('admin.master_data.form');
-    })->name('master-data.create');
-    
-    Route::get('master-data/edit/{id}', function ($id) {
-        return view('admin.master_data.form');
-    })->name('master-data.edit');
-    
-    // Rute Manajemen Kuota
-    Route::get('kuota', function () {
-        return view('admin.kuota.index');
-    })->name('kuota.index');
-    
-    Route::get('kuota/create', function () {
-        return view('admin.kuota.form');
-    })->name('kuota.create');
-    
-    Route::get('kuota/edit/{id}', function ($id) {
-        return view('admin.kuota.form');
-    })->name('kuota.edit');
-    
-    // Rute Purchase Order (PO)
-    Route::get('purchase-order', function () {
-        return view('admin.purchase_order.index');
-    })->name('purchase-order.index');
-    
-    Route::get('purchase-order/create', function () {
-        return view('admin.purchase_order.create');
-    })->name('purchase-order.create');
-    
-    // Rute Pengiriman (Shipment)
-    Route::get('shipment', function () {
-        return view('admin.shipment.index');
-    })->name('shipment.index');
+
+    Route::resource('master-data', ProductController::class)->except(['show']);
+
+    Route::resource('quotas', QuotaController::class);
+    Route::get('kuota', [QuotaController::class, 'index'])->name('kuota.index');
+    Route::get('kuota/create', [QuotaController::class, 'create'])->name('kuota.create');
+    Route::post('kuota', [QuotaController::class, 'store'])->name('kuota.store');
+    Route::get('kuota/{quota}/edit', [QuotaController::class, 'edit'])->name('kuota.edit');
+    Route::post('quotas/{quota}/attach-product', [QuotaController::class, 'attachProduct'])
+        ->name('quotas.attach-product');
+    Route::delete('quotas/{quota}/detach-product/{product}', [QuotaController::class, 'detachProduct'])
+        ->name('quotas.detach-product');
+
+    Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+    Route::get('purchase-order', [PurchaseOrderController::class, 'index'])->name('purchase-order.index');
+    Route::get('purchase-order/create', [PurchaseOrderController::class, 'create'])->name('purchase-order.create');
+    Route::post('purchase-order', [PurchaseOrderController::class, 'store'])->name('purchase-order.store');
+    Route::get('purchase-order/{purchase_order}', [PurchaseOrderController::class, 'show'])->name('purchase-order.show');
+    Route::delete('purchase-order/{purchase_order}', [PurchaseOrderController::class, 'destroy'])->name('purchase-order.destroy');
+
+    Route::get('shipments/create', [ShipmentController::class, 'create'])->name('shipments.create');
+    Route::post('shipments', [ShipmentController::class, 'store'])->name('shipments.store');
+    Route::get('shipments', [ShipmentController::class, 'index'])->name('shipments.index');
+    Route::post('shipments/{shipment}/receive', [ShipmentController::class, 'receive'])->name('shipments.receive');
+    Route::get('shipment', [ShipmentController::class, 'index'])->name('shipment.index');
 
 });
 

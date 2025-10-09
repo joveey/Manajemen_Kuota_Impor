@@ -17,12 +17,15 @@
                     <i class="fas fa-chart-pie me-2"></i>Manajemen Kuota Impor
                 </h3>
                 <div>
-                    <a href="/admin/kuota/create" class="btn btn-primary">
+                    <a href="{{ route('admin.quotas.create') }}" class="btn btn-primary">
                         <i class="fas fa-plus me-2"></i>Tambah Kuota
                     </a>
                 </div>
             </div>
             <div class="card-body">
+                @if(session('status'))
+                    <div class="alert alert-success">{{ session('status') }}</div>
+                @endif
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i>
                     <strong>Info:</strong> Halaman ini menampilkan daftar kuota impor yang tersedia. Status kuota akan otomatis diperbarui berdasarkan penggunaan.
@@ -34,7 +37,7 @@
                             <tr>
                                 <th style="width: 10px">#</th>
                                 <th>No. Kuota</th>
-                                <th>Produk</th>
+                                <th>Nama Kuota</th>
                                 <th>Qty Pemerintah</th>
                                 <th>Qty Forecast</th>
                                 <th>Qty Actual</th>
@@ -44,75 +47,52 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td>1</td>
-                                <td><strong>KTA-2024-001</strong></td>
-                                <td>Honda Civic Type R</td>
-                                <td class="text-center">500</td>
-                                <td class="text-center">450</td>
-                                <td class="text-center">120</td>
-                                <td>Jan 2024 - Dec 2024</td>
-                                <td><span class="badge bg-success">Tersedia</span></td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <a href="/admin/kuota/1" class="btn btn-sm btn-info" title="View">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="/admin/kuota/edit/1" class="btn btn-sm btn-warning" title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <button type="button" class="btn btn-sm btn-danger" onclick="deleteKuota(1)" title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>2</td>
-                                <td><strong>KTA-2024-002</strong></td>
-                                <td>Toyota GR Supra</td>
-                                <td class="text-center">300</td>
-                                <td class="text-center">280</td>
-                                <td class="text-center">275</td>
-                                <td>Jan 2024 - Dec 2024</td>
-                                <td><span class="badge bg-warning text-dark">Hampir Habis</span></td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <a href="/admin/kuota/2" class="btn btn-sm btn-info" title="View">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="/admin/kuota/edit/2" class="btn btn-sm btn-warning" title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <button type="button" class="btn btn-sm btn-danger" onclick="deleteKuota(2)" title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>3</td>
-                                <td><strong>KTA-2024-003</strong></td>
-                                <td>Mercedes-Benz AMG GT</td>
-                                <td class="text-center">200</td>
-                                <td class="text-center">200</td>
-                                <td class="text-center">200</td>
-                                <td>Jan 2024 - Dec 2024</td>
-                                <td><span class="badge bg-danger">Habis</span></td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <a href="/admin/kuota/3" class="btn btn-sm btn-info" title="View">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="/admin/kuota/edit/3" class="btn btn-sm btn-warning" title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <button type="button" class="btn btn-sm btn-danger" onclick="deleteKuota(3)" title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
+                            @forelse($quotas as $quota)
+                                <tr>
+                                    <td>{{ $loop->iteration }}</td>
+                                    <td><strong>{{ $quota->quota_number }}</strong></td>
+                                    <td>{{ $quota->name }}</td>
+                                    <td class="text-end">{{ number_format($quota->total_allocation ?? 0) }}</td>
+                                    <td class="text-end">{{ number_format($quota->forecast_remaining ?? 0) }}</td>
+                                    <td class="text-end">{{ number_format($quota->actual_remaining ?? 0) }}</td>
+                                    <td>
+                                        {{ optional($quota->period_start)->format('M Y') ?? '-' }} -
+                                        {{ optional($quota->period_end)->format('M Y') ?? '-' }}
+                                    </td>
+                                    <td>
+                                        @php
+                                            $statusMap = [
+                                                \App\Models\Quota::STATUS_AVAILABLE => ['label' => 'Tersedia', 'class' => 'bg-success'],
+                                                \App\Models\Quota::STATUS_LIMITED => ['label' => 'Hampir Habis', 'class' => 'bg-warning text-dark'],
+                                                \App\Models\Quota::STATUS_DEPLETED => ['label' => 'Habis', 'class' => 'bg-danger'],
+                                            ];
+                                            $status = $statusMap[$quota->status] ?? $statusMap[\App\Models\Quota::STATUS_AVAILABLE];
+                                        @endphp
+                                        <span class="badge {{ $status['class'] }}">{{ $status['label'] }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ route('admin.quotas.show', $quota) }}" class="btn btn-sm btn-info" title="Detail">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ route('admin.quotas.edit', $quota) }}" class="btn btn-sm btn-warning" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <form action="{{ route('admin.quotas.destroy', $quota) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus kuota ini?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="9" class="text-center text-muted">Belum ada data kuota.</td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -126,7 +106,7 @@
     <div class="col-md-3">
         <div class="card">
             <div class="card-body text-center">
-                <h3 class="text-primary">3</h3>
+                <h3 class="text-primary">{{ $summary['active_count'] }}</h3>
                 <p class="text-muted mb-0">Total Kuota</p>
             </div>
         </div>
@@ -134,7 +114,7 @@
     <div class="col-md-3">
         <div class="card">
             <div class="card-body text-center">
-                <h3 class="text-success">1,000</h3>
+                <h3 class="text-success">{{ number_format($summary['total_quota']) }}</h3>
                 <p class="text-muted mb-0">Total Unit Tersedia</p>
             </div>
         </div>
@@ -142,7 +122,7 @@
     <div class="col-md-3">
         <div class="card">
             <div class="card-body text-center">
-                <h3 class="text-warning">595</h3>
+                <h3 class="text-warning">{{ number_format($summary['total_quota'] - $summary['forecast_remaining']) }}</h3>
                 <p class="text-muted mb-0">Unit Terpakai</p>
             </div>
         </div>
@@ -150,7 +130,12 @@
     <div class="col-md-3">
         <div class="card">
             <div class="card-body text-center">
-                <h3 class="text-info">59.5%</h3>
+                @php
+                    $percent = $summary['total_quota'] > 0
+                        ? (($summary['total_quota'] - $summary['forecast_remaining']) / $summary['total_quota']) * 100
+                        : 0;
+                @endphp
+                <h3 class="text-info">{{ number_format($percent, 1) }}%</h3>
                 <p class="text-muted mb-0">Persentase Penggunaan</p>
             </div>
         </div>
@@ -200,31 +185,5 @@
             }
         });
     });
-
-    function deleteKuota(id) {
-        Swal.fire({
-            title: 'Apakah Anda yakin?',
-            text: "Data kuota akan dihapus permanen!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Ya, Hapus!',
-            cancelButtonText: 'Batal'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Berhasil!',
-                    text: 'Data kuota berhasil dihapus.',
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 3000,
-                    timerProgressBar: true
-                });
-            }
-        });
-    }
 </script>
 @endpush
