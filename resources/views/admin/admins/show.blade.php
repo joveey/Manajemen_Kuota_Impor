@@ -75,9 +75,11 @@
                                         <i class="fas fa-key"></i> {{ $role->permissions->count() }} permissions
                                     </small>
                                     <br>
+                                    @if(Route::has('admin.roles.show'))
                                     <a href="{{ route('admin.roles.show', $role) }}" class="btn btn-sm btn-info mt-2">
                                         <i class="fas fa-eye"></i> View Role
                                     </a>
+                                    @endif
                                 </div>
                             </div>
                         </div>

@@ -56,11 +56,13 @@
                                 <td>{{ $permission->created_at->format('d M Y') }}</td>
                                 <td>
                                     <div class="btn-group">
+                                        @if(Route::has('admin.permissions.show'))
                                         <a href="{{ route('admin.permissions.show', $permission) }}" 
                                            class="btn btn-info btn-sm" 
                                            title="View">
                                             <i class="fas fa-eye"></i>
                                         </a>
+                                        @endif
                                         @if(auth()->user()->hasPermission('update permissions'))
                                         <a href="{{ route('admin.permissions.edit', $permission) }}" 
                                            class="btn btn-warning btn-sm" 

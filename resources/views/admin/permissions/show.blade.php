@@ -70,9 +70,11 @@
                                     <span class="badge badge-info">{{ $role->users->count() }}</span>
                                 </td>
                                 <td>
+                                    @if(Route::has('admin.roles.show'))
                                     <a href="{{ route('admin.roles.show', $role) }}" class="btn btn-info btn-sm">
                                         <i class="fas fa-eye"></i> View
                                     </a>
+                                    @endif
                                 </td>
                             </tr>
                             @endforeach

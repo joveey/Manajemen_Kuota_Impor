@@ -5,7 +5,7 @@
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-    <li class="breadcrumb-item"><a href="/admin/kuota">Manajemen Kuota</a></li>
+    <li class="breadcrumb-item"><a href="{{ route('admin.quotas.index') }}">Manajemen Kuota</a></li>
     <li class="breadcrumb-item active">Form</li>
 @endsection
 
@@ -18,36 +18,63 @@
                     <i class="fas fa-edit me-2"></i>Form Kuota Impor
                 </h3>
             </div>
-            <form action="#" method="POST">
+            <form action="{{ $quota->exists ? route('admin.quotas.update', $quota) : route('admin.quotas.store') }}" method="POST">
+                @csrf
+                @if($quota->exists)
+                    @method('PUT')
+                @endif
                 <div class="card-body">
+                    @if($errors->any())
+                        <div class="alert alert-danger">
+                            <ul class="mb-0">
+                                @foreach($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
                     <div class="mb-3">
-                        <label for="nomor_kuota" class="form-label">Nomor Kuota <span class="text-danger">*</span></label>
+                        <label for="quota_number" class="form-label">Nomor Kuota <span class="text-danger">*</span></label>
                         <input type="text" 
                                class="form-control" 
-                               id="nomor_kuota" 
-                               name="nomor_kuota" 
-                               placeholder="Contoh: KTA-2024-001"
+                               id="quota_number" 
+                               name="quota_number" 
+                               value="{{ old('quota_number', $quota->quota_number) }}"
+                               placeholder="Contoh: KTA-2025-001"
                                required>
                         <small class="form-text text-muted">Format: KTA-YYYY-XXX</small>
                     </div>
 
                     <div class="mb-3">
-                        <label for="produk_id" class="form-label">Produk <span class="text-danger">*</span></label>
-                        <select class="form-select select2" id="produk_id" name="produk_id" required>
-                            <option value="">-- Pilih Produk --</option>
-                            <option value="1">PRD-001 - Honda Civic Type R</option>
-                            <option value="2">PRD-002 - Toyota GR Supra</option>
-                            <option value="3">PRD-003 - Mercedes-Benz AMG GT</option>
-                        </select>
+                        <label for="name" class="form-label">Nama Kuota <span class="text-danger">*</span></label>
+                        <input type="text"
+                               class="form-control"
+                               id="name"
+                               name="name"
+                               value="{{ old('name', $quota->name) }}"
+                               placeholder="Contoh: Kuota Pemerintah 0.5 PK - 2 PK"
+                               required>
                     </div>
 
                     <div class="mb-3">
-                        <label for="qty_pemerintah" class="form-label">Quantity Pemerintah <span class="text-danger">*</span></label>
+                        <label for="government_category" class="form-label">Kategori Pemerintah <span class="text-danger">*</span></label>
+                        <input type="text"
+                               class="form-control"
+                               id="government_category"
+                               name="government_category"
+                               value="{{ old('government_category', $quota->government_category) }}"
+                               placeholder="Contoh: AC 0.5 PK - 2 PK"
+                               required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="total_allocation" class="form-label">Quantity Pemerintah <span class="text-danger">*</span></label>
                         <input type="number" 
                                class="form-control" 
-                               id="qty_pemerintah" 
-                               name="qty_pemerintah" 
-                               placeholder="Contoh: 500"
+                               id="total_allocation" 
+                               name="total_allocation" 
+                               value="{{ old('total_allocation', $quota->total_allocation) }}"
+                               placeholder="Contoh: 100000"
                                min="1"
                                required>
                         <small class="form-text text-muted">Jumlah unit yang disetujui pemerintah</small>
@@ -56,35 +83,73 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="periode_mulai" class="form-label">Periode Mulai <span class="text-danger">*</span></label>
+                                <label for="period_start" class="form-label">Periode Mulai</label>
                                 <input type="text" 
                                        class="form-control datepicker" 
-                                       id="periode_mulai" 
-                                       name="periode_mulai" 
-                                       placeholder="YYYY-MM-DD"
-                                       required>
+                                       id="period_start" 
+                                       name="period_start" 
+                                       value="{{ old('period_start', optional($quota->period_start)->format('Y-m-d')) }}"
+                                       placeholder="YYYY-MM-DD">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="periode_selesai" class="form-label">Periode Selesai <span class="text-danger">*</span></label>
+                                <label for="period_end" class="form-label">Periode Selesai</label>
                                 <input type="text" 
                                        class="form-control datepicker" 
-                                       id="periode_selesai" 
-                                       name="periode_selesai" 
-                                       placeholder="YYYY-MM-DD"
-                                       required>
+                                       id="period_end" 
+                                       name="period_end" 
+                                       value="{{ old('period_end', optional($quota->period_end)->format('Y-m-d')) }}"
+                                       placeholder="YYYY-MM-DD">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="forecast_remaining" class="form-label">Forecast Remaining</label>
+                                <input type="number" class="form-control" id="forecast_remaining" name="forecast_remaining" value="{{ old('forecast_remaining', $quota->forecast_remaining) }}" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="actual_remaining" class="form-label">Actual Remaining</label>
+                                <input type="number" class="form-control" id="actual_remaining" name="actual_remaining" value="{{ old('actual_remaining', $quota->actual_remaining) }}" min="0">
                             </div>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="keterangan" class="form-label">Keterangan</label>
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status" required>
+                            @foreach([
+                                \App\Models\Quota::STATUS_AVAILABLE => 'Tersedia',
+                                \App\Models\Quota::STATUS_LIMITED => 'Hampir Habis',
+                                \App\Models\Quota::STATUS_DEPLETED => 'Habis'
+                            ] as $value => $label)
+                                <option value="{{ $value }}" @selected(old('status', $quota->status ?? \App\Models\Quota::STATUS_AVAILABLE) === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="source_document" class="form-label">Dokumen Sumber</label>
+                        <input type="text" class="form-control" id="source_document" name="source_document" value="{{ old('source_document', $quota->source_document) }}" placeholder="Contoh: SK Menteri ...">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Keterangan</label>
                         <textarea class="form-control" 
-                                  id="keterangan" 
-                                  name="keterangan" 
+                                  id="notes" 
+                                  name="notes" 
                                   rows="3"
-                                  placeholder="Catatan tambahan (opsional)"></textarea>
+                                  placeholder="Catatan tambahan (opsional)">{{ old('notes', $quota->notes) }}</textarea>
+                    </div>
+
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="is_active" name="is_active" value="1" {{ old('is_active', $quota->is_active ?? true) ? 'checked' : '' }}>
+                        <label class="form-check-label" for="is_active">Kuota Aktif</label>
                     </div>
                 </div>
 
@@ -92,7 +157,7 @@
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save me-2"></i>Simpan
                     </button>
-                    <a href="/admin/kuota" class="btn btn-secondary">
+                    <a href="{{ route('admin.quotas.index') }}" class="btn btn-secondary">
                         <i class="fas fa-times me-2"></i>Batal
                     </a>
                 </div>
@@ -158,56 +223,18 @@
 @push('scripts')
 <script>
     $(document).ready(function() {
-        // Initialize Select2
-        $('.select2').select2({
-            theme: 'bootstrap-5',
-            width: '100%'
-        });
-
-        // Initialize Flatpickr
         flatpickr('.datepicker', {
             dateFormat: 'Y-m-d',
-            allowInput: true,
-            minDate: 'today'
+            allowInput: true
         });
 
-        // Form validation on submit
-        $('form').on('submit', function(e) {
-            e.preventDefault();
-            
-            // Validate dates
-            const startDate = new Date($('#periode_mulai').val());
-            const endDate = new Date($('#periode_selesai').val());
-            
-            if (endDate <= startDate) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error!',
-                    text: 'Periode selesai harus lebih besar dari periode mulai.'
-                });
-                return;
-            }
-            
-            Swal.fire({
-                icon: 'success',
-                title: 'Berhasil!',
-                text: 'Data kuota berhasil disimpan.',
-                confirmButtonText: 'OK'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = '/admin/kuota';
-                }
-            });
+        $('#total_allocation, #forecast_remaining').on('input', function() {
+            const total = parseInt($('#total_allocation').val()) || 0;
+            const forecast = parseInt($('#forecast_remaining').val()) || 0;
+            const used = Math.max(0, total - forecast);
+            $('#calc_result').slideDown();
+            $('#forecast_result').text(`${used.toLocaleString()} unit terpakai (forecast)`);
         });
     });
-
-    function calculateForecast() {
-        const qty = parseFloat($('#calc_qty').val()) || 0;
-        const forecastPercent = parseFloat($('#calc_forecast').val()) || 0;
-        const result = Math.round(qty * (forecastPercent / 100));
-        
-        $('#forecast_result').text(result);
-        $('#calc_result').slideDown();
-    }
 </script>
 @endpush

@@ -55,11 +55,13 @@
                                 <td>{{ $role->created_at->format('d M Y') }}</td>
                                 <td>
                                     <div class="btn-group">
+                                        @if(Route::has('admin.roles.show'))
                                         <a href="{{ route('admin.roles.show', $role) }}" 
                                            class="btn btn-info btn-sm" 
                                            title="View">
                                             <i class="fas fa-eye"></i>
                                         </a>
+                                        @endif
                                         @if(auth()->user()->hasPermission('update roles'))
                                         <a href="{{ route('admin.roles.edit', $role) }}" 
                                            class="btn btn-warning btn-sm" 

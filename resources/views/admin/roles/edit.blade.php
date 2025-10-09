@@ -105,9 +105,11 @@
                     <a href="{{ route('admin.roles.index') }}" class="btn btn-secondary">
                         <i class="fas fa-times"></i> Cancel
                     </a>
+                    @if(Route::has('admin.roles.show'))
                     <a href="{{ route('admin.roles.show', $role) }}" class="btn btn-info">
                         <i class="fas fa-eye"></i> View Details
                     </a>
+                    @endif
                 </div>
             </form>
         </div>
