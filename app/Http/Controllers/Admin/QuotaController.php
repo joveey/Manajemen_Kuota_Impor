@@ -152,4 +152,38 @@ class QuotaController extends Controller
 
         return $data;
     }
+
+    public function export()
+    {
+        $quotas = Quota::query()->withCount('products')->orderByDesc('period_start');
+        $filename = 'quotas_'.now()->format('Ymd_His').'.csv';
+
+        return response()->streamDownload(function () use ($quotas) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, [
+                'Quota Number', 'Name', 'Government Category', 'Period Start', 'Period End', 'Total Allocation',
+                'Forecast Remaining', 'Actual Remaining', 'Status', 'Active', 'Products Count',
+            ]);
+            $quotas->chunk(500, function ($rows) use ($out) {
+                foreach ($rows as $q) {
+                    fputcsv($out, [
+                        $q->quota_number,
+                        $q->name,
+                        $q->government_category,
+                        optional($q->period_start)->format('Y-m-d'),
+                        optional($q->period_end)->format('Y-m-d'),
+                        $q->total_allocation,
+                        $q->forecast_remaining,
+                        $q->actual_remaining,
+                        $q->status,
+                        $q->is_active ? 'yes' : 'no',
+                        $q->products_count,
+                    ]);
+                }
+            });
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
 }

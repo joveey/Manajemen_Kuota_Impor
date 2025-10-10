@@ -108,6 +108,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::resource('master-data', ProductController::class)->except(['show']);
 
     Route::resource('quotas', QuotaController::class);
+    Route::get('quotas/export/csv', [QuotaController::class, 'export'])->name('quotas.export');
     Route::get('kuota', [QuotaController::class, 'index'])->name('kuota.index');
     Route::get('kuota/create', [QuotaController::class, 'create'])->name('kuota.create');
     Route::post('kuota', [QuotaController::class, 'store'])->name('kuota.store');
@@ -118,6 +119,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         ->name('quotas.detach-product');
 
     Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+    Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
     Route::get('purchase-order', [PurchaseOrderController::class, 'index'])->name('purchase-order.index');
     Route::get('purchase-order/create', [PurchaseOrderController::class, 'create'])->name('purchase-order.create');
     Route::post('purchase-order', [PurchaseOrderController::class, 'store'])->name('purchase-order.store');
@@ -127,6 +129,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('shipments/create', [ShipmentController::class, 'create'])->name('shipments.create');
     Route::post('shipments', [ShipmentController::class, 'store'])->name('shipments.store');
     Route::get('shipments', [ShipmentController::class, 'index'])->name('shipments.index');
+    Route::get('shipments/export/csv', [ShipmentController::class, 'export'])->name('shipments.export');
     Route::post('shipments/{shipment}/receive', [ShipmentController::class, 'receive'])->name('shipments.receive');
     Route::get('shipment', [ShipmentController::class, 'index'])->name('shipment.index');
 

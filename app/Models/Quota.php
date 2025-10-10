@@ -64,7 +64,7 @@ class Quota extends Model
         return $this->hasMany(QuotaHistory::class);
     }
 
-    public function decrementForecast(int $quantity, string $description = null, Model $reference = null, \DateTimeInterface $occurredOn = null, ?int $userId = null): void
+    public function decrementForecast(int $quantity, ?string $description = null, ?Model $reference = null, ?\DateTimeInterface $occurredOn = null, ?int $userId = null): void
     {
         $this->forecast_remaining = max(0, $this->forecast_remaining - $quantity);
         $this->updateStatus();
@@ -81,7 +81,7 @@ class Quota extends Model
         ]);
     }
 
-    public function decrementActual(int $quantity, string $description = null, Model $reference = null, \DateTimeInterface $occurredOn = null, ?int $userId = null): void
+    public function decrementActual(int $quantity, ?string $description = null, ?Model $reference = null, ?\DateTimeInterface $occurredOn = null, ?int $userId = null): void
     {
         $this->actual_remaining = max(0, $this->actual_remaining - $quantity);
         $this->updateStatus();
@@ -98,7 +98,7 @@ class Quota extends Model
         ]);
     }
 
-    public function switchOver(string $description, Model $reference = null, ?int $userId = null): void
+    public function switchOver(string $description, ?Model $reference = null, ?int $userId = null): void
     {
         $this->histories()->create([
             'change_type' => QuotaHistory::TYPE_SWITCH_OVER,

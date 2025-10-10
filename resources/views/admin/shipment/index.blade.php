@@ -47,7 +47,10 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h3 class="card-title mb-0"><i class="fas fa-shipping-fast me-2"></i>Daftar Pengiriman</h3>
-        <a href="{{ route('admin.shipments.create') }}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Buat Shipment</a>
+        <div class="d-flex gap-2">
+            <a href="{{ route('admin.shipments.export') }}" class="btn btn-outline-secondary"><i class="fas fa-file-csv me-2"></i>Export CSV</a>
+            <a href="{{ route('admin.shipments.create') }}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Buat Shipment</a>
+        </div>
     </div>
     <div class="card-body">
         @if(session('status'))
@@ -74,7 +77,12 @@
                     @forelse($shipments as $shipment)
                         <tr>
                             <td>{{ $loop->iteration }}</td>
-                            <td><strong>{{ $shipment->shipment_number }}</strong></td>
+                            <td>
+                                <strong>{{ $shipment->shipment_number }}</strong>
+                                @if($shipment->auto_generated)
+                                    <span class="badge bg-secondary ms-1">Auto</span>
+                                @endif
+                            </td>
                             <td>
                                 <strong>{{ $shipment->purchaseOrder->po_number }}</strong><br>
                                 <small class="text-muted">Qty PO: {{ number_format($shipment->purchaseOrder->quantity) }}</small>

@@ -20,6 +20,18 @@ class QuotaAllocator
             ->get();
 
         if ($mappings->isEmpty()) {
+            // No explicit mappings: try to locate an active quota that matches the product
+            $fallback = Quota::query()
+                ->active()
+                ->where('forecast_remaining', '>=', $quantity)
+                ->orderByDesc('period_start')
+                ->get()
+                ->first(fn (Quota $q) => $q->matchesProduct($product));
+
+            if ($fallback) {
+                return new QuotaAllocationResult($fallback, null);
+            }
+
             throw InsufficientQuotaException::forProduct($product->name, $quantity);
         }
 
@@ -35,6 +47,28 @@ class QuotaAllocator
             if ($quota->forecast_remaining >= $quantity) {
                 return new QuotaAllocationResult($quota, $initialQuota);
             }
+        }
+        // Fallback: find a new active quota outside current mappings that matches and has enough forecast
+        $mappedIds = $mappings->pluck('quota_id')->all();
+        $fallback = Quota::query()
+            ->active()
+            ->whereNotIn('id', $mappedIds)
+            ->where('forecast_remaining', '>=', $quantity)
+            ->orderByDesc('period_start')
+            ->get()
+            ->first(fn (Quota $q) => $q->matchesProduct($product));
+
+        if ($fallback) {
+            // Optionally register a new mapping with lowest priority so future allocations see it
+            $maxPriority = (int) $mappings->max('priority');
+            $product->quotaMappings()->create([
+                'quota_id' => $fallback->id,
+                'priority' => $maxPriority + 1,
+                'is_primary' => false,
+                'notes' => 'Auto-mapped during allocation',
+            ]);
+
+            return new QuotaAllocationResult($fallback, $initialQuota);
         }
 
         throw InsufficientQuotaException::forProduct($product->name, $quantity);

@@ -96,4 +96,37 @@ class ShipmentController extends Controller
 
         return back()->with('status', 'Penerimaan barang berhasil dikonfirmasi');
     }
+
+    public function export()
+    {
+        $query = Shipment::query()->with(['purchaseOrder.product']);
+        $filename = 'shipments_'.now()->format('Ymd_His').'.csv';
+
+        return response()->streamDownload(function () use ($query) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, [
+                'Shipment Number', 'PO Number', 'Product Code', 'Product Name', 'Qty Planned', 'Qty Received',
+                'Ship Date', 'ETA', 'Receipt Date', 'Status',
+            ]);
+            $query->orderByDesc('ship_date')->chunk(500, function ($rows) use ($out) {
+                foreach ($rows as $s) {
+                    fputcsv($out, [
+                        $s->shipment_number,
+                        $s->purchaseOrder?->po_number,
+                        $s->purchaseOrder?->product?->code,
+                        $s->purchaseOrder?->product?->name,
+                        $s->quantity_planned,
+                        $s->quantity_received,
+                        optional($s->ship_date)->format('Y-m-d'),
+                        optional($s->eta_date)->format('Y-m-d'),
+                        optional($s->receipt_date)->format('Y-m-d'),
+                        $s->status,
+                    ]);
+                }
+            });
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
 }
