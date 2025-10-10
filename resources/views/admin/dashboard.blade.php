@@ -16,51 +16,51 @@
     .stat-card {
         background: white;
         border: 1px solid #e5eaef;
-        border-radius: 12px;
-        padding: 24px;
+        border-radius: 14px;
+        padding: 22px;
         height: 100%;
-        transition: all 0.3s ease;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
     }
 
     .stat-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
     }
 
     .stat-icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 12px;
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 24px;
-        margin-bottom: 16px;
-        box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
-    }
-
-    .stat-icon.primary {
-        background: #ECF2FF;
-        color: #5D87FF;
-    }
-
-    .stat-icon.success {
-        background: #E6FFFA;
-        color: #13DEB9;
-    }
-
-    .stat-icon.info {
-        background: #FEF5E5;
-        color: #FFAE1F;
-    }
-
-    .stat-icon.danger {
-        background: #FDEDE8;
-        color: #FA896B;
+        margin-bottom: 12px;
+        box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+        background: rgba(15, 23, 42, 0.02);
     }
 
     .stat-icon i {
-        color: inherit;
+        font-size: 20px;
+    }
+
+    .stat-icon.primary {
+        color: #2563eb;
+        background: rgba(37, 99, 235, 0.12);
+    }
+
+    .stat-icon.success {
+        color: #10b981;
+        background: rgba(16, 185, 129, 0.12);
+    }
+
+    .stat-icon.info {
+        color: #f59e0b;
+        background: rgba(245, 158, 11, 0.12);
+    }
+
+    .stat-icon.danger {
+        color: #ef4444;
+        background: rgba(239, 68, 68, 0.12);
     }
 
     .stat-label {
@@ -98,75 +98,73 @@
 
     /* Welcome Card */
     .welcome-card {
-        background: linear-gradient(135deg, #ffffff 0%, #f6f9ff 100%);
-        border: 1px solid rgba(15, 23, 42, 0.08);
+        border: 1px solid #e6ebf5;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #ffffff 0%, #f7faff 100%);
+        box-shadow: 0 28px 42px -38px rgba(15, 23, 42, 0.45);
         color: #0f172a;
-        box-shadow: 0 22px 40px -28px rgba(15, 23, 42, 0.45);
     }
 
     .welcome-card .card-body {
-        padding: 28px 32px;
+        padding: 26px 30px 30px;
     }
 
-    .welcome-hero {
+    .welcome-card__header {
         display: flex;
-        align-items: center;
-        gap: 18px;
-        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: flex-start;
     }
 
-    .welcome-avatar {
-        width: 58px;
-        height: 58px;
-        border-radius: 16px;
-        background: rgba(37, 99, 235, 0.12);
-        color: #2563eb;
-        display: grid;
-        place-items: center;
-        font-size: 24px;
-        box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.2);
-    }
-
-    .welcome-heading {
-        font-size: 24px;
+    .welcome-card__title {
+        font-size: 22px;
         font-weight: 700;
         margin: 0;
+        color: #0f172a;
     }
 
-    .welcome-subtitle {
-        margin: 4px 0 18px;
+    .welcome-card__subtitle {
+        margin: 6px 0 0;
         color: #64748b;
-        font-size: 14px;
-    }
-
-    .welcome-info-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 18px;
-        margin-bottom: 18px;
-    }
-
-    .welcome-info-block {
-        background: rgba(15, 23, 42, 0.03);
-        border-radius: 12px;
-        padding: 16px 18px;
-    }
-
-    .welcome-info-block .user-info-label {
         font-size: 13px;
-        font-weight: 600;
-        margin-bottom: 6px;
-        color: #64748b;
-        opacity: 1;
     }
 
-    .welcome-info-block .user-info-value {
-        font-size: 15px;
+    .welcome-card__last-login {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+        min-width: 150px;
+    }
+
+    .welcome-card__last-login-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94a3b8;
+    }
+
+    .welcome-card__last-login-value {
+        font-size: 13px;
         font-weight: 600;
         color: #0f172a;
     }
 
-    .role-badge {
+    .welcome-card__last-login-meta {
+        font-size: 12px;
+        color: #94a3b8;
+    }
+
+    .welcome-card__roles {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 20px 0 6px;
+    }
+
+    .role-badge,
+    .role-chip {
         display: inline-flex;
         align-items: center;
         padding: 6px 12px;
@@ -175,46 +173,432 @@
         color: #2563eb;
         font-size: 12px;
         font-weight: 600;
-        margin: 4px 6px 0 0;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
     }
 
-    .divider-light {
-        border-top: 1px solid rgba(15, 23, 42, 0.08);
-        margin: 18px 0;
+    .welcome-card__actions {
+        margin-top: 22px;
     }
 
-    .quick-actions-title {
-        font-size: 15px;
+    .welcome-card__actions-label {
+        font-size: 11px;
         font-weight: 600;
+        color: #64748b;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
         margin-bottom: 12px;
-        color: #0f172a;
+        display: block;
     }
 
-    .btn-quick {
-        padding: 11px 16px;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 13px;
+    .quick-action-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .quick-action-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 18px;
+        border-radius: 14px;
         border: 1px solid rgba(37, 99, 235, 0.18);
         background: rgba(37, 99, 235, 0.08);
-        color: #2563eb;
-        width: 100%;
+        color: #1d4ed8;
+        font-weight: 600;
+        font-size: 13px;
+        text-decoration: none;
+        flex: 1 1 180px;
         transition: all 0.2s ease;
     }
 
-    .btn-quick:hover {
+    .quick-action-chip:hover {
         background: #2563eb;
         color: #ffffff;
         border-color: #2563eb;
+        box-shadow: 0 16px 30px -24px rgba(37, 99, 235, 0.75);
         transform: translateY(-2px);
     }
 
-    .welcome-note {
-        display: block;
+    /* Operational panels */
+    .panel-modern {
+        background: #ffffff;
+        border: 1px solid #e6ebf5;
+        border-radius: 18px;
+        box-shadow: 0 20px 42px -32px rgba(15, 23, 42, 0.45);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .panel-modern__header {
+        padding: 20px 24px 16px;
+        border-bottom: 1px solid #eef2fb;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .panel-modern__title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #0f172a;
+        margin: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .panel-modern__body {
+        padding: 20px 24px 24px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .panel-modern__link {
         font-size: 12px;
+        font-weight: 600;
+        color: #2563eb;
+    }
+
+    .panel-modern__link:hover {
+        color: #1d4ed8;
+        text-decoration: underline;
+    }
+
+    .panel-modern__empty {
+        padding: 28px;
+        text-align: center;
+        border: 1px dashed #e2e8f0;
+        border-radius: 14px;
         color: #94a3b8;
+        font-size: 13px;
         margin-top: 6px;
-        font-weight: 500;
+    }
+
+    .role-panel {
+        border: 1px solid #e6ebf5;
+        border-radius: 20px;
+        background: #ffffff;
+        box-shadow: 0 24px 44px -36px rgba(15, 23, 42, 0.35);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .role-panel__header {
+        padding: 20px 24px 16px;
+        border-bottom: 1px solid #eef2fb;
+        font-weight: 600;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 15px;
+    }
+
+    .role-panel__body {
+        padding: 18px 24px 24px;
+        flex: 1;
+    }
+
+    .role-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .role-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 18px;
+        border-radius: 12px;
+        border: 1px solid #eef2fb;
+        background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .role-item:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 32px -30px rgba(15, 23, 42, 0.4);
+    }
+
+    .role-item__count {
+        font-weight: 700;
+        color: #0f172a;
+        font-size: 14px;
+    }
+
+    .quota-alerts {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .quota-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 16px 18px;
+        border-radius: 14px;
+        border: 1px solid #eef2fb;
+        background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .quota-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 28px -28px rgba(15, 23, 42, 0.45);
+    }
+
+    .quota-item--warning {
+        border-color: #fde68a;
+        background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+    }
+
+    .quota-item--critical {
+        border-color: #fecaca;
+        background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+    }
+
+    .quota-item__title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #0f172a;
+    }
+
+    .quota-meta {
+        font-size: 11.5px;
+        color: #64748b;
+        margin-top: 4px;
+    }
+
+    .quota-pill {
+        margin-top: 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        background: #e2e8f0;
+        color: #475569;
+        letter-spacing: 0.02em;
+    }
+
+    .quota-item--warning .quota-pill {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .quota-item--critical .quota-pill {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .quota-item--normal .quota-pill {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .btn-ghost {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(37, 99, 235, 0.35);
+        background: rgba(37, 99, 235, 0.08);
+        color: #2563eb;
+        font-weight: 600;
+        font-size: 12px;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+    .btn-ghost:hover {
+        background: #2563eb;
+        color: #ffffff;
+        box-shadow: 0 10px 20px -18px rgba(37, 99, 235, 0.75);
+    }
+
+    .data-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .data-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.7fr) minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        padding: 16px 18px;
+        border-radius: 14px;
+        border: 1px solid #eef2fb;
+        background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .data-row--shipment {
+        grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.6fr) minmax(0, 1fr) auto;
+    }
+
+    .data-row:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 32px -28px rgba(15, 23, 42, 0.45);
+    }
+
+    .data-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+    }
+
+    .data-cell--status {
+        align-items: flex-start;
+        gap: 6px;
+    }
+
+    .data-cell--qty {
+        align-items: flex-end;
+        text-align: right;
+        min-width: 72px;
+    }
+
+    .data-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #0f172a;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+    }
+
+    .data-link {
+        font-size: 13px;
+        font-weight: 600;
+        color: #2563eb;
+        text-decoration: none;
+    }
+
+    .data-link:hover {
+        color: #1d4ed8;
+        text-decoration: underline;
+    }
+
+    .data-sub {
+        font-size: 12px;
+        color: #64748b;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+    }
+
+    .data-qty {
+        font-size: 16px;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    @media (max-width: 1100px) {
+        .data-row,
+        .data-row--shipment {
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
+
+        .data-cell--qty {
+            align-items: flex-start;
+            text-align: left;
+        }
+    }
+
+    .badge-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+    }
+
+    .badge-chip--warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-chip--info {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .badge-chip--success {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .badge-chip--muted {
+        background: #e2e8f0;
+        color: #475569;
+    }
+
+    .timeline-sm {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        position: relative;
+    }
+
+    .timeline-sm li {
+        position: relative;
+        padding-left: 40px;
+        margin-bottom: 20px;
+    }
+
+    .timeline-sm li:last-child {
+        margin-bottom: 0;
+    }
+
+    .timeline-sm li::before {
+        content: '';
+        position: absolute;
+        left: 20px;
+        top: 4px;
+        bottom: -20px;
+        width: 2px;
+        background: #e2e8f0;
+    }
+
+    .timeline-sm li:last-child::before {
+        bottom: 10px;
+    }
+
+    .timeline-icon {
+        position: absolute;
+        left: 8px;
+        top: 0;
+        width: 24px;
+        height: 24px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        color: #ffffff;
+        box-shadow: 0 6px 16px -10px rgba(37, 99, 235, 0.6);
+    }
+
+    .timeline-icon i {
+        font-size: 11px;
+        line-height: 1;
     }
 
     /* Role & Summary Tables */
@@ -347,7 +731,10 @@
             <div class="stat-label">Total Users</div>
             <div class="stat-number">{{ $totalUsers }}</div>
             <a href="{{ route('admin.users.index') }}" class="stat-link">
-                View Details <i class="fas fa-arrow-right"></i>
+                View Details
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="14" height="14" style="margin-left:6px">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
             </a>
         </div>
     </div>
@@ -362,7 +749,10 @@
             <div class="stat-label">Administrators</div>
             <div class="stat-number">{{ $totalAdmins }}</div>
             <a href="{{ route('admin.admins.index') }}" class="stat-link">
-                View Details <i class="fas fa-arrow-right"></i>
+                View Details
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="14" height="14" style="margin-left:6px">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
             </a>
         </div>
     </div>
@@ -372,12 +762,15 @@
     <div class="col-xl-3 col-md-6">
         <div class="stat-card">
             <div class="stat-icon info">
-                <i class="fas fa-user-tag"></i>
+                <i class="fas fa-bookmark"></i>
             </div>
             <div class="stat-label">Roles</div>
             <div class="stat-number">{{ $totalRoles }}</div>
             <a href="{{ route('admin.roles.index') }}" class="stat-link">
-                View Details <i class="fas fa-arrow-right"></i>
+                View Details
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="14" height="14" style="margin-left:6px">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
             </a>
         </div>
     </div>
@@ -405,7 +798,7 @@
     <div class="col-xl-3 col-md-6">
         <div class="stat-card">
             <div class="stat-icon primary">
-                <i class="fas fa-dolly"></i>
+                <i class="fas fa-warehouse"></i>
             </div>
             <div class="stat-label">Total Kuota</div>
             <div class="stat-number">{{ number_format($quotaStats['total']) }}</div>
@@ -415,7 +808,7 @@
     <div class="col-xl-3 col-md-6">
         <div class="stat-card">
             <div class="stat-icon info">
-                <i class="fas fa-balance-scale"></i>
+                <i class="fas fa-tachometer-alt"></i>
             </div>
             <div class="stat-label">Forecast Remaining</div>
             <div class="stat-number">{{ number_format($quotaStats['forecast_remaining']) }}</div>
@@ -450,55 +843,53 @@
     <div class="col-lg-{{ (Auth::user()->hasPermission('read users') || Auth::user()->hasPermission('read roles')) ? '8' : '12' }}">
         <div class="card welcome-card">
             <div class="card-body">
-                <div class="user-greeting">Hello, {{ Auth::user()->name }}! 👋</div>
-                
-                <div class="user-info-item">
-                    <div class="user-info-label">Your roles:</div>
-                    <div class="user-info-value">
-                        @foreach(Auth::user()->roles as $role)
-                            <span class="role-badge">{{ $role->name }}</span>
-                        @endforeach
+                <div class="welcome-card__header">
+                    <div>
+                        <h2 class="welcome-card__title">Hello, {{ Auth::user()->name }}! &#128075;</h2>
+                        <p class="welcome-card__subtitle">Kelola perizinan, kuota, dan pengirimanmu langsung dari sini.</p>
                     </div>
-                </div>
-                
-                <div class="user-info-item">
-                    <div class="user-info-label">Last login:</div>
-                    <div class="user-info-value">
+                    <div class="welcome-card__last-login">
+                        <span class="welcome-card__last-login-label">Last login</span>
                         @if(Auth::user()->last_login_at)
-                            {{ Auth::user()->last_login_at->diffForHumans() }}
-                            <span style="opacity: 0.7;"> ({{ Auth::user()->last_login_at->format('d M Y, H:i') }})</span>
+                            <span class="welcome-card__last-login-value">{{ Auth::user()->last_login_at->diffForHumans() }}</span>
+                            <span class="welcome-card__last-login-meta">{{ Auth::user()->last_login_at->format('d M Y, H:i') }}</span>
                         @else
-                            First time login
+                            <span class="welcome-card__last-login-value">First time login</span>
                         @endif
                     </div>
                 </div>
 
+                @if(Auth::user()->roles->isNotEmpty())
+                <div class="welcome-card__roles">
+                    @foreach(Auth::user()->roles as $role)
+                        <span class="role-chip">{{ $role->name }}</span>
+                    @endforeach
+                </div>
+                @endif
+
                 @if(Auth::user()->hasPermission('read users') || Auth::user()->hasPermission('read roles') || Auth::user()->hasPermission('read permissions'))
-                <div class="divider-light"></div>
-                
-                <div class="quick-actions-title">Quick Actions</div>
-                <div class="row g-2">
-                    @if(Auth::user()->hasPermission('read users'))
-                    <div class="col-md-4">
-                        <a href="{{ route('admin.users.index') }}" class="btn btn-quick">
-                            <i class="fas fa-users"></i> Manage Users
-                        </a>
+                <div class="welcome-card__actions">
+                    <span class="welcome-card__actions-label">Quick actions</span>
+                    <div class="quick-action-grid">
+                        @if(Auth::user()->hasPermission('read users'))
+                            <a href="{{ route('admin.users.index') }}" class="quick-action-chip">
+                                <i class="fas fa-users"></i>
+                                <span>Manage Users</span>
+                            </a>
+                        @endif
+                        @if(Auth::user()->hasPermission('read roles'))
+                            <a href="{{ route('admin.roles.index') }}" class="quick-action-chip">
+                                <i class="fas fa-user-tag"></i>
+                                <span>Manage Roles</span>
+                            </a>
+                        @endif
+                        @if(Auth::user()->hasPermission('read permissions'))
+                            <a href="{{ route('admin.permissions.index') }}" class="quick-action-chip">
+                                <i class="fas fa-key"></i>
+                                <span>Manage Permissions</span>
+                            </a>
+                        @endif
                     </div>
-                    @endif
-                    @if(Auth::user()->hasPermission('read roles'))
-                    <div class="col-md-4">
-                        <a href="{{ route('admin.roles.index') }}" class="btn btn-quick">
-                            <i class="fas fa-user-tag"></i> Manage Roles
-                        </a>
-                    </div>
-                    @endif
-                    @if(Auth::user()->hasPermission('read permissions'))
-                    <div class="col-md-4">
-                        <a href="{{ route('admin.permissions.index') }}" class="btn btn-quick">
-                            <i class="fas fa-key"></i> Manage Permissions
-                        </a>
-                    </div>
-                    @endif
                 </div>
                 @endif
             </div>
@@ -508,153 +899,213 @@
     <!-- Users by Role -->
     @if(Auth::user()->hasPermission('read users') || Auth::user()->hasPermission('read roles'))
     <div class="col-lg-4">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">
-                    <i class="fas fa-chart-pie me-2"></i>Users by Role
-                </h3>
+        <div class="role-panel">
+            <div class="role-panel__header">
+                <i class="fas fa-chart-pie"></i>
+                <span>Users by Role</span>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table role-table mb-0">
-                        <thead>
-                            <tr>
-                                <th>Role</th>
-                                <th class="text-end">Users</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($usersByRole as $role)
-                            <tr>
-                                <td>
-                                    <span class="role-badge-table">{{ $role->name }}</span>
-                                </td>
-                                <td class="text-end">
-                                    <strong>{{ $role->users_count }}</strong>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+            <div class="role-panel__body">
+                @if($usersByRole->isEmpty())
+                    <div class="panel-modern__empty">Belum ada data role.</div>
+                @else
+                    <ul class="role-list">
+                        @foreach($usersByRole as $role)
+                            <li class="role-item">
+                                <span class="role-chip">{{ $role->name }}</span>
+                                <span class="role-item__count">{{ $role->users_count }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
             </div>
         </div>
     </div>
     @endif
-
-</div>
-
 <!-- Operational Overview -->
 <div class="row g-3 mb-4">
     <div class="col-lg-4">
-        <div class="card h-100">
-            <div class="card-header">
-                <h3 class="card-title mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Quota Alerts</h3>
+        <div class="panel-modern h-100">
+            <div class="panel-modern__header">
+                <h3 class="panel-modern__title">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 3h.01M4.93 19h14.14a1 1 0 00.86-1.5L12.86 4.5a1 1 0 00-1.72 0L4.07 17.5A1 1 0 004.93 19z" />
+                    </svg>
+                    Quota Alerts
+                </h3>
+                @if(\Illuminate\Support\Facades\Route::has('admin.quotas.index'))
+                    <a href="{{ route('admin.quotas.index') }}" class="panel-modern__link">Lihat semua</a>
+                @endif
             </div>
-            <div class="card-body p-0">
-                <ul class="list-group list-group-flush">
-                    @forelse($quotaAlerts as $alert)
-                        @php
-                            $quotaDetailUrl = \Illuminate\Support\Facades\Route::has('admin.quotas.show')
-                                ? route('admin.quotas.show', $alert)
-                                : null;
-                        @endphp
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>{{ $alert->quota_number }}</strong>
-                                <div class="text-muted small">Forecast: {{ number_format($alert->forecast_remaining ?? 0) }} | Actual: {{ number_format($alert->actual_remaining ?? 0) }}</div>
+            <div class="panel-modern__body">
+                @if($quotaAlerts->isEmpty())
+                    <div class="panel-modern__empty">Belum ada alert.</div>
+                @else
+                    <div class="quota-alerts">
+                        @foreach($quotaAlerts as $alert)
+                            @php
+                                $quotaDetailUrl = \Illuminate\Support\Facades\Route::has('admin.quotas.show')
+                                    ? route('admin.quotas.show', $alert)
+                                    : null;
+                                $totalAllocation = (int) ($alert->total_allocation ?? 0);
+                                $forecastRemaining = max(0, (int) ($alert->forecast_remaining ?? 0));
+                                $actualRemaining = max(0, (int) ($alert->actual_remaining ?? 0));
+                                $calcBase = $totalAllocation > 0 ? $totalAllocation : null;
+                                $remainingPercent = $calcBase ? max(0, round(($forecastRemaining / $calcBase) * 100)) : null;
+                                $consumed = $calcBase ? max(0, $calcBase - $forecastRemaining) : null;
+                                $severity = match(true) {
+                                    $alert->status === \App\Models\Quota::STATUS_DEPLETED || ($remainingPercent !== null && $remainingPercent <= 5) => 'critical',
+                                    $alert->status === \App\Models\Quota::STATUS_LIMITED || ($remainingPercent !== null && $remainingPercent <= 20) => 'warning',
+                                    default => 'normal',
+                                };
+                            @endphp
+                            <div class="quota-item quota-item--{{ $severity }}">
+                                <div>
+                                    <span class="quota-item__title">{{ $alert->quota_number }}</span>
+                                    @if($alert->name)
+                                        <div class="quota-meta">{{ $alert->name }}</div>
+                                    @endif
+                                    <div class="quota-meta">Forecast: {{ number_format($forecastRemaining) }} | Actual: {{ number_format($actualRemaining) }}</div>
+                                    <div class="quota-meta">
+                                        Consumed: {{ $consumed !== null ? number_format($consumed) : '—' }}
+                                        @if($remainingPercent !== null)
+                                            • Remaining {{ $remainingPercent }}%
+                                        @endif
+                                    </div>
+                                    <div class="quota-pill">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="12" height="12">
+                                            <path d="M10 3a7 7 0 100 14 7 7 0 000-14zm0 2a1 1 0 01.993.883L11 6v4h3a1 1 0 01.117 1.993L14 12h-4a1 1 0 01-.993-.883L9 11V6a1 1 0 011-1z" />
+                                        </svg>
+                                        <span>{{ ucfirst($alert->status) }}</span>
+                                    </div>
+                                </div>
+                                @if($quotaDetailUrl)
+                                    <div class="d-flex flex-column align-items-end gap-2">
+                                        <a href="{{ $quotaDetailUrl }}" class="btn-ghost">Detail</a>
+                                    </div>
+                                @endif
                             </div>
-                            @if($quotaDetailUrl)
-                                <a href="{{ $quotaDetailUrl }}" class="btn btn-sm btn-outline-primary">Detail</a>
-                            @else
-                                <span class="text-muted small">Detail route unavailable</span>
-                            @endif
-                        </li>
-                    @empty
-                        <li class="list-group-item text-muted">Belum ada alert.</li>
-                    @endforelse
-                </ul>
+                        @endforeach
+                    </div>
+                @endif
             </div>
         </div>
     </div>
     <div class="col-lg-4">
-        <div class="card h-100">
-            <div class="card-header">
-                <h3 class="card-title mb-0"><i class="fas fa-file-invoice me-2"></i>Recent Purchase Orders</h3>
+        <div class="panel-modern h-100">
+            <div class="panel-modern__header">
+                <h3 class="panel-modern__title">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h8m-9 8h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Recent Purchase Orders
+                </h3>
+                @if(\Illuminate\Support\Facades\Route::has('admin.purchase-orders.index'))
+                    <a href="{{ route('admin.purchase-orders.index') }}" class="panel-modern__link">Lihat semua</a>
+                @endif
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>PO</th>
-                                <th>Produk</th>
-                                <th class="text-end">Qty</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($recentPurchaseOrders as $po)
-                                <tr>
-                                    <td>
-                                        <strong>{{ $po->po_number }}</strong><br>
-                                        <small class="text-muted">{{ $po->order_date?->format('d M') }}</small>
-                                    </td>
-                                    <td>{{ $po->product->code }}</td>
-                                    <td class="text-end">{{ number_format($po->quantity) }}</td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="3" class="text-center text-muted">Belum ada data.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+            <div class="panel-modern__body">
+                @if($recentPurchaseOrders->isEmpty())
+                    <div class="panel-modern__empty">Belum ada data.</div>
+                @else
+                    <div class="data-list">
+                        @foreach($recentPurchaseOrders as $po)
+                            @php
+                                $poStatusStyles = [
+                                    \App\Models\PurchaseOrder::STATUS_ORDERED => ['label' => 'Ordered', 'class' => 'badge-chip--info'],
+                                    \App\Models\PurchaseOrder::STATUS_IN_TRANSIT => ['label' => 'In Transit', 'class' => 'badge-chip--warning'],
+                                    \App\Models\PurchaseOrder::STATUS_PARTIAL => ['label' => 'Partial', 'class' => 'badge-chip--warning'],
+                                    \App\Models\PurchaseOrder::STATUS_COMPLETED => ['label' => 'Completed', 'class' => 'badge-chip--success'],
+                                    \App\Models\PurchaseOrder::STATUS_CANCELLED => ['label' => 'Cancelled', 'class' => 'badge-chip--muted'],
+                                    \App\Models\PurchaseOrder::STATUS_DRAFT => ['label' => 'Draft', 'class' => 'badge-chip--muted'],
+                                ];
+                                $poStatus = $poStatusStyles[$po->status] ?? ['label' => ucfirst($po->status), 'class' => 'badge-chip--muted'];
+                            @endphp
+                            <div class="data-row data-row--po">
+                                <div class="data-cell">
+                                    <span class="data-title">{{ $po->po_number }}</span>
+                                    <span class="data-sub">{{ $po->order_date?->format('d M') ?? 'Tanpa tanggal' }}</span>
+                                </div>
+                                <div class="data-cell">
+                                    @if($po->product)
+                                        <span class="data-link">{{ $po->product->code }}</span>
+                                        <span class="data-sub">{{ \Illuminate\Support\Str::limit($po->product->name, 36) }}</span>
+                                    @else
+                                        <span class="data-sub">Produk tidak tersedia</span>
+                                    @endif
+                                </div>
+                                <div class="data-cell data-cell--status">
+                                    <span class="badge-chip {{ $poStatus['class'] }}">{{ $poStatus['label'] }}</span>
+                                    @if($po->status_po_display)
+                                        <span class="data-sub">{{ $po->status_po_display }}</span>
+                                    @endif
+                                </div>
+                                <div class="data-cell data-cell--qty">
+                                    <span class="data-qty">{{ number_format($po->quantity) }}</span>
+                                    <span class="data-sub">unit</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
             </div>
         </div>
     </div>
     <div class="col-lg-4">
-        <div class="card h-100">
-            <div class="card-header">
-                <h3 class="card-title mb-0"><i class="fas fa-truck me-2"></i>Recent Shipments</h3>
+        <div class="panel-modern h-100">
+            <div class="panel-modern__header">
+                <h3 class="panel-modern__title">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h11v7h7l-3-5h-4V7H3zM5 18a2 2 0 104 0 2 2 0 10-4 0zm10 0a2 2 0 104 0 2 2 0 10-4 0z" />
+                    </svg>
+                    Recent Shipments
+                </h3>
+                @if(\Illuminate\Support\Facades\Route::has('admin.shipments.index'))
+                    <a href="{{ route('admin.shipments.index') }}" class="panel-modern__link">Lihat semua</a>
+                @endif
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Shipment</th>
-                                <th>Status</th>
-                                <th class="text-end">Qty</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($recentShipments as $shipment)
-                                @php
-                                    $statusLabels = [
-                                        \App\Models\Shipment::STATUS_IN_TRANSIT => ['label' => 'In Transit', 'class' => 'bg-warning text-dark'],
-                                        \App\Models\Shipment::STATUS_PARTIAL => ['label' => 'Partial', 'class' => 'bg-info text-dark'],
-                                        \App\Models\Shipment::STATUS_DELIVERED => ['label' => 'Delivered', 'class' => 'bg-success'],
-                                        \App\Models\Shipment::STATUS_PENDING => ['label' => 'Pending', 'class' => 'bg-secondary'],
-                                    ];
-                                    $statusMeta = $statusLabels[$shipment->status] ?? ['label' => ucfirst($shipment->status), 'class' => 'bg-secondary'];
-                                @endphp
-                                <tr>
-                                    <td>
-                                        <strong>{{ $shipment->shipment_number }}</strong><br>
-                                        <small class="text-muted">{{ $shipment->purchaseOrder->po_number }}</small>
-                                    </td>
-                                    <td><span class="badge {{ $statusMeta['class'] }}">{{ $statusMeta['label'] }}</span></td>
-                                    <td class="text-end">{{ number_format($shipment->quantity_planned) }}</td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="3" class="text-center text-muted">Belum ada data.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+            <div class="panel-modern__body">
+                @if($recentShipments->isEmpty())
+                    <div class="panel-modern__empty">Belum ada data.</div>
+                @else
+                    <div class="data-list">
+                        @foreach($recentShipments as $shipment)
+                            @php
+                                $statusStyles = [
+                                    \App\Models\Shipment::STATUS_IN_TRANSIT => ['label' => 'In Transit', 'class' => 'badge-chip--warning'],
+                                    \App\Models\Shipment::STATUS_PARTIAL => ['label' => 'Partial', 'class' => 'badge-chip--info'],
+                                    \App\Models\Shipment::STATUS_DELIVERED => ['label' => 'Delivered', 'class' => 'badge-chip--success'],
+                                    \App\Models\Shipment::STATUS_PENDING => ['label' => 'Pending', 'class' => 'badge-chip--muted'],
+                                    \App\Models\Shipment::STATUS_CANCELLED => ['label' => 'Cancelled', 'class' => 'badge-chip--muted'],
+                                ];
+                                $statusMeta = $statusStyles[$shipment->status] ?? ['label' => ucfirst($shipment->status), 'class' => 'badge-chip--muted'];
+                            @endphp
+                            <div class="data-row data-row--shipment">
+                                <div class="data-cell">
+                                    <span class="data-title">{{ $shipment->shipment_number }}</span>
+                                    <span class="data-sub">{{ $shipment->ship_date?->format('d M') ?? 'Tanpa jadwal' }}</span>
+                                </div>
+                                <div class="data-cell">
+                                    @if($shipment->purchaseOrder)
+                                        <span class="data-link">{{ $shipment->purchaseOrder->po_number }}</span>
+                                        <span class="data-sub">{{ \Illuminate\Support\Str::limit($shipment->purchaseOrder->product?->name, 36) }}</span>
+                                    @else
+                                        <span class="data-sub">PO tidak tersedia</span>
+                                    @endif
+                                </div>
+                                <div class="data-cell data-cell--status">
+                                    <span class="badge-chip {{ $statusMeta['class'] }}">{{ $statusMeta['label'] }}</span>
+                                    @if($shipment->eta_date)
+                                        <span class="data-sub">ETA {{ $shipment->eta_date->format('d M') }}</span>
+                                    @endif
+                                </div>
+                                <div class="data-cell data-cell--qty">
+                                    <span class="data-qty">{{ number_format($shipment->quantity_planned) }}</span>
+                                    <span class="data-sub">unit</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
             </div>
         </div>
     </div>
@@ -664,7 +1115,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title mb-0"><i class="fas fa-history me-2"></i>Riwayat Kuota Terbaru</h3>
+            <h3 class="card-title mb-0"><i class="fas fa-history me-2"></i>Riwayat Kuota Terbaru</h3>
             </div>
             <div class="card-body">
                 <ul class="timeline-sm mb-0">
@@ -693,11 +1144,11 @@
             <div class="card-header">
                 <div class="card-header-actions">
                     <h3 class="card-title mb-0">
-                        <i class="fas fa-users me-2"></i>Recent Users
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16" class="me-2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 12a4 4 0 10-8 0 4 4 0 008 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 14c-4.418 0-8 2.239-8 5v1h16v-1c0-2.761-3.582-5-8-5z"/></svg>Recent Users
                     </h3>
                     @if(Auth::user()->hasPermission('create users'))
                     <a href="{{ route('admin.users.create') }}" class="btn btn-add-user">
-                        <i class="fas fa-user-plus me-2"></i>Add User
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16" class="me-2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4a4 4 0 100 8 4 4 0 000-8zm8 8h-3m-1 0h-3m-8 4a6 6 0 0112 0v2H4v-2z"/></svg>Add User
                     </a>
                     @endif
                 </div>
@@ -749,7 +1200,7 @@
                                     @if($user->isAdmin())
                                         @if(\Illuminate\Support\Facades\Route::has('admin.admins.show'))
                                             <a href="{{ route('admin.admins.show', $user) }}" class="btn btn-view">
-                                                <i class="fas fa-eye"></i>
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                             </a>
                                         @endif
                                     @else
@@ -778,3 +1229,6 @@
     console.log('Dashboard loaded successfully!');
 </script>
 @endpush
+
+
+

@@ -1,131 +1,181 @@
+{{-- resources/views/admin/roles/index.blade.php --}}
 @extends('layouts.admin')
 
 @section('title', 'Roles Management')
-
-@section('page-title', 'Roles')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
     <li class="breadcrumb-item active">Roles</li>
 @endsection
 
+@push('styles')
+<style>
+    .roles-page { display:flex; flex-direction:column; gap:28px; }
+    .roles-header { display:flex; flex-wrap:wrap; justify-content:space-between; gap:18px; align-items:flex-start; }
+    .roles-title { font-size:26px; font-weight:700; color:#0f172a; margin:0; }
+    .roles-subtitle { margin-top:6px; color:#64748b; font-size:13px; max-width:520px; }
+    .roles-actions { display:flex; gap:12px; }
+    .roles-action {
+        display:inline-flex; align-items:center; gap:8px;
+        padding:10px 18px; border-radius:14px; font-size:13px; font-weight:600;
+        text-decoration:none; transition:all .2s ease; border:1px solid transparent;
+    }
+    .roles-action--primary { background:#2563eb; color:#ffffff; box-shadow:0 18px 36px -30px rgba(37,99,235,.8); }
+    .roles-action--primary:hover { background:#1d4ed8; transform:translateY(-1px); }
+
+    .table-shell {
+        background:#ffffff; border:1px solid #e6ebf5; border-radius:22px;
+        overflow:hidden; box-shadow:0 30px 60px -48px rgba(15,23,42,.45);
+    }
+    .roles-table { width:100%; border-collapse:separate; border-spacing:0; }
+    .roles-table thead th {
+        background:#f8faff; padding:16px 18px; font-size:12px; color:#64748b;
+        text-transform:uppercase; letter-spacing:.08em; border-bottom:1px solid #e6ebf5;
+    }
+    .roles-table tbody td {
+        padding:16px 18px; border-bottom:1px solid #eef2fb;
+        font-size:13px; color:#1f2937; vertical-align:middle;
+    }
+    .roles-table tbody tr:hover { background:rgba(37,99,235,.04); }
+
+    .role-name-chip {
+        display:inline-flex; align-items:center; gap:8px;
+        padding:6px 12px; border-radius:12px;
+        background:rgba(37,99,235,.12); color:#1d4ed8;
+        font-weight:600; font-size:12px; letter-spacing:.04em; text-transform:uppercase;
+    }
+
+    .count-pill {
+        display:inline-flex; align-items:center; justify-content:center;
+        min-width:36px; padding:6px 12px; border-radius:10px;
+        font-weight:600; font-size:12px;
+        background:rgba(226, 232, 240, 0.7); color:#1f2937;
+    }
+
+    .roles-table__description { color:#475569; font-size:12.5px; }
+
+    .action-badge {
+        width:34px; height:34px; border-radius:12px;
+        display:inline-flex; align-items:center; justify-content:center;
+        font-size:13px; transition:all .2s ease; border:none;
+    }
+    .action-badge--view { background:rgba(96,165,250,.16); color:#1d4ed8; }
+    .action-badge--edit { background:rgba(250,204,21,.16); color:#b45309; }
+    .action-badge--delete { background:rgba(248,113,113,.16); color:#dc2626; }
+    .action-badge:hover { transform:translateY(-1px); }
+
+    .pagination-modern { display:flex; justify-content:flex-end; margin-top:20px; }
+</style>
+@endpush
+
 @section('content')
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">All Roles</h3>
-                <div class="card-tools">
-                    @if(auth()->user()->hasPermission('create roles'))
-                    <a href="{{ route('admin.roles.create') }}" class="btn btn-primary btn-sm">
-                        <i class="fas fa-plus"></i> Create Role
-                    </a>
-                    @endif
-                </div>
-            </div>
-            <div class="card-body">
-                @if($roles->count() > 0)
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped">
-                        <thead>
-                            <tr>
-                                <th style="width: 10px">#</th>
-                                <th>Role Name</th>
-                                <th>Description</th>
-                                <th>Permissions</th>
-                                <th>Users</th>
-                                <th>Created At</th>
-                                <th style="width: 200px">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($roles as $role)
-                            <tr>
-                                <td>{{ $loop->iteration + ($roles->currentPage() - 1) * $roles->perPage() }}</td>
-                                <td>
-                                    <span class="badge badge-success">{{ $role->name }}</span>
-                                </td>
-                                <td>{{ $role->description ?? '-' }}</td>
-                                <td>
-                                    <span class="badge badge-primary">{{ $role->permissions_count }}</span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-info">{{ $role->users_count }}</span>
-                                </td>
-                                <td>{{ $role->created_at->format('d M Y') }}</td>
-                                <td>
-                                    <div class="btn-group">
-                                        @if(Route::has('admin.roles.show'))
-                                        <a href="{{ route('admin.roles.show', $role) }}" 
-                                           class="btn btn-info btn-sm" 
-                                           title="View">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        @endif
-                                        @if(auth()->user()->hasPermission('update roles'))
-                                        <a href="{{ route('admin.roles.edit', $role) }}" 
-                                           class="btn btn-warning btn-sm" 
-                                           title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        @endif
-                                        @if(auth()->user()->hasPermission('delete roles') && $role->name !== 'admin' && $role->name !== 'super-admin')
-                                        <button type="button" 
-                                                class="btn btn-danger btn-sm" 
-                                                onclick="deleteRole({{ $role->id }})"
-                                                title="Delete">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                        @endif
-                                    </div>
-                                    
-                                    <form id="delete-form-{{ $role->id }}" 
-                                          action="{{ route('admin.roles.destroy', $role) }}" 
-                                          method="POST" 
-                                          style="display: none;">
-                                        @csrf
-                                        @method('DELETE')
-                                    </form>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div class="mt-3">
-                    {{ $roles->links() }}
-                </div>
-                @else
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i> No roles found. 
-                    <a href="{{ route('admin.roles.create') }}">Create one now</a>
-                </div>
-                @endif
-            </div>
+<div class="roles-page">
+    <div class="roles-header">
+        <div>
+            <h1 class="roles-title">Manajemen Roles</h1>
+            <p class="roles-subtitle">Kelola role dan distribusi permissions untuk mengatur akses pengguna di platform.</p>
+        </div>
+        <div class="roles-actions">
+            @if(auth()->user()->hasPermission('create roles'))
+                <a href="{{ route('admin.roles.create') }}" class="roles-action roles-action--primary">
+                    <i class="fas fa-plus"></i>
+                    Buat Role Baru
+                </a>
+            @endif
         </div>
     </div>
+
+    <div class="table-shell">
+        <table class="roles-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Role</th>
+                    <th>Deskripsi</th>
+                    <th class="text-center">Permissions</th>
+                    <th class="text-center">Users</th>
+                    <th>Dibuat</th>
+                    <th class="text-end">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($roles as $role)
+                    <tr>
+                        <td>{{ $roles->firstItem() + $loop->index }}</td>
+                        <td>
+                            <span class="role-name-chip">{{ $role->name }}</span>
+                        </td>
+                        <td>
+                            <div class="roles-table__description">{{ $role->description ?? 'Tidak ada deskripsi' }}</div>
+                        </td>
+                        <td class="text-center">
+                            <span class="count-pill">{{ $role->permissions_count }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="count-pill">{{ $role->users_count }}</span>
+                        </td>
+                        <td>{{ $role->created_at->format('d M Y') }}</td>
+                        <td class="text-end">
+                            <div class="table-actions">
+                                @if(Route::has('admin.roles.show'))
+                                    <a href="{{ route('admin.roles.show', $role) }}" class="action-badge action-badge--view" title="Detail">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                @endif
+                                @if(auth()->user()->hasPermission('update roles'))
+                                    <a href="{{ route('admin.roles.edit', $role) }}" class="action-badge action-badge--edit" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                @endif
+                                @if(auth()->user()->hasPermission('delete roles') && !in_array($role->name, ['admin','super-admin']))
+                                    <button type="button" class="action-badge action-badge--delete" onclick="deleteRole({{ $role->id }})" title="Hapus">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                @endif
+                            </div>
+                            <form id="delete-role-{{ $role->id }}" action="{{ route('admin.roles.destroy', $role) }}" method="POST" class="d-none">
+                                @csrf
+                                @method('DELETE')
+                            </form>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            Belum ada role yang terdaftar. @if(auth()->user()->hasPermission('create roles'))<a href="{{ route('admin.roles.create') }}">Buat role baru</a>@endif
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+
+    @if(method_exists($roles, 'links'))
+        <div class="pagination-modern">
+            {{ $roles->links() }}
+        </div>
+    @endif
 </div>
 @endsection
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-function deleteRole(id) {
-    Swal.fire({
-        title: 'Are you sure?',
-        text: "This role will be removed from all users!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, delete it!',
-        cancelButtonText: 'Cancel'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            document.getElementById('delete-form-' + id).submit();
-        }
-    });
-}
+    function deleteRole(id) {
+        Swal.fire({
+            title: 'Hapus role ini?',
+            text: 'Role akan dicabut dari semua pengguna yang terkait.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#2563eb',
+            confirmButtonText: 'Ya, hapus',
+            cancelButtonText: 'Batal'
+        }).then(result => {
+            if (result.isConfirmed) {
+                document.getElementById('delete-role-' + id).submit();
+            }
+        });
+    }
 </script>
 @endpush
