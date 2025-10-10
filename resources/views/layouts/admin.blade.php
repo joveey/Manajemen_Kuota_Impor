@@ -24,7 +24,7 @@
         /* Global base font sizing similar to GitHub */
         html { font-size: 14px; }
         :root {
-            --sidebar-width: 240px;
+            --sidebar-width: 260px;
             --surface: #f5f7fb;
             --card: #ffffff;
             --stroke: #e4e8f1;
@@ -95,13 +95,13 @@
             font-size: 9px;
             letter-spacing: 0.1em;
             text-transform: uppercase;
-            color: var(--muted);
+            color: #cbd5f5;
         }
 
         .nav-groups {
             flex: 1;
             overflow-y: auto;
-            padding-right: 4px;
+            padding: 0 8px 28px 8px;
         }
 
         .nav-groups::-webkit-scrollbar {
@@ -119,7 +119,7 @@
             font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 0.12em;
-            color: var(--muted);
+            color: #cbd5f5;
             font-weight: 600;
             margin-bottom: 10px;
         }
@@ -127,45 +127,76 @@
         .nav-link {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 10px 12px;
-            border-radius: 12px;
-            font-size: 11.5px;
-            font-weight: 500;
-            color: var(--muted);
+            gap: 16px;
+            padding: 14px 20px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(30, 41, 59, 0.78);
             transition: all 0.2s ease;
+            letter-spacing: 0.01em;
         }
 
         .nav-link:hover,
         .nav-link:focus-visible {
-            background: rgba(37, 99, 235, 0.12);
-            color: var(--primary);
+            background: rgba(37, 99, 235, 0.1);
+            color: #1d4ed8;
         }
 
-        .nav-link i {
+        .nav-link span:last-child {
+            flex: 1;
+        }
+
+        .nav-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 28px;
-            height: 28px;
-            border-radius: 10px;
-            font-size: 12px;
-            background: rgba(15, 23, 42, 0.06);
-            color: rgba(15, 23, 42, 0.55);
-            transition: all 0.2s ease;
+            background: rgba(148, 163, 184, 0.12);
+            color: rgba(30, 41, 59, 0.6);
+            transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
         }
 
-        .nav-link:hover i,
-        .nav-link:focus-visible i,
-        .nav-link.active i {
-            background: var(--primary);
-            color: white;
+        .nav-icon i {
+            font-size: 15px;
+            line-height: 1;
+        }
+
+        .nav-link:hover .nav-icon,
+        .nav-link:focus-visible .nav-icon,
+        .nav-link.active .nav-icon {
+            background: rgba(37, 99, 235, 0.18);
+            color: #1d4ed8;
+            transform: translateY(-1px);
         }
 
         .nav-link.active {
+            background: rgba(37, 99, 235, 0.16);
+            color: #1d4ed8;
+            font-weight: 700;
+        }
+
+        .nav-link-muted {
+            background: rgba(148, 163, 184, 0.12);
+            color: #334155;
+            font-weight: 600;
+        }
+
+        .nav-link-muted .nav-icon {
+            background: rgba(148, 163, 184, 0.2);
+            color: #1f2937;
+        }
+
+        .nav-link-muted:hover {
             background: rgba(37, 99, 235, 0.12);
             color: var(--primary);
-            font-weight: 600;
+        }
+
+        .nav-link-muted:hover .nav-icon {
+            background: rgba(37, 99, 235, 0.18);
+            color: var(--primary);
         }
 
         .nav-footer {
@@ -188,19 +219,28 @@
         }
 
         .logout-btn {
-            display: inline-flex;
+            display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 10px 12px;
-            border-radius: 10px;
-            background: rgba(220, 53, 69, 0.12);
+            gap: 10px;
+            padding: 11px 14px;
+            border-radius: 12px;
+            background: rgba(248, 113, 113, 0.12);
             color: #b91c1c;
             border: none;
-            font-size: 12px;
+            font-size: 12.5px;
+            font-weight: 600;
+            width: 100%;
+            transition: background 0.2s ease, transform 0.2s ease;
         }
 
         .logout-btn:hover {
-            background: rgba(220, 53, 69, 0.18);
+            background: rgba(248, 113, 113, 0.18);
+            transform: translateY(-1px);
+        }
+
+        .logout-btn .nav-icon {
+            background: rgba(248, 113, 113, 0.2);
+            color: #b91c1c;
         }
 
         .app-main {
@@ -212,50 +252,82 @@
 
         .app-bar {
             height: 68px;
-            background: rgba(255, 255, 255, 0.92);
-            border-bottom: 1px solid var(--stroke);
+            background: rgba(255, 255, 255, 0.96);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.16);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 28px;
+            padding: 18px 28px;
             position: sticky;
             top: 0;
             z-index: 1020;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(14px);
+            box-shadow: 0 18px 36px -32px rgba(15, 23, 42, 0.55);
         }
 
-        .bar-left { display: flex; flex-direction: column; gap: 4px; }
-        .bar-left h1 { font-size: 16px; font-weight: 700; margin: 0; }
+        .bar-left { display: flex; flex-direction: column; gap: 6px; }
+        .bar-left h1 { font-size: 20px; font-weight: 700; margin: 0; color: #111827; }
 
         .breadcrumb {
             margin: 0;
             padding: 0;
             background: transparent;
-            font-size: 10.5px;
+            font-size: 12px;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .breadcrumb-item + .breadcrumb-item::before {
-            content: '\f105';
-            font-family: 'Font Awesome 6 Free';
-            font-weight: 900;
+            content: '›';
+            color: #cbd5f5;
+            font-size: 12px;
+        }
+
+        .breadcrumb a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .breadcrumb-item.active {
+            color: #475569;
+            font-weight: 600;
         }
 
         .bar-actions {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
         }
 
         .quick-action {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 14px;
-            border-radius: 10px;
-            background: var(--primary);
-            color: white;
-            font-size: 11.5px;
-            border: none;
+            padding: 10px 18px;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.12);
+            color: #2563eb;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid rgba(37, 99, 235, 0.22);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 16px 36px -30px rgba(37, 99, 235, 0.82);
+        }
+
+        .quick-action svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .quick-action:hover {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 20px 44px -28px rgba(37, 99, 235, 0.85);
         }
 
         .search-lite {
@@ -281,12 +353,12 @@
         .dataTable, .table, .select2-container, .select2-selection__rendered,
         .select2-dropdown, .flatpickr-input, .pagination { font-size: 0.875rem; }
 
-        .search-lite i {
+        .search-lite svg {
             position: absolute;
             top: 50%;
             left: 12px;
             transform: translateY(-50%);
-            color: var(--muted);
+            color: #cbd5f5;
         }
 
         .app-content {
@@ -324,7 +396,11 @@
     <div class="app-shell">
         <aside class="sidebar" id="sidebar">
             <div class="brand">
-                <span class="brand-symbol"><i class="fas fa-signal"></i></span>
+                <span class="brand-symbol">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 12h4v8H3v-8zm7-6h4v14h-4V6zm7 3h4v11h-4V9z" />
+                    </svg>
+                </span>
                 <div>
                     <span class="brand-name">{{ config('app.name', 'Quota Monitor') }}</span>
                     <span class="brand-subtitle">Import Control</span>
@@ -335,7 +411,7 @@
                 <div class="nav-group">
                     <p class="nav-title">Overview</p>
                     <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                        <i class="fas fa-gauge-high"></i>
+                        <span class="nav-icon"><i class="fas fa-gauge-high"></i></span>
                         <span>Dashboard</span>
                     </a>
                 </div>
@@ -344,7 +420,7 @@
                     <div class="nav-group">
                         <p class="nav-title">Data Master</p>
                         <a href="{{ route('admin.master-data.index') }}" class="nav-link {{ request()->is('admin/master-data*') ? 'active' : '' }}">
-                            <i class="fas fa-layer-group"></i>
+                            <span class="nav-icon"><i class="fas fa-boxes"></i></span>
                             <span>Produk</span>
                         </a>
                     </div>
@@ -360,23 +436,23 @@
                         <p class="nav-title">Operasional</p>
                         @if($canQuota)
                             <a href="{{ route('admin.quotas.index') }}" class="nav-link {{ request()->is('admin/quotas*') || request()->is('admin/kuota*') ? 'active' : '' }}">
-                                <i class="fas fa-chart-pie"></i>
+                                <span class="nav-icon"><i class="fas fa-percentage"></i></span>
                                 <span>Manajemen Kuota</span>
                             </a>
                         @endif
                         @if($canPOCreate)
                             <a href="{{ route('admin.purchase-orders.create') }}" class="nav-link {{ request()->is('admin/purchase-order/create') ? 'active' : '' }}">
-                                <i class="fas fa-circle-plus"></i>
+                                <span class="nav-icon"><i class="fas fa-plus"></i></span>
                                 <span>Buat Purchase Order</span>
                             </a>
                         @endif
                         @if($canPORead)
                             <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->is('admin/purchase-orders') || request()->is('admin/purchase-order') ? 'active' : '' }}">
-                                <i class="fas fa-clipboard-list"></i>
+                                <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
                                 <span>Daftar Purchase Order</span>
                             </a>
                             <a href="{{ route('admin.shipments.index') }}" class="nav-link {{ request()->is('admin/shipments*') || request()->is('admin/shipment') ? 'active' : '' }}">
-                                <i class="fas fa-truck"></i>
+                                <span class="nav-icon"><i class="fas fa-truck"></i></span>
                                 <span>Pengiriman & Receipt</span>
                             </a>
                         @endif
@@ -388,25 +464,25 @@
                         <p class="nav-title">Administrasi</p>
                         @if($currentUser?->can('read users'))
                             <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->is('admin/users*') ? 'active' : '' }}">
-                                <i class="fas fa-users"></i>
+                                <span class="nav-icon"><i class="fas fa-users"></i></span>
                                 <span>Users</span>
                             </a>
                         @endif
                         @if($currentUser?->can('read roles'))
                             <a href="{{ route('admin.roles.index') }}" class="nav-link {{ request()->is('admin/roles*') ? 'active' : '' }}">
-                                <i class="fas fa-user-shield"></i>
+                                <span class="nav-icon"><i class="fas fa-id-badge"></i></span>
                                 <span>Roles</span>
                             </a>
                         @endif
                         @if($currentUser?->can('read permissions'))
                             <a href="{{ route('admin.permissions.index') }}" class="nav-link {{ request()->is('admin/permissions*') ? 'active' : '' }}">
-                                <i class="fas fa-key"></i>
+                                <span class="nav-icon"><i class="fas fa-key"></i></span>
                                 <span>Permissions</span>
                             </a>
                         @endif
                         @if($currentUser?->isAdmin())
                             <a href="{{ route('admin.admins.index') }}" class="nav-link {{ request()->is('admin/admins*') ? 'active' : '' }}">
-                                <i class="fas fa-user-cog"></i>
+                                <span class="nav-icon"><i class="fas fa-user-cog"></i></span>
                                 <span>Admin Panel</span>
                             </a>
                         @endif
@@ -419,17 +495,17 @@
                     <img src="https://ui-avatars.com/api/?name={{ urlencode($currentUser?->name ?? 'User') }}&background=2563eb&color=fff" alt="Avatar">
                     <div>
                         <strong>{{ $currentUser?->name }}</strong>
-                        <div style="font-size: 11px; color: var(--muted);">{{ $currentUser?->email }}</div>
+                        <div style="font-size: 11px; color: #cbd5f5;">{{ $currentUser?->email }}</div>
                     </div>
                 </div>
-                <a href="{{ route('profile.edit') }}" class="nav-link" style="padding: 10px 12px; background: rgba(15,23,42,0.04); border-radius: 10px;">
-                    <i class="fas fa-user-edit"></i>
+                <a href="{{ route('profile.edit') }}" class="nav-link nav-link-muted">
+                    <span class="nav-icon"><i class="fas fa-user-cog"></i></span>
                     <span>Pengaturan Akun</span>
                 </a>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <button type="submit" class="logout-btn">
-                        <i class="fas fa-arrow-right-from-bracket"></i>
+                        <span class="nav-icon"><i class="fas fa-sign-out-alt"></i></span>
                         <span>Keluar</span>
                     </button>
                 </form>
@@ -439,7 +515,9 @@
         <div class="app-main">
             <header class="app-bar">
                 <button class="nav-toggle btn btn-light d-lg-none" id="navToggle">
-                    <i class="fas fa-bars"></i>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
                 </button>
                 <div class="bar-left">
                     @php
@@ -458,12 +536,16 @@
                 <div class="bar-actions">
                     @if($currentUser?->can('create purchase_orders'))
                         <a href="{{ route('admin.purchase-orders.create') }}" class="quick-action">
-                            <i class="fas fa-plus"></i>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
                             <span>Purchase Order</span>
                         </a>
                     @endif
                     <div class="search-lite">
-                        <i class="fas fa-search"></i>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M18 11.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0z" />
+                        </svg>
                         <input type="search" placeholder="Cari...">
                     </div>
                 </div>
@@ -593,3 +675,4 @@
     @stack('scripts')
 </body>
 </html>
+
