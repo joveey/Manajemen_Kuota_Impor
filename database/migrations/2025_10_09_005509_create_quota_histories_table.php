@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('quota_histories')) {
+            Schema::dropIfExists('quota_histories');
+        }
+
         Schema::create('quota_histories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('quota_id')->constrained()->cascadeOnDelete();

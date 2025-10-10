@@ -8,16 +8,21 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            // Tambahkan kolom 'last_login_at' setelah kolom 'password'
-            $table->timestamp('last_login_at')->nullable()->after('password');
-        });
+        // Hindari duplikasi kolom jika sudah ada di tabel users
+        if (!Schema::hasColumn('users', 'last_login_at')) {
+            Schema::table('users', function (Blueprint $table) {
+                // Kolom timestamp untuk waktu login terakhir
+                $table->timestamp('last_login_at')->nullable();
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('last_login_at');
-        });
+        if (Schema::hasColumn('users', 'last_login_at')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropColumn('last_login_at');
+            });
+        }
     }
 };
