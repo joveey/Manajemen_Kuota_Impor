@@ -11,7 +11,7 @@ class CheckActiveUser
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (auth::check() && !auth::user()->is_active) {
+        if (Auth::check() && !Auth::user()->is_active) {
             Auth::logout();
             
             return redirect()

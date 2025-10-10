@@ -19,6 +19,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Update last_login_at whenever a user authenticates
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Auth\Events\Login::class, function ($event) {
+            $user = $event->user;
+            if (method_exists($user, 'forceFill')) {
+                $user->forceFill(['last_login_at' => now()])->save();
+            }
+        });
     }
 }

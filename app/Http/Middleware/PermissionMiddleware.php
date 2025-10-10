@@ -11,11 +11,11 @@ class PermissionMiddleware
 {
     public function handle(Request $request, Closure $next, string $permission): Response
     {
-        if (!auth::check()) {
+        if (!Auth::check()) {
             abort(401, 'Unauthorized - Please login first');
         }
 
-        if (!auth::user()->hasPermission($permission)) {
+        if (!Auth::user()->hasPermission($permission)) {
             abort(403, 'Forbidden - You do not have permission to access this resource');
         }
 
