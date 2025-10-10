@@ -21,6 +21,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
     <style>
+        /* Global base font sizing similar to GitHub */
+        html { font-size: 14px; }
         :root {
             --sidebar-width: 240px;
             --surface: #f5f7fb;
@@ -30,6 +32,10 @@
             --primary-soft: rgba(37, 99, 235, 0.12);
             --text: #0f172a;
             --muted: #6b7280;
+            /* Global font scale */
+            --font-scale: 0.875; /* ~14px base from 16px */
+            /* Bootstrap base font override */
+            --bs-body-font-size: calc(1rem * var(--font-scale));
         }
 
         * { box-sizing: border-box; }
@@ -81,12 +87,12 @@
 
         .brand-name {
             font-weight: 700;
-            font-size: 18px;
+            font-size: 15px;
         }
 
         .brand-subtitle {
             display: block;
-            font-size: 11px;
+            font-size: 9px;
             letter-spacing: 0.1em;
             text-transform: uppercase;
             color: var(--muted);
@@ -110,7 +116,7 @@
         .nav-group { margin-bottom: 22px; }
 
         .nav-title {
-            font-size: 11px;
+            font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 0.12em;
             color: var(--muted);
@@ -124,7 +130,7 @@
             gap: 12px;
             padding: 10px 12px;
             border-radius: 12px;
-            font-size: 13px;
+            font-size: 11.5px;
             font-weight: 500;
             color: var(--muted);
             transition: all 0.2s ease;
@@ -143,7 +149,7 @@
             width: 28px;
             height: 28px;
             border-radius: 10px;
-            font-size: 14px;
+            font-size: 12px;
             background: rgba(15, 23, 42, 0.06);
             color: rgba(15, 23, 42, 0.55);
             transition: all 0.2s ease;
@@ -190,7 +196,7 @@
             background: rgba(220, 53, 69, 0.12);
             color: #b91c1c;
             border: none;
-            font-size: 13px;
+            font-size: 12px;
         }
 
         .logout-btn:hover {
@@ -219,13 +225,13 @@
         }
 
         .bar-left { display: flex; flex-direction: column; gap: 4px; }
-        .bar-left h1 { font-size: 20px; font-weight: 700; margin: 0; }
+        .bar-left h1 { font-size: 16px; font-weight: 700; margin: 0; }
 
         .breadcrumb {
             margin: 0;
             padding: 0;
             background: transparent;
-            font-size: 12px;
+            font-size: 10.5px;
         }
 
         .breadcrumb-item + .breadcrumb-item::before {
@@ -248,7 +254,7 @@
             border-radius: 10px;
             background: var(--primary);
             color: white;
-            font-size: 13px;
+            font-size: 11.5px;
             border: none;
         }
 
@@ -262,8 +268,18 @@
             border: 1px solid var(--stroke);
             border-radius: 10px;
             padding: 8px 12px 8px 36px;
-            font-size: 13px;
+            font-size: 11.5px;
         }
+
+        /* Scale down common form/control text sizes */
+        .btn { --bs-btn-font-size: calc(1rem * var(--font-scale)); }
+        .form-control, .form-select, .form-label, .form-check-label, .input-group-text {
+            font-size: calc(0.95rem * var(--font-scale));
+        }
+
+        /* Plugin UIs */
+        .dataTable, .table, .select2-container, .select2-selection__rendered,
+        .select2-dropdown, .flatpickr-input, .pagination { font-size: 0.875rem; }
 
         .search-lite i {
             position: absolute;
@@ -403,7 +419,7 @@
                     <img src="https://ui-avatars.com/api/?name={{ urlencode($currentUser?->name ?? 'User') }}&background=2563eb&color=fff" alt="Avatar">
                     <div>
                         <strong>{{ $currentUser?->name }}</strong>
-                        <div style="font-size: 12px; color: var(--muted);">{{ $currentUser?->email }}</div>
+                        <div style="font-size: 11px; color: var(--muted);">{{ $currentUser?->email }}</div>
                     </div>
                 </div>
                 <a href="{{ route('profile.edit') }}" class="nav-link" style="padding: 10px 12px; background: rgba(15,23,42,0.04); border-radius: 10px;">

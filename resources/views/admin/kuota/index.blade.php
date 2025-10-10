@@ -12,11 +12,14 @@
 <div class="row">
     <div class="col-12">
         <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="card-title mb-0">
                     <i class="fas fa-chart-pie me-2"></i>Manajemen Kuota Impor
                 </h3>
-                <div>
+                <div class="d-flex gap-2">
+                    <a href="{{ route('admin.quotas.export') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-file-csv me-2"></i>Export CSV
+                    </a>
                     <a href="{{ route('admin.quotas.create') }}" class="btn btn-primary">
                         <i class="fas fa-plus me-2"></i>Tambah Kuota
                     </a>

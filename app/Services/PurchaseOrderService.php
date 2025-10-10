@@ -136,6 +136,26 @@ class PurchaseOrderService
                 $purchaseOrder->save();
             }
 
+            // Auto-generate a follow-up shipment row if PO still has remaining quantity
+            $remaining = $purchaseOrder->remaining_quantity;
+            if ($remaining > 0) {
+                $exists = $purchaseOrder->shipments()
+                    ->where('parent_shipment_id', $shipment->id)
+                    ->where('auto_generated', true)
+                    ->whereIn('status', [Shipment::STATUS_PENDING, Shipment::STATUS_IN_TRANSIT, Shipment::STATUS_PARTIAL])
+                    ->exists();
+
+                if (!$exists) {
+                    $purchaseOrder->shipments()->create([
+                        'parent_shipment_id' => $shipment->id,
+                        'quantity_planned' => $remaining,
+                        'status' => Shipment::STATUS_PENDING,
+                        'auto_generated' => true,
+                        'detail' => 'Auto-generated after partial receipt',
+                    ]);
+                }
+            }
+
             return $shipment->fresh(['receipts']);
         });
     }

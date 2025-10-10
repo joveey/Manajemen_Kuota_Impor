@@ -50,6 +50,9 @@
             <i class="fas fa-shopping-cart me-2"></i>Daftar Purchase Order
         </h3>
         <div class="d-flex gap-2">
+            <a href="{{ route('admin.purchase-orders.export', request()->query()) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-file-csv me-2"></i>Export CSV
+            </a>
             <a href="{{ route('admin.purchase-orders.create') }}" class="btn btn-primary">
                 <i class="fas fa-plus me-2"></i>Buat PO Baru
             </a>

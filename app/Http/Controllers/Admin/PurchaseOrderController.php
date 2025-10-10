@@ -106,6 +106,72 @@ class PurchaseOrderController extends Controller
             ->with('status', 'Purchase Order berhasil dihapus');
     }
 
+    public function export(Request $request)
+    {
+        $query = PurchaseOrder::query()
+            ->with(['product', 'quota'])
+            ->latest('order_date');
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+
+        if ($request->filled('period')) {
+            $query->where('period', $request->string('period'));
+        }
+
+        if ($request->filled('search')) {
+            $term = '%'.$request->string('search').'%';
+            $query->where(function ($q) use ($term) {
+                $q->where('po_number', 'like', $term)
+                    ->orWhere('customer_name', 'like', $term)
+                    ->orWhere('pgi_branch', 'like', $term)
+                    ->orWhere('pic_name', 'like', $term);
+            });
+        }
+
+        $filename = 'purchase_orders_'.now()->format('Ymd_His').'.csv';
+
+        return response()->streamDownload(function () use ($query) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, [
+                'Period', 'PO Number', 'Order Date', 'Status', 'Status Display', 'Product Code', 'Product Name',
+                'Qty', 'Qty Shipped', 'Qty Received', 'Customer', 'PGI Branch', 'PIC', 'Truck', 'MOQ', 'Category',
+                'Plant Name', 'Plant Detail', 'Quota Number', 'Remarks',
+            ]);
+
+            $query->chunk(500, function ($rows) use ($out) {
+                foreach ($rows as $po) {
+                    fputcsv($out, [
+                        $po->period,
+                        $po->po_number,
+                        optional($po->order_date)->format('Y-m-d'),
+                        $po->status,
+                        $po->status_po_display,
+                        $po->product?->code,
+                        $po->product?->name,
+                        $po->quantity,
+                        $po->quantity_shipped,
+                        $po->quantity_received,
+                        $po->customer_name,
+                        $po->pgi_branch,
+                        $po->pic_name,
+                        $po->truck,
+                        $po->moq,
+                        $po->category,
+                        $po->plant_name,
+                        $po->plant_detail,
+                        $po->quota?->quota_number,
+                        $po->remarks,
+                    ]);
+                }
+            });
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */
