@@ -11,11 +11,11 @@ class RoleMiddleware
 {
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        if (!auth::check()) {
+        if (!Auth::check()) {
             abort(401, 'Unauthorized - Please login first');
         }
 
-        if (!auth::user()->hasRole($roles)) {
+        if (!Auth::user()->hasRole($roles)) {
             abort(403, 'Forbidden - You do not have the required role to access this resource');
         }
 
