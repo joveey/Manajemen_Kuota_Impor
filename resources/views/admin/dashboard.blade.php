@@ -1,7 +1,4 @@
-﻿
-
-{{-- resources/views/admin/dashboard.blade.php --}}
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 
 @section('title', 'Dashboard')
 
@@ -12,6 +9,17 @@
 
 @push('styles')
 <style>
+    .dashboard-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        margin-top: -16px;
+    }
+
+    @media (max-width: 768px) {
+        .dashboard-shell { margin-top: 0; }
+    }
+
     /* Stat Cards */
     .stat-card {
         background: white;
@@ -718,6 +726,7 @@
 @endpush
 
 @section('content')
+<div class="dashboard-shell">
 
 <!-- Statistics Cards -->
 <div class="row g-3 mb-4">
@@ -966,9 +975,9 @@
                                     @endif
                                     <div class="quota-meta">Forecast: {{ number_format($forecastRemaining) }} | Actual: {{ number_format($actualRemaining) }}</div>
                                     <div class="quota-meta">
-                                        Consumed: {{ $consumed !== null ? number_format($consumed) : '—' }}
+                                        Consumed: {{ $consumed !== null ? number_format($consumed) : '-' }}
                                         @if($remainingPercent !== null)
-                                            • Remaining {{ $remainingPercent }}%
+                                            &bull; Remaining {{ $remainingPercent }}%
                                         @endif
                                     </div>
                                     <div class="quota-pill">
@@ -1222,6 +1231,7 @@
 </div>
 @endif
 
+</div>
 @endsection
 
 @push('scripts')

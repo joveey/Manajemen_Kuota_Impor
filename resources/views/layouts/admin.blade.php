@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'Quota Monitor') }} — @yield('title', 'Dashboard')</title>
+    <title>{{ config('app.name', 'Import Control') }} - @yield('title', 'Dashboard')</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -71,31 +71,21 @@
         .brand {
             display: flex;
             align-items: center;
-            gap: 12px;
+            justify-content: center;
+            gap: 16px;
         }
 
         .brand-symbol {
-            width: 42px;
-            height: 42px;
-            border-radius: 12px;
-            background: var(--primary);
-            display: grid;
-            place-items: center;
-            color: white;
-            font-weight: 700;
+            display: flex;
+            align-items: center;
+            width: 150px;
+            margin: 0 auto;
         }
 
-        .brand-name {
-            font-weight: 700;
-            font-size: 15px;
-        }
-
-        .brand-subtitle {
+        .brand-symbol img {
+            width: 100%;
+            height: auto;
             display: block;
-            font-size: 9px;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: #cbd5f5;
         }
 
         .nav-groups {
@@ -251,22 +241,59 @@
         }
 
         .app-bar {
-            height: 68px;
-            background: rgba(255, 255, 255, 0.96);
-            border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+            min-height: 88px;
+            background: #ffffff;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.18);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 18px 28px;
+            padding: 20px 32px;
             position: sticky;
             top: 0;
             z-index: 1020;
             backdrop-filter: blur(14px);
-            box-shadow: 0 18px 36px -32px rgba(15, 23, 42, 0.55);
+            box-shadow: 0 18px 36px -30px rgba(15, 23, 42, 0.4);
         }
 
-        .bar-left { display: flex; flex-direction: column; gap: 6px; }
-        .bar-left h1 { font-size: 20px; font-weight: 700; margin: 0; color: #111827; }
+        .bar-left { display: flex; flex-direction: column; gap: 12px; }
+        .bar-left h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0;
+            color: #0f172a;
+            letter-spacing: -0.01em;
+        }
+
+        .bar-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .meta-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #1d4ed8;
+            background: rgba(37, 99, 235, 0.12);
+            border: 1px solid rgba(37, 99, 235, 0.18);
+        }
+
+        .meta-pill svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .meta-pill.neutral {
+            color: #475569;
+            background: rgba(148, 163, 184, 0.1);
+            border-color: rgba(148, 163, 184, 0.2);
+        }
 
         .breadcrumb {
             margin: 0;
@@ -362,7 +389,7 @@
         }
 
         .app-content {
-            padding: 32px 36px;
+            padding: 20px 36px 36px;
         }
 
         .card,
@@ -397,14 +424,8 @@
         <aside class="sidebar" id="sidebar">
             <div class="brand">
                 <span class="brand-symbol">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 12h4v8H3v-8zm7-6h4v14h-4V6zm7 3h4v11h-4V9z" />
-                    </svg>
+                    <img src="{{ asset('images/panasonic-logo.svg') }}" alt="Panasonic logo">
                 </span>
-                <div>
-                    <span class="brand-name">{{ config('app.name', 'Quota Monitor') }}</span>
-                    <span class="brand-subtitle">Import Control</span>
-                </div>
             </div>
 
             <nav class="nav-groups">
@@ -525,8 +546,25 @@
                         if ($pageTitle === '') {
                             $pageTitle = trim($__env->yieldContent('title', 'Dashboard'));
                         }
+                        $displayDate = now()->format('l, d F Y');
                     @endphp
                     <h1>{{ $pageTitle }}</h1>
+                    <div class="bar-meta">
+                        <span class="meta-pill neutral">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {{ $displayDate }}
+                        </span>
+                        @if(!empty($currentUser?->name))
+                            <span class="meta-pill">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14c-4 0-7 2-7 4v2h14v-2c0-2-3-4-7-4z" />
+                                </svg>
+                                Halo, {{ $currentUser->name }}
+                            </span>
+                        @endif
+                    </div>
                     @if(trim($__env->yieldContent('breadcrumb')) !== '')
                         <ol class="breadcrumb mb-0">
                             @yield('breadcrumb')
