@@ -1,4 +1,4 @@
-{{-- resources/views/admin/kuota/index.blade.php --}}
+﻿{{-- resources/views/admin/kuota/index.blade.php --}}
 @extends('layouts.admin')
 
 @section('title', 'Manajemen Kuota')
@@ -268,6 +268,18 @@
     </div>
 
     <div class="table-shell">
+        <div class="p-3 border-bottom">
+            <div class="flex gap-2 mb-0">
+                @php
+                    $filters = ['all'=>'Semua','safe'=>'Aman','warn'=>'Warning','zero'=>'Habis'];
+                @endphp
+                @foreach ($filters as $k=>$label)
+                    <button type="button" data-filter="{{ $k }}" class="filter-pill px-3 py-1 rounded-full text-sm bg-slate-100 hover:bg-slate-200 border border-slate-200">
+                        {{ $label }}
+                    </button>
+                @endforeach
+            </div>
+        </div>
         <table class="quota-table">
             <thead>
                 <tr>
@@ -285,14 +297,26 @@
             <tbody>
                 @forelse($quotas as $quota)
                     @php
-                        $statusMap = [
+                        // Original status styling (kept)
+                        $statusMapLegacy = [
                             \App\Models\Quota::STATUS_AVAILABLE => ['label' => 'Tersedia', 'class' => 'status-chip--available'],
                             \App\Models\Quota::STATUS_LIMITED => ['label' => 'Hampir Habis', 'class' => 'status-chip--limited'],
                             \App\Models\Quota::STATUS_DEPLETED => ['label' => 'Habis', 'class' => 'status-chip--depleted'],
                         ];
-                        $status = $statusMap[$quota->status] ?? $statusMap[\App\Models\Quota::STATUS_AVAILABLE];
+                        $legacy = $statusMapLegacy[$quota->status] ?? $statusMapLegacy[\App\Models\Quota::STATUS_AVAILABLE];
+
+                        // New client-side badge/progress using forecast
+                        $allocation = (int) ($quota->total_allocation ?? $quota->allocation ?? $quota->qty_government ?? 0);
+                        $forecastRemaining = (int) ($quota->forecast_remaining ?? 0);
+                        $consumed = max($allocation - $forecastRemaining, 0);
+                        $pct = $allocation > 0 ? round(($consumed / $allocation) * 100) : 0; // 0..100
+                        $ratio = $allocation > 0 ? ($forecastRemaining / $allocation) : 0;   // 0..1
+                        if ($forecastRemaining <= 0) { $status = ['HABIS','#fee2e2','#b91c1c','#ef4444']; $state='zero'; }
+                        elseif ($ratio < 0.5 && $ratio >= 0.2) { $status = ['WARNING','#fef3c7','#92400e','#f59e0b']; $state='warn'; }
+                        elseif ($ratio < 0.2) { $status = ['WARNING','#fef3c7','#92400e','#f59e0b']; $state='warn'; }
+                        else { $status = ['AMAN','#d1fae5','#047857','#10b981']; $state='safe'; }
                     @endphp
-                    <tr>
+                    <tr data-state="{{ $state }}">
                         <td>{{ $loop->iteration }}</td>
                         <td><strong>{{ $quota->quota_number }}</strong></td>
                         <td>{{ $quota->name }}</td>
@@ -301,7 +325,20 @@
                         <td class="text-end">{{ number_format($quota->actual_remaining ?? 0) }}</td>
                         <td>{{ optional($quota->period_start)->format('M Y') ?? '-' }} - {{ optional($quota->period_end)->format('M Y') ?? '-' }}</td>
                         <td>
-                            <span class="status-chip {{ $status['class'] }}">{{ $status['label'] }}</span>
+                            {{-- New colored badge based on forecast ratio --}}
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs fw-semibold" style="background: {{ $status[1] }}; color: {{ $status[2] }};">
+                                {{ $status[0] }}
+                            </span>
+
+                            {{-- Progress bar (consumed vs allocation) --}}
+                            <div class="mt-2">
+                              <div class="h-2 w-100 bg-slate-200 rounded" style="height:8px;border-radius:6px;background:#e2e8f0;">
+                                <div class="h-2 rounded" style="height:8px;width: {{ $pct }}%;border-radius:6px;background: {{ $status[3] }};"></div>
+                              </div>
+                              <div class="mt-1 text-[11px] text-slate-500">
+                                {{ number_format($consumed) }} / {{ number_format($allocation) }} ({{ $pct }}%)
+                              </div>
+                            </div>
                         </td>
                         <td class="text-end">
                             <div class="table-actions">
@@ -355,3 +392,16 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+  document.querySelectorAll('.filter-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.filter;
+      document.querySelectorAll('tr[data-state]').forEach(row => {
+        row.style.display = (mode==='all' || row.dataset.state===mode) ? '' : 'none';
+      });
+    });
+  });
+</script>
+@endpush
