@@ -103,15 +103,85 @@
             border-radius: 999px;
         }
 
-        .nav-group { margin-bottom: 22px; }
+        .nav-group {
+            margin-bottom: 18px;
+            border-radius: 18px;
+            padding: 12px 16px;
+            background: rgba(148, 163, 184, 0.06);
+            transition: background-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .nav-group.is-open {
+            background: rgba(37, 99, 235, 0.1);
+            box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.16);
+        }
+
+        .nav-group:hover:not(.is-open) {
+            background: rgba(148, 163, 184, 0.12);
+        }
 
         .nav-title {
-            font-size: 9px;
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.12em;
-            color: #cbd5f5;
-            font-weight: 600;
-            margin-bottom: 10px;
+            color: #64748b;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .nav-group.is-open .nav-title,
+        .nav-group.is-current .nav-title {
+            color: var(--primary);
+        }
+
+        .nav-group__toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            background: transparent;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+        }
+
+        .nav-group__toggle:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 4px;
+        }
+
+        .nav-group__caret {
+            width: 26px;
+            height: 26px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            background: rgba(37, 99, 235, 0.16);
+            color: var(--primary);
+            transition: transform 0.22s ease, background 0.22s ease, color 0.22s ease;
+        }
+
+        .nav-group:not(.is-open) .nav-group__caret {
+            transform: rotate(-90deg);
+            background: transparent;
+            color: rgba(148, 163, 184, 0.85);
+        }
+
+        .nav-group__body {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 12px;
+        }
+
+        .nav-group:not(.is-open) .nav-group__body {
+            display: none;
+        }
+
+        .nav-group__body .nav-link {
+            padding-left: 18px;
         }
 
         .nav-link {
@@ -429,84 +499,125 @@
             </div>
 
             <nav class="nav-groups">
-                <div class="nav-group">
-                    <p class="nav-title">Overview</p>
-                    <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                        <span class="nav-icon"><i class="fas fa-gauge-high"></i></span>
-                        <span>Dashboard</span>
-                    </a>
-                </div>
-
-                @if($currentUser?->can('read master_data'))
-                    <div class="nav-group">
-                        <p class="nav-title">Data Master</p>
-                        <a href="{{ route('admin.master-data.index') }}" class="nav-link {{ request()->is('admin/master-data*') ? 'active' : '' }}">
-                            <span class="nav-icon"><i class="fas fa-boxes"></i></span>
-                            <span>Produk</span>
-                        </a>
-                    </div>
-                @endif
-
                 @php
+                    $overviewActive = request()->routeIs('dashboard') || request()->is('admin/master-data*');
+                    $overviewExpand = request()->is('admin/master-data*');
+
                     $canQuota = $currentUser?->can('read quota');
                     $canPOCreate = $currentUser?->can('create purchase_orders');
                     $canPORead = $currentUser?->can('read purchase_orders');
+
+                    $operationalActive = ($canQuota && (request()->is('admin/quotas*') || request()->is('admin/kuota*'))) ||
+                        ($canPOCreate && request()->is('admin/purchase-order/create')) ||
+                        ($canPORead && (request()->is('admin/purchase-orders*') || request()->is('admin/purchase-order*') ||
+                            request()->is('admin/shipments*') || request()->is('admin/shipment')));
+
+                    $adminActive = request()->is('admin/users*') || request()->is('admin/roles*') ||
+                        request()->is('admin/permissions*') || request()->is('admin/admins*');
                 @endphp
+
+                <div class="nav-group {{ $overviewActive ? 'is-current' : '' }} {{ $overviewExpand ? 'is-open' : '' }}" data-nav-group>
+                    <button type="button"
+                            class="nav-group__toggle"
+                            data-nav-toggle
+                            aria-expanded="{{ $overviewExpand ? 'true' : 'false' }}"
+                            aria-controls="nav-group-overview">
+                        <span class="nav-title">Overview</span>
+                        <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
+                    </button>
+                    <div class="nav-group__body" id="nav-group-overview">
+                        <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                            <span class="nav-icon"><i class="fas fa-gauge-high"></i></span>
+                            <span>Dashboard</span>
+                        </a>
+                        @if($currentUser?->can('read master_data'))
+                            <a href="{{ route('admin.master-data.index') }}" class="nav-link {{ request()->is('admin/master-data*') ? 'active' : '' }}">
+                                <span class="nav-icon"><i class="fas fa-boxes"></i></span>
+                                <span>Produk</span>
+                            </a>
+                            @can('create master_data')
+                                <a href="{{ route('admin.master-data.create') }}" class="nav-link {{ request()->routeIs('admin.master-data.create') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-circle-plus"></i></span>
+                                    <span>Tambah Produk</span>
+                                </a>
+                            @endcan
+                        @endif
+                    </div>
+                </div>
+
                 @if($canQuota || $canPOCreate || $canPORead)
-                    <div class="nav-group">
-                        <p class="nav-title">Operasional</p>
-                        @if($canQuota)
-                            <a href="{{ route('admin.quotas.index') }}" class="nav-link {{ request()->is('admin/quotas*') || request()->is('admin/kuota*') ? 'active' : '' }}">
-                                <span class="nav-icon"><i class="fas fa-percentage"></i></span>
-                                <span>Manajemen Kuota</span>
-                            </a>
-                        @endif
-                        @if($canPOCreate)
-                            <a href="{{ route('admin.purchase-orders.create') }}" class="nav-link {{ request()->is('admin/purchase-order/create') ? 'active' : '' }}">
-                                <span class="nav-icon"><i class="fas fa-plus"></i></span>
-                                <span>Buat Purchase Order</span>
-                            </a>
-                        @endif
-                        @if($canPORead)
-                            <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->is('admin/purchase-orders') || request()->is('admin/purchase-order') ? 'active' : '' }}">
-                                <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
-                                <span>Daftar Purchase Order</span>
-                            </a>
-                            <a href="{{ route('admin.shipments.index') }}" class="nav-link {{ request()->is('admin/shipments*') || request()->is('admin/shipment') ? 'active' : '' }}">
-                                <span class="nav-icon"><i class="fas fa-truck"></i></span>
-                                <span>Pengiriman & Receipt</span>
-                            </a>
-                        @endif
+                    <div class="nav-group {{ $operationalActive ? 'is-open is-current' : '' }}" data-nav-group>
+                        <button type="button"
+                                class="nav-group__toggle"
+                                data-nav-toggle
+                                aria-expanded="{{ $operationalActive ? 'true' : 'false' }}"
+                                aria-controls="nav-group-operational">
+                            <span class="nav-title">Operasional</span>
+                            <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
+                        </button>
+                        <div class="nav-group__body" id="nav-group-operational">
+                            @if($canQuota)
+                                <a href="{{ route('admin.quotas.index') }}" class="nav-link {{ request()->is('admin/quotas*') || request()->is('admin/kuota*') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-percentage"></i></span>
+                                    <span>Manajemen Kuota</span>
+                                </a>
+                            @endif
+                            @if($canPOCreate)
+                                <a href="{{ route('admin.purchase-orders.create') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.create') || request()->routeIs('admin.purchase-order.create') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-plus"></i></span>
+                                    <span>Buat Purchase Order</span>
+                                </a>
+                            @endif
+                            @if($canPORead)
+                                <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') || request()->routeIs('admin.purchase-order.index') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
+                                    <span>Daftar Purchase Order</span>
+                                </a>
+                                <a href="{{ route('admin.shipments.index') }}" class="nav-link {{ request()->routeIs('admin.shipments.index') || request()->is('admin/shipments*') || request()->is('admin/shipment') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-truck"></i></span>
+                                    <span>Pengiriman & Receipt</span>
+                                </a>
+                            @endif
+                        </div>
                     </div>
                 @endif
 
                 @if($currentUser?->can('read users') || $currentUser?->can('read roles') || $currentUser?->can('read permissions') || $currentUser?->isAdmin())
-                    <div class="nav-group">
-                        <p class="nav-title">Administrasi</p>
-                        @if($currentUser?->can('read users'))
-                            <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->is('admin/users*') ? 'active' : '' }}">
-                                <span class="nav-icon"><i class="fas fa-users"></i></span>
-                                <span>Users</span>
-                            </a>
-                        @endif
-                        @if($currentUser?->can('read roles'))
-                            <a href="{{ route('admin.roles.index') }}" class="nav-link {{ request()->is('admin/roles*') ? 'active' : '' }}">
-                                <span class="nav-icon"><i class="fas fa-id-badge"></i></span>
-                                <span>Roles</span>
-                            </a>
-                        @endif
-                        @if($currentUser?->can('read permissions'))
-                            <a href="{{ route('admin.permissions.index') }}" class="nav-link {{ request()->is('admin/permissions*') ? 'active' : '' }}">
-                                <span class="nav-icon"><i class="fas fa-key"></i></span>
-                                <span>Permissions</span>
-                            </a>
-                        @endif
-                        @if($currentUser?->isAdmin())
-                            <a href="{{ route('admin.admins.index') }}" class="nav-link {{ request()->is('admin/admins*') ? 'active' : '' }}">
-                                <span class="nav-icon"><i class="fas fa-user-cog"></i></span>
-                                <span>Admin Panel</span>
-                            </a>
-                        @endif
+                    <div class="nav-group {{ $adminActive ? 'is-open is-current' : '' }}" data-nav-group>
+                        <button type="button"
+                                class="nav-group__toggle"
+                                data-nav-toggle
+                                aria-expanded="{{ $adminActive ? 'true' : 'false' }}"
+                                aria-controls="nav-group-administration">
+                            <span class="nav-title">Administrasi</span>
+                            <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
+                        </button>
+                        <div class="nav-group__body" id="nav-group-administration">
+                            @if($currentUser?->can('read users'))
+                                <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->is('admin/users*') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-users"></i></span>
+                                    <span>Users</span>
+                                </a>
+                            @endif
+                            @if($currentUser?->can('read roles'))
+                                <a href="{{ route('admin.roles.index') }}" class="nav-link {{ request()->is('admin/roles*') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-id-badge"></i></span>
+                                    <span>Roles</span>
+                                </a>
+                            @endif
+                            @if($currentUser?->can('read permissions'))
+                                <a href="{{ route('admin.permissions.index') }}" class="nav-link {{ request()->is('admin/permissions*') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-key"></i></span>
+                                    <span>Permissions</span>
+                                </a>
+                            @endif
+                            @if($currentUser?->isAdmin())
+                                <a href="{{ route('admin.admins.index') }}" class="nav-link {{ request()->is('admin/admins*') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-user-cog"></i></span>
+                                    <span>Admin Panel</span>
+                                </a>
+                            @endif
+                        </div>
                     </div>
                 @endif
             </nav>
@@ -630,6 +741,20 @@
                     sidebar.classList.remove('is-open');
                 }
             }
+        });
+
+        document.querySelectorAll('[data-nav-toggle]').forEach(button => {
+            const group = button.closest('.nav-group');
+            if (!group) {
+                return;
+            }
+
+            button.setAttribute('aria-expanded', group.classList.contains('is-open') ? 'true' : 'false');
+
+            button.addEventListener('click', () => {
+                const nowOpen = group.classList.toggle('is-open');
+                button.setAttribute('aria-expanded', nowOpen ? 'true' : 'false');
+            });
         });
 
         @if(session('success'))
