@@ -83,6 +83,15 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
+        // Optional no-cache response (diagnostic only). Uncomment to disable browser caching while styling.
+        // return response()->view('admin.dashboard', compact(
+        //     'totalUsers', 'activeUsers', 'inactiveUsers', 'totalAdmins', 'totalRegularUsers', 'totalRoles', 'totalPermissions',
+        //     'recentUsers', 'usersByRole', 'quotaStats', 'quotaAlerts', 'recentQuotaHistories', 'poStats', 'recentPurchaseOrders',
+        //     'shipmentStats', 'recentShipments'
+        // ))->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+        //   ->header('Pragma', 'no-cache')
+        //   ->header('Expires', '0');
+
         return view('admin.dashboard', compact(
             'totalUsers',
             'activeUsers',
