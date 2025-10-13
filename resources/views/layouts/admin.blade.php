@@ -541,6 +541,7 @@
                                     <span>Tambah Produk</span>
                                 </a>
                             @endcan
+                            
                         @endif
                     </div>
                 </div>
@@ -838,4 +839,3 @@
     @stack('scripts')
 </body>
 </html>
-

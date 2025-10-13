@@ -149,3 +149,5 @@ Route::middleware(['auth', 'verified'])->prefix('analytics')->name('analytics.')
     Route::get('/export/xlsx', [AnalyticsController::class, 'exportXlsx'])->name('export.xlsx');
     Route::get('/export/pdf', [AnalyticsController::class, 'exportPdf'])->name('export.pdf');
 });
+
+// (Product Mapping custom module removed — restoring original routes)
