@@ -1,48 +1,57 @@
-<x-guest-layout>
-    <!-- Session Status -->
-    <x-auth-session-status class="mb-4" :status="session('status')" />
+@extends('layouts.auth')
 
-    <form method="POST" action="{{ route('login') }}" class="space-y-4">
-        @csrf
+@section('title','Masuk')
 
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" value="Email" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-        </div>
+@section('content')
+    <div class="card shadow-sm" style="width: 420px; max-width: 92vw;">
+        <div class="card-body p-4 p-md-5">
+            <h5 class="fw-bold text-center mb-4" style="letter-spacing:-.01em;">Masuk ke Akun Anda</h5>
 
-        <!-- Password -->
-        <div>
-            <x-input-label for="password" value="Password" />
-            <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" required autocomplete="current-password" />
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
-
-        <!-- Remember Me -->
-        <div class="block mt-4">
-            <label for="remember_me" class="inline-flex items-center">
-                <input id="remember_me" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" name="remember">
-                <span class="ms-2 text-sm text-gray-600">Ingat saya</span>
-            </label>
-        </div>
-
-        <div class="flex items-center justify-between mt-4">
-            @if (Route::has('password.request'))
-                <a class="underline text-sm text-gray-600 hover:text-gray-900" href="{{ route('password.request') }}">
-                    Lupa password?
-                </a>
+            @if (session('status'))
+                <div class="alert alert-success" role="alert">{{ session('status') }}</div>
             @endif
 
-            <x-primary-button class="ms-3">
-                Masuk
-            </x-primary-button>
-        </div>
-    </form>
+            @if ($errors->any())
+                <div class="alert alert-danger small" role="alert">
+                    <ul class="mb-0 ps-3">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
 
-    @if (Route::has('register'))
-        <p class="mt-6 text-center text-sm text-gray-600">
-            Belum punya akun? <a href="{{ route('register') }}" class="text-indigo-600 hover:text-indigo-500 font-medium">Daftar</a>
-        </p>
-    @endif
-</x-guest-layout>
+            <form method="POST" action="{{ route('login') }}" novalidate>
+                @csrf
+
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input id="email" type="email" name="email" value="{{ old('email') }}" class="form-control" required autofocus autocomplete="username">
+                </div>
+
+                <div class="mb-2">
+                    <label for="password" class="form-label">Password</label>
+                    <input id="password" type="password" name="password" class="form-control" required autocomplete="current-password">
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="1" id="remember_me" name="remember">
+                        <label class="form-check-label" for="remember_me">Ingat saya</label>
+                    </div>
+                    @if (Route::has('password.request'))
+                        <a class="link-secondary small" href="{{ route('password.request') }}">Lupa password?</a>
+                    @endif
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">Masuk</button>
+            </form>
+
+            @if (Route::has('register'))
+                <p class="text-center mt-4 mb-0 small text-muted">Belum punya akun?
+                    <a href="{{ route('register') }}" class="link-primary fw-semibold">Daftar</a>
+                </p>
+            @endif
+        </div>
+    </div>
+@endsection

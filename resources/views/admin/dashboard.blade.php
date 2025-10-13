@@ -1235,10 +1235,27 @@
 @endsection
 
 @push('scripts')
-<script>
-    console.log('Dashboard loaded successfully!');
-</script>
+    {{-- Skrip chart publik (definisikan window.initDashboardCharts) --}}
+    <script src="{{ asset('js/dashboard-charts.js') }}?v={{ time() }}"></script>
+    {{-- Guard inject ApexCharts hanya sekali dan panggil init saat siap --}}
+    <script>
+        (function(){
+            var data = window.dashboardChartData || {
+                donut: { labels: ['Consumed','Remaining'], series: [40,60] },
+                bar: { categories: ['0.5–2 PK','2–4 PK'], forecast: [10000,5000], actual: [8000,4000] }
+            };
+            function callInit(){ if (window.initDashboardCharts) window.initDashboardCharts(data); }
+            if (!window.__apexInjected) {
+                var s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/apexcharts';
+                s.async = true; s.onload = callInit;
+                document.head.appendChild(s);
+                window.__apexInjected = true;
+            } else {
+                callInit();
+            }
+            console.log('Dashboard loaded successfully!');
+        })();
+    </script>
 @endpush
-
-
 

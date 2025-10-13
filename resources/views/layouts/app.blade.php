@@ -12,7 +12,8 @@
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
         <!-- Scripts -->
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @php($__viteV = app()->environment('production') ? '' : ('?v=' . time()))
+        @vite(["resources/css/app.css$__viteV", "resources/js/app.js$__viteV"])
         <style>
             /* Reduce base font size across app pages */
             html { font-size: 14px; }
@@ -23,18 +24,29 @@
             @include('layouts.navigation')
 
             <!-- Page Heading -->
-            @isset($header)
+            @if (View::hasSection('header') || isset($header))
                 <header class="bg-white shadow">
-                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                        {{ $header }}
+                    <div class="max-w-[1400px] mx-auto py-6 px-4 md:px-6">
+                        @hasSection('header')
+                            @yield('header')
+                        @else
+                            {{ $header ?? '' }}
+                        @endif
                     </div>
                 </header>
-            @endisset
+            @endif
 
             <!-- Page Content -->
             <main>
-                {{ $slot }}
+                <div class="max-w-[1400px] mx-auto px-4 md:px-6 py-6">
+                    @hasSection('content')
+                        @yield('content')
+                    @else
+                        {{ $slot ?? '' }}
+                    @endif
+                </div>
             </main>
         </div>
+        @stack('scripts')
     </body>
 </html>

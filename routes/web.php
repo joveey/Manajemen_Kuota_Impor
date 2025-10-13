@@ -137,3 +137,15 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
 // Rute Otentikasi (dari Laravel Breeze atau UI)
 require __DIR__.'/auth.php';
+
+// =====================
+// Analytics (Actual-based)
+// =====================
+use App\Http\Controllers\AnalyticsController;
+Route::middleware(['auth', 'verified'])->prefix('analytics')->name('analytics.')->group(function () {
+    Route::get('/', [AnalyticsController::class, 'index'])->name('index');
+    Route::get('/data', [AnalyticsController::class, 'data'])->name('data');
+    Route::get('/export/csv', [AnalyticsController::class, 'exportCsv'])->name('export.csv');
+    Route::get('/export/xlsx', [AnalyticsController::class, 'exportXlsx'])->name('export.xlsx');
+    Route::get('/export/pdf', [AnalyticsController::class, 'exportPdf'])->name('export.pdf');
+});
