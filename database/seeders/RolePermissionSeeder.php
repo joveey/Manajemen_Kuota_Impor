@@ -5,91 +5,95 @@ namespace Database\Seeders;
 use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        // ========================================
-        // CREATE PERMISSIONS
-        // ========================================
-        
-        // Permissions harus dimulai dengan: create, read, update, delete
-        $permissions = [
-            // Dashboard
-            ['name' => 'read dashboard', 'description' => 'View dashboard and statistics'],
-            
-            // User Management
-            ['name' => 'read users', 'description' => 'View users list and details'],
-            ['name' => 'create users', 'description' => 'Create new users'],
-            ['name' => 'update users', 'description' => 'Edit existing users'],
-            ['name' => 'delete users', 'description' => 'Delete users'],
-            
-            // Role Management
-            ['name' => 'read roles', 'description' => 'View roles list and details'],
-            ['name' => 'create roles', 'description' => 'Create new roles'],
-            ['name' => 'update roles', 'description' => 'Edit existing roles'],
-            ['name' => 'delete roles', 'description' => 'Delete roles'],
-            
-            // Permission Management
-            ['name' => 'read permissions', 'description' => 'View permissions list and details'],
-            ['name' => 'create permissions', 'description' => 'Create new permissions'],
-            ['name' => 'update permissions', 'description' => 'Edit existing permissions'],
-            ['name' => 'delete permissions', 'description' => 'Delete permissions'],
-            
-            // Quota Management
-            ['name' => 'read quota', 'description' => 'View quota data'],
-            ['name' => 'create quota', 'description' => 'Create new quota'],
-            ['name' => 'update quota', 'description' => 'Edit quota data'],
-            ['name' => 'delete quota', 'description' => 'Delete quota data'],
-            
-            // Purchase Orders
-            ['name' => 'read purchase_orders', 'description' => 'View purchase orders'],
-            ['name' => 'create purchase_orders', 'description' => 'Create new purchase orders'],
-            ['name' => 'update purchase_orders', 'description' => 'Edit purchase orders'],
-            ['name' => 'delete purchase_orders', 'description' => 'Delete purchase orders'],
-            
-            // Master Data
-            ['name' => 'read master_data', 'description' => 'View master data'],
-            ['name' => 'create master_data', 'description' => 'Create new master data'],
-            ['name' => 'update master_data', 'description' => 'Edit master data'],
-            ['name' => 'delete master_data', 'description' => 'Delete master data'],
-            
-            // Reports
-            ['name' => 'read reports', 'description' => 'View reports'],
-            ['name' => 'create reports', 'description' => 'Create new reports'],
-            ['name' => 'update reports', 'description' => 'Edit reports'],
-            ['name' => 'delete reports', 'description' => 'Delete reports'],
+        /**
+         * Define the permission catalogue once so we can:
+         * 1. Keep metadata (group + display name) consistent.
+         * 2. Re-use the same canonical permission names when assigning to roles.
+         */
+        $permissionGroups = [
+            'Dashboard' => [
+                'read dashboard' => 'View dashboard and statistics.',
+            ],
+            'Administration' => [
+                'read users' => 'View users list and details.',
+                'create users' => 'Create new users.',
+                'update users' => 'Edit existing users.',
+                'delete users' => 'Delete users.',
+                'read roles' => 'View roles list and details.',
+                'create roles' => 'Create new roles.',
+                'update roles' => 'Edit existing roles.',
+                'delete roles' => 'Delete roles.',
+                'read permissions' => 'View permissions list and details.',
+                'create permissions' => 'Create new permissions.',
+                'update permissions' => 'Edit existing permissions.',
+                'delete permissions' => 'Delete permissions.',
+            ],
+            'Quota Management' => [
+                'read quota' => 'View quota data.',
+                'create quota' => 'Create new quota data.',
+                'update quota' => 'Edit quota data.',
+                'delete quota' => 'Delete quota data.',
+            ],
+            'Purchase Orders' => [
+                'read purchase_orders' => 'View purchase orders.',
+                'create purchase_orders' => 'Create new purchase orders.',
+                'update purchase_orders' => 'Edit purchase orders.',
+                'delete purchase_orders' => 'Delete purchase orders.',
+            ],
+            'Master Data' => [
+                'read master_data' => 'View master data.',
+                'create master_data' => 'Create new master data.',
+                'update master_data' => 'Edit master data.',
+                'delete master_data' => 'Delete master data.',
+            ],
+            'Reports' => [
+                'read reports' => 'View reports.',
+                'create reports' => 'Create new reports.',
+                'update reports' => 'Edit reports.',
+                'delete reports' => 'Delete reports.',
+            ],
         ];
 
-        foreach ($permissions as $permission) {
-            Permission::firstOrCreate(
-                ['name' => $permission['name']],
-                ['description' => $permission['description']]
-            );
+        $permissionIds = [];
+
+        foreach ($permissionGroups as $group => $items) {
+            foreach ($items as $name => $description) {
+                $permission = Permission::updateOrCreate(
+                    ['name' => $name],
+                    [
+                        'display_name' => Str::headline($name),
+                        'group' => $group,
+                        'description' => $description,
+                    ]
+                );
+
+                $permissionIds[$name] = $permission->id;
+            }
         }
 
-        $this->command->info('✅ Permissions created successfully!');
+        $this->command?->info('[OK] Permissions created or updated successfully.');
 
-        // ========================================
-        // CREATE ROLES
-        // ========================================
-        
+        // Small helper to fetch IDs for the mapping below
+        $pluckPermissions = static function (array $names) use ($permissionIds): array {
+            return collect($names)
+                ->map(fn ($name) => $permissionIds[$name] ?? null)
+                ->filter()
+                ->values()
+                ->all();
+        };
+
         $adminRole = Role::firstOrCreate(
             ['name' => 'admin'],
             [
                 'display_name' => 'Administrator',
-                'description' => 'Full system access with all permissions',
-                'is_active' => true
-            ]
-        );
-
-        $editorRole = Role::firstOrCreate(
-            ['name' => 'editor'],
-            [
-                'display_name' => 'Editor',
-                'description' => 'Can create, edit, and delete dashboard data (Quota, Purchase Orders, Master Data, Reports)',
-                'is_active' => true
+                'description' => 'Full system access with all permissions.',
+                'is_active' => true,
             ]
         );
 
@@ -97,8 +101,17 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'manager'],
             [
                 'display_name' => 'Manager',
-                'description' => 'Can manage users, roles, and permissions (except admin role)',
-                'is_active' => true
+                'description' => 'Manages users, roles, and permissions with data read access.',
+                'is_active' => true,
+            ]
+        );
+
+        $editorRole = Role::firstOrCreate(
+            ['name' => 'editor'],
+            [
+                'display_name' => 'Editor',
+                'description' => 'Manages quota, PO, master data, and reports (no administration access).',
+                'is_active' => true,
             ]
         );
 
@@ -106,73 +119,47 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'viewer'],
             [
                 'display_name' => 'Viewer',
-                'description' => 'Can only view dashboard and reports (read-only access)',
-                'is_active' => true
+                'description' => 'Read-only access to dashboard and operational data.',
+                'is_active' => true,
             ]
         );
 
-        $this->command->info('✅ Roles created successfully!');
+        $this->command?->info('[OK] Roles created or updated successfully.');
 
-        // ========================================
-        // ASSIGN PERMISSIONS TO ROLES
-        // ========================================
-        
-        // ADMIN: All permissions
-        $adminRole->permissions()->sync(Permission::all()->pluck('id'));
-        $this->command->info('✅ Admin role: ALL permissions assigned');
+        // Assign permission sets based on the final specification.
+        $adminRole->permissions()->sync(array_values($permissionIds));
+        $this->command?->info('[OK] Admin role: all permissions assigned.');
 
-        // EDITOR: Can create, edit, delete dashboard data (Quota, Purchase Orders, Master Data, Reports)
-        // Can VIEW administrator section (Users, Roles, Permissions) but CANNOT edit, create, or delete
-        $editorPermissions = Permission::whereIn('name', [
+        $managerRole->permissions()->sync($pluckPermissions([
             'read dashboard',
-            // Quota Management - FULL ACCESS
-            'read quota', 'create quota', 'update quota', 'delete quota',
-            // Purchase Orders - FULL ACCESS
-            'read purchase_orders', 'create purchase_orders', 'update purchase_orders', 'delete purchase_orders',
-            // Master Data - FULL ACCESS
-            'read master_data', 'create master_data', 'update master_data', 'delete master_data',
-            // Reports - FULL ACCESS
-            'read reports', 'create reports', 'update reports', 'delete reports',
-            // Administrator Section - READ ONLY (can view but cannot edit, create, or delete)
-            'read users',
-            'read roles',
-            'read permissions',
-        ])->pluck('id');
-        $editorRole->permissions()->sync($editorPermissions);
-        $this->command->info('✅ Editor role: permissions assigned (Full data management + View-only administrator)');
-
-        // MANAGER: Can manage users, roles & permissions (except admin role)
-        // + Can VIEW data (Quota, Purchase Orders, Master Data, Reports)
-        $managerPermissions = Permission::whereIn('name', [
-            'read dashboard',
-            // User Management
             'read users', 'create users', 'update users', 'delete users',
-            // Role Management
             'read roles', 'create roles', 'update roles', 'delete roles',
-            // Permission Management
             'read permissions', 'create permissions', 'update permissions', 'delete permissions',
-            // View Data (read-only)
             'read quota',
             'read purchase_orders',
             'read master_data',
             'read reports',
-        ])->pluck('id');
-        $managerRole->permissions()->sync($managerPermissions);
-        $this->command->info('✅ Manager role: permissions assigned');
+        ]));
+        $this->command?->info('[OK] Manager role: administration + data read permissions assigned.');
 
-        // VIEWER: Can only view dashboard and reports (read-only)
-        // TIDAK bisa manage users, roles, permissions, atau edit data apapun
-        $viewerPermissions = Permission::whereIn('name', [
+        $editorRole->permissions()->sync($pluckPermissions([
             'read dashboard',
-            // Read-only access to data
+            'read quota', 'create quota', 'update quota', 'delete quota',
+            'read purchase_orders', 'create purchase_orders', 'update purchase_orders', 'delete purchase_orders',
+            'read master_data', 'create master_data', 'update master_data', 'delete master_data',
+            'read reports', 'create reports', 'update reports', 'delete reports',
+        ]));
+        $this->command?->info('[OK] Editor role: data management permissions assigned.');
+
+        $viewerRole->permissions()->sync($pluckPermissions([
+            'read dashboard',
             'read quota',
             'read purchase_orders',
             'read master_data',
             'read reports',
-        ])->pluck('id');
-        $viewerRole->permissions()->sync($viewerPermissions);
-        $this->command->info('✅ Viewer role: permissions assigned');
+        ]));
+        $this->command?->info('[OK] Viewer role: read-only permissions assigned.');
 
-        $this->command->info('🎉 Role & Permission seeding completed!');
+        $this->command?->info('[DONE] Role & permission seeding completed.');
     }
 }

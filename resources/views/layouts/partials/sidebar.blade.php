@@ -30,18 +30,32 @@
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
                 
                 <!-- Dashboard -->
-                <li class="nav-item">
-                    <a href="{{ route('dashboard') }}" 
-                       class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                <li class="nav-item {{ request()->routeIs('dashboard') ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-tachometer-alt"></i>
-                        <p>Dashboard</p>
+                        <p>
+                            Dashboard
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
                     </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="{{ route('dashboard') }}" 
+                               class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Overview</p>
+                            </a>
+                        </li>
+                    </ul>
                 </li>
 
                 <!-- Quota Management -->
                 @can('read quota')
-                <li class="nav-item {{ request()->is('admin/quotas*') ? 'menu-open' : '' }}">
-                    <a href="#" class="nav-link {{ request()->is('admin/quotas*') ? 'active' : '' }}">
+                @php
+                    $quotaMenuOpen = request()->is('admin/quotas*') || request()->is('admin/kuota*');
+                @endphp
+                <li class="nav-item {{ $quotaMenuOpen ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ $quotaMenuOpen ? 'active' : '' }}">
                         <i class="nav-icon fas fa-chart-pie"></i>
                         <p>
                             Quota Management
@@ -69,8 +83,11 @@
 
                 <!-- Purchase Orders -->
                 @can('read purchase_orders')
-                <li class="nav-item {{ request()->is('admin/purchase-orders*') ? 'menu-open' : '' }}">
-                    <a href="#" class="nav-link {{ request()->is('admin/purchase-orders*') ? 'active' : '' }}">
+                @php
+                    $poMenuOpen = request()->is('admin/purchase-orders*') || request()->is('admin/purchase-order*');
+                @endphp
+                <li class="nav-item {{ $poMenuOpen ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ $poMenuOpen ? 'active' : '' }}">
                         <i class="nav-icon fas fa-shopping-cart"></i>
                         <p>
                             Purchase Orders
@@ -79,14 +96,14 @@
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') ? 'active' : '' }}">
+                            <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') || request()->routeIs('admin.purchase-order.index') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>PO List</p>
                             </a>
                         </li>
                         @can('create purchase_orders')
                         <li class="nav-item">
-                            <a href="{{ route('admin.purchase-orders.create') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.create') ? 'active' : '' }}">
+                            <a href="{{ route('admin.purchase-orders.create') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.create') || request()->routeIs('admin.purchase-order.create') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Create PO</p>
                             </a>
@@ -108,11 +125,19 @@
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            <a href="{{ route('admin.master-data.index') }}" class="nav-link {{ request()->routeIs('admin.master-data.*') ? 'active' : '' }}">
+                            <a href="{{ route('admin.master-data.index') }}" class="nav-link {{ request()->routeIs('admin.master-data.index') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Products</p>
+                                <p>Product List</p>
                             </a>
                         </li>
+                        @can('create master_data')
+                        <li class="nav-item">
+                            <a href="{{ route('admin.master-data.create') }}" class="nav-link {{ request()->routeIs('admin.master-data.create') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Create Product</p>
+                            </a>
+                        </li>
+                        @endcan
                         <li class="nav-item">
                             <a href="#" class="nav-link">
                                 <i class="far fa-circle nav-icon"></i>
@@ -128,6 +153,35 @@
                     </ul>
                 </li>
                 @endcan
+
+                <!-- Shipments -->
+                @if(Route::has('admin.shipments.index') && Auth::user()->hasPermission('read purchase_orders'))
+                <li class="nav-item {{ request()->routeIs('admin.shipments.*') ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ request()->routeIs('admin.shipments.*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-truck"></i>
+                        <p>
+                            Shipments
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="{{ route('admin.shipments.index') }}" class="nav-link {{ request()->routeIs('admin.shipments.index') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Shipment List</p>
+                            </a>
+                        </li>
+                        @if(Route::has('admin.shipments.create') && Auth::user()->hasPermission('create purchase_orders'))
+                        <li class="nav-item">
+                            <a href="{{ route('admin.shipments.create') }}" class="nav-link {{ request()->routeIs('admin.shipments.create') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Create Shipment</p>
+                            </a>
+                        </li>
+                        @endif
+                    </ul>
+                </li>
+                @endif
 
                 <!-- Reports -->
                 @can('read reports')
@@ -162,74 +216,91 @@
                 </li>
                 @endcan
 
-                <!-- Administration Section -->
+                <!-- Administration -->
                 @if(Auth::user()->hasPermission('read permissions') || Auth::user()->hasPermission('read roles') || Auth::user()->hasPermission('read users') || Auth::user()->isAdmin())
-                <li class="nav-header">ADMINISTRATION</li>
-                @endif
-
-                <!-- Permissions Management -->
-                @if(Auth::user()->hasPermission('read permissions'))
-                <li class="nav-item">
-                    <a href="{{ route('admin.permissions.index') }}" 
-                       class="nav-link {{ request()->is('admin/permissions*') ? 'active' : '' }}">
-                        <i class="nav-icon fas fa-key"></i>
-                        <p>Permissions</p>
+                @php
+                    $adminMenuOpen = request()->is('admin/permissions*') || request()->is('admin/roles*') || request()->is('admin/users*') || request()->is('admin/admins*');
+                @endphp
+                <li class="nav-item {{ $adminMenuOpen ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ $adminMenuOpen ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-toolbox"></i>
+                        <p>
+                            Administration
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
                     </a>
+                    <ul class="nav nav-treeview">
+                        @if(Auth::user()->hasPermission('read permissions'))
+                        <li class="nav-item">
+                            <a href="{{ route('admin.permissions.index') }}" 
+                               class="nav-link {{ request()->is('admin/permissions*') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Permissions</p>
+                            </a>
+                        </li>
+                        @endif
+
+                        @if(Auth::user()->hasPermission('read roles'))
+                        <li class="nav-item">
+                            <a href="{{ route('admin.roles.index') }}" 
+                               class="nav-link {{ request()->is('admin/roles*') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Roles</p>
+                            </a>
+                        </li>
+                        @endif
+
+                        @if(Auth::user()->hasPermission('read users'))
+                        <li class="nav-item">
+                            <a href="{{ route('admin.users.index') }}" 
+                               class="nav-link {{ request()->is('admin/users*') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Users</p>
+                            </a>
+                        </li>
+                        @endif
+
+                        @if(Auth::user()->isAdmin())
+                        <li class="nav-item">
+                            <a href="{{ route('admin.admins.index') }}" 
+                               class="nav-link {{ request()->is('admin/admins*') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Admins</p>
+                            </a>
+                        </li>
+                        @endif
+                    </ul>
                 </li>
                 @endif
 
-                <!-- Roles Management -->
-                @if(Auth::user()->hasPermission('read roles'))
-                <li class="nav-item">
-                    <a href="{{ route('admin.roles.index') }}" 
-                       class="nav-link {{ request()->is('admin/roles*') ? 'active' : '' }}">
-                        <i class="nav-icon fas fa-user-tag"></i>
-                        <p>Roles</p>
+                <!-- System -->
+                @php
+                    $systemMenuOpen = request()->routeIs('profile.edit') || request()->is('system/*');
+                @endphp
+                <li class="nav-item {{ $systemMenuOpen ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ $systemMenuOpen ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-cogs"></i>
+                        <p>
+                            System
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
                     </a>
-                </li>
-                @endif
-
-                <!-- Users Management -->
-                @if(Auth::user()->hasPermission('read users'))
-                <li class="nav-item">
-                    <a href="{{ route('admin.users.index') }}" 
-                       class="nav-link {{ request()->is('admin/users*') ? 'active' : '' }}">
-                        <i class="nav-icon fas fa-users"></i>
-                        <p>Users</p>
-                    </a>
-                </li>
-                @endif
-
-                <!-- Admins Management -->
-                @if(Auth::user()->isAdmin())
-                <li class="nav-item">
-                    <a href="{{ route('admin.admins.index') }}" 
-                       class="nav-link {{ request()->is('admin/admins*') ? 'active' : '' }}">
-                        <i class="nav-icon fas fa-user-shield"></i>
-                        <p>Admins</p>
-                    </a>
-                </li>
-                @endif
-
-                <!-- Divider -->
-                <li class="nav-header">SYSTEM</li>
-
-                <!-- Activity Log (Admin only) -->
-                @if(Auth::user()->isAdmin())
-                <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <i class="nav-icon fas fa-history"></i>
-                        <p>Activity Log</p>
-                    </a>
-                </li>
-                @endif
-
-                <!-- Settings -->
-                <li class="nav-item">
-                    <a href="{{ route('profile.edit') }}" class="nav-link">
-                        <i class="nav-icon fas fa-cog"></i>
-                        <p>Settings</p>
-                    </a>
+                    <ul class="nav nav-treeview">
+                        @if(Auth::user()->isAdmin())
+                        <li class="nav-item">
+                            <a href="#" class="nav-link">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Activity Log</p>
+                            </a>
+                        </li>
+                        @endif
+                        <li class="nav-item">
+                            <a href="{{ route('profile.edit') }}" class="nav-link {{ request()->routeIs('profile.edit') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Settings</p>
+                            </a>
+                        </li>
+                    </ul>
                 </li>
 
             </ul>
