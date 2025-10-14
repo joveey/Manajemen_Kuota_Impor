@@ -10,6 +10,15 @@ use Illuminate\Support\Facades\Validator;
 
 class PermissionController extends Controller
 {
+    public function __construct()
+    {
+        // Everyone with read permission can see the list/detail
+        $this->middleware('permission:read permissions')->only(['index', 'show']);
+        // CRUD controlled by specific permissions
+        $this->middleware('permission:create permissions')->only(['create', 'store']);
+        $this->middleware('permission:update permissions')->only(['edit', 'update']);
+        $this->middleware('permission:delete permissions')->only(['destroy']);
+    }
     /**
      * Display a listing of the permissions.
      */
@@ -25,7 +34,7 @@ class PermissionController extends Controller
      */
     public function create()
     {
-        // Check permission
+        // Guard by permission (middleware already enforces)
         if (!Auth::user()->hasPermission('create permissions')) {
             return redirect()->route('admin.permissions.index')
                 ->with('error', 'You do not have permission to create permissions.');
@@ -39,7 +48,7 @@ class PermissionController extends Controller
      */
     public function store(Request $request)
     {
-        // Check permission
+        // Guard by permission (middleware already enforces)
         if (!Auth::user()->hasPermission('create permissions')) {
             return redirect()->route('admin.permissions.index')
                 ->with('error', 'You do not have permission to create permissions.');
@@ -97,7 +106,7 @@ class PermissionController extends Controller
      */
     public function edit(Permission $permission)
     {
-        // Check permission
+        // Guard by permission (middleware already enforces)
         if (!Auth::user()->hasPermission('update permissions')) {
             return redirect()->route('admin.permissions.index')
                 ->with('error', 'You do not have permission to edit permissions.');
@@ -111,7 +120,7 @@ class PermissionController extends Controller
      */
     public function update(Request $request, Permission $permission)
     {
-        // Check permission
+        // Guard by permission (middleware already enforces)
         if (!Auth::user()->hasPermission('update permissions')) {
             return redirect()->route('admin.permissions.index')
                 ->with('error', 'You do not have permission to update permissions.');
@@ -159,7 +168,7 @@ class PermissionController extends Controller
      */
     public function destroy(Permission $permission)
     {
-        // Check permission
+        // Guard by permission (middleware already enforces)
         if (!Auth::user()->hasPermission('delete permissions')) {
             return redirect()->route('admin.permissions.index')
                 ->with('error', 'You do not have permission to delete permissions.');
