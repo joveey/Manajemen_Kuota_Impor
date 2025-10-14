@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Services\ProductQuotaAutoMapper;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -11,7 +12,7 @@ use Illuminate\View\View;
 
 class ProductController extends Controller
 {
-    public function __construct()
+    public function __construct(private readonly ProductQuotaAutoMapper $autoMapper)
     {
         $this->middleware('permission:read master_data')->only(['index']);
         $this->middleware('permission:create master_data')->only(['create', 'store']);
@@ -47,7 +48,8 @@ class ProductController extends Controller
     {
         $data = $this->validateData($request);
 
-        Product::create($data);
+        $product = Product::create($data);
+        $this->autoMapper->sync($product);
 
         return redirect()
             ->route('admin.master-data.index')
@@ -64,6 +66,8 @@ class ProductController extends Controller
         $data = $this->validateData($request, $product->id);
 
         $product->update($data);
+        $product->refresh();
+        $this->autoMapper->sync($product);
 
         return redirect()
             ->route('admin.master-data.index')
