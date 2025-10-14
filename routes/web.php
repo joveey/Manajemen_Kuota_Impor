@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\FinalReportController;
 use App\Http\Controllers\Admin\ProductQuotaMappingController;
 use App\Http\Controllers\Admin\QuotaController;
 use App\Http\Controllers\Admin\PurchaseOrderController;
@@ -130,6 +131,11 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
             ->name('product-quotas.update');
         Route::delete('product-quotas/{productQuotaMapping}', [ProductQuotaMappingController::class, 'destroy'])
             ->name('product-quotas.destroy');
+    });
+
+    Route::middleware(['permission:read reports'])->group(function () {
+        Route::get('reports/final', [FinalReportController::class, 'index'])->name('reports.final');
+        Route::get('reports/final/export/csv', [FinalReportController::class, 'exportCsv'])->name('reports.final.export.csv');
     });
 
     Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
