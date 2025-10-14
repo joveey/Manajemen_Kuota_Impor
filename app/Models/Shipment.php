@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\ShipmentStatusLog;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -45,6 +47,10 @@ class Shipment extends Model
             if (empty($shipment->shipment_number)) {
                 $shipment->shipment_number = 'SHIP-' . now()->format('Ymd') . '-' . Str::upper(Str::random(4));
             }
+
+            if (empty($shipment->status)) {
+                $shipment->status = static::initialStatusFor($shipment->ship_date);
+            }
         });
 
         static::saved(function (Shipment $shipment) {
@@ -72,6 +78,85 @@ class Shipment extends Model
         return $this->hasMany(ShipmentReceipt::class);
     }
 
+    public function statusLogs()
+    {
+        return $this->hasMany(ShipmentStatusLog::class)->orderByDesc('recorded_at');
+    }
+
+    public static function initialStatusFor($shipDate): string
+    {
+        if ($shipDate instanceof Carbon) {
+            return $shipDate->isFuture() ? self::STATUS_PENDING : self::STATUS_IN_TRANSIT;
+        }
+
+        if ($shipDate instanceof \DateTimeInterface) {
+            return Carbon::parse($shipDate)->isFuture() ? self::STATUS_PENDING : self::STATUS_IN_TRANSIT;
+        }
+
+        if ($shipDate) {
+            return Carbon::parse($shipDate)->isFuture()
+                ? self::STATUS_PENDING
+                : self::STATUS_IN_TRANSIT;
+        }
+
+        return self::STATUS_IN_TRANSIT;
+    }
+
+    public function syncScheduledStatus(?string $description = null): bool
+    {
+        if ($this->quantity_received > 0) {
+            return false;
+        }
+
+        $expected = $this->ship_date && $this->ship_date->isFuture()
+            ? self::STATUS_PENDING
+            : self::STATUS_IN_TRANSIT;
+
+        if ($expected !== $this->status) {
+            $this->status = $expected;
+            $this->save();
+            $this->logStatus($expected, $description ?? 'Status diperbarui otomatis berdasarkan jadwal pengiriman.');
+
+            return true;
+        }
+
+        return false;
+    }
+
+    public function computeStatus(): string
+    {
+        if ($this->quantity_planned > 0 && $this->quantity_received >= $this->quantity_planned) {
+            return self::STATUS_DELIVERED;
+        }
+
+        if ($this->quantity_received > 0) {
+            return self::STATUS_PARTIAL;
+        }
+
+        return $this->ship_date && $this->ship_date->isFuture()
+            ? self::STATUS_PENDING
+            : self::STATUS_IN_TRANSIT;
+    }
+
+    public function logStatus(string $status, ?string $description = null, bool $force = false): void
+    {
+        $latestStatus = $this->statusLogs()
+            ->latest('recorded_at')
+            ->value('status');
+
+        if (!$force && $latestStatus === $status) {
+            return;
+        }
+
+        $this->statusLogs()->create([
+            'status' => $status,
+            'description' => $description,
+            'quantity_planned_snapshot' => $this->quantity_planned,
+            'quantity_received_snapshot' => $this->quantity_received,
+            'recorded_at' => now(),
+        ]);
+    }
+
     public function recordReceipt(int $quantity, \DateTimeInterface $receiptDate, ?string $notes = null, ?string $documentNumber = null, ?int $userId = null): void
     {
         $quantity = min($quantity, $this->quantity_planned - $this->quantity_received);
@@ -95,5 +180,11 @@ class Shipment extends Model
             : self::STATUS_PARTIAL;
 
         $this->save();
+
+        $description = $documentNumber
+            ? sprintf('Penerimaan %s unit (dokumen: %s).', number_format($quantity), $documentNumber)
+            : sprintf('Penerimaan %s unit.', number_format($quantity));
+
+        $this->logStatus($this->status, $description, true);
     }
 }

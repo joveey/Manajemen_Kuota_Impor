@@ -179,6 +179,37 @@
         transform:translateY(-1px);
     }
 
+    .status-history-card {
+        margin-top:12px;
+        border:1px solid #dbe3f3;
+        border-radius:16px;
+        background:linear-gradient(135deg,#f8fbff 0%, #ffffff 100%);
+        padding:18px 22px;
+        box-shadow:0 22px 48px -42px rgba(15,23,42,.35);
+    }
+    .status-history-header {
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:12px;
+        margin-bottom:14px;
+    }
+    .status-history-title {
+        font-size:13px;
+        font-weight:700;
+        text-transform:uppercase;
+        letter-spacing:.08em;
+        color:#0f172a;
+    }
+    .status-history-badge {
+        font-size:12px;
+        color:#64748b;
+    }
+    .status-history-empty {
+        font-size:12px;
+        color:#94a3b8;
+    }
+
     .pagination-modern { display:flex; justify-content:flex-end; margin-top:20px; }
 
     @media (max-width: 992px) {
@@ -243,6 +274,20 @@
                 </tr>
             </thead>
             <tbody>
+                @php
+                    $statusNameMap = [
+                        \App\Models\Shipment::STATUS_PENDING => 'Menunggu',
+                        \App\Models\Shipment::STATUS_IN_TRANSIT => 'Dalam Perjalanan',
+                        \App\Models\Shipment::STATUS_PARTIAL => 'Parsial',
+                        \App\Models\Shipment::STATUS_DELIVERED => 'Selesai',
+                    ];
+                    $statusVariantMap = [
+                        \App\Models\Shipment::STATUS_PENDING => 'neutral',
+                        \App\Models\Shipment::STATUS_IN_TRANSIT => 'primary',
+                        \App\Models\Shipment::STATUS_PARTIAL => 'warning',
+                        \App\Models\Shipment::STATUS_DELIVERED => 'success',
+                    ];
+                @endphp
                 @forelse($shipments as $shipment)
                     @php
                         $statusBadge = match($shipment->status) {
@@ -251,12 +296,33 @@
                             \App\Models\Shipment::STATUS_DELIVERED => 'status-chip--delivered',
                             default => 'status-chip--pending',
                         };
-                        $statusLabel = [
-                            \App\Models\Shipment::STATUS_PENDING => 'Menunggu',
-                            \App\Models\Shipment::STATUS_IN_TRANSIT => 'Dalam Perjalanan',
-                            \App\Models\Shipment::STATUS_PARTIAL => 'Parsial',
-                            \App\Models\Shipment::STATUS_DELIVERED => 'Selesai',
-                        ][$shipment->status] ?? ucfirst($shipment->status);
+                        $statusLabel = $statusNameMap[$shipment->status] ?? ucfirst($shipment->status);
+
+                        $historyItems = $shipment->statusLogs
+                            ->sortBy('recorded_at')
+                            ->map(function ($log) use ($statusNameMap, $statusVariantMap) {
+                                $planned = $log->quantity_planned_snapshot;
+                                $received = $log->quantity_received_snapshot;
+                                $badge = null;
+
+                                if (!is_null($planned) || !is_null($received)) {
+                                    $badge = sprintf(
+                                        '%s / %s unit',
+                                        number_format($received ?? 0),
+                                        number_format($planned ?? 0)
+                                    );
+                                }
+
+                                return [
+                                    'title' => $statusNameMap[$log->status] ?? ucfirst(str_replace('_', ' ', $log->status)),
+                                    'subtitle' => $log->description,
+                                    'date' => optional($log->recorded_at)->format('d M Y H:i'),
+                                    'badge' => $badge,
+                                    'variant' => $statusVariantMap[$log->status] ?? 'neutral',
+                                ];
+                            })
+                            ->values()
+                            ->all();
                     @endphp
                     <tr>
                         <td>{{ $loop->iteration }}</td>
@@ -294,6 +360,21 @@
                                     <span>Konfirmasi</span>
                                 </button>
                             @endif
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="10">
+                            <div class="status-history-card">
+                                <div class="status-history-header">
+                                    <span class="status-history-title">Riwayat Status</span>
+                                    <span class="status-history-badge">{{ $shipment->statusLogs->count() }} catatan</span>
+                                </div>
+                                @if(!empty($historyItems))
+                                    <x-timeline :items="$historyItems" class="mb-0" />
+                                @else
+                                    <div class="status-history-empty">Belum ada riwayat status untuk shipment ini.</div>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                     @if($shipment->status !== \App\Models\Shipment::STATUS_DELIVERED)

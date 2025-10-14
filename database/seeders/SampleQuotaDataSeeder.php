@@ -295,6 +295,10 @@ class SampleQuotaDataSeeder extends Seeder
                 ]
             );
 
+            if ($shipment->statusLogs()->doesntExist()) {
+                $shipment->logStatus($shipment->status, 'Shipment dibuat dari sample data.');
+            }
+
             // Record a receipt for first PO to demonstrate actual deduction
             if ($po->sequence_number === 1) {
                 $receiptQty = (int) round($shipmentQty * 0.8);
@@ -314,6 +318,7 @@ class SampleQuotaDataSeeder extends Seeder
                 $shipment->receipt_date = Carbon::parse($shipment->ship_date)->addDays(28);
                 $shipment->status = Shipment::STATUS_PARTIAL;
                 $shipment->save();
+                $shipment->logStatus(Shipment::STATUS_PARTIAL, 'Penerimaan parsial sample data.');
 
                 $po->quantity_received = $receiptQty;
                 $po->status = PurchaseOrder::STATUS_PARTIAL;
