@@ -238,10 +238,12 @@
                 <i class="fas fa-file-export"></i>
                 Export CSV
             </a>
-            <a href="{{ route('admin.quotas.create') }}" class="action-pill action-pill--primary">
-                <i class="fas fa-plus"></i>
-                Tambah Kuota
-            </a>
+            @can('create quota')
+                <a href="{{ route('admin.quotas.create') }}" class="action-pill action-pill--primary">
+                    <i class="fas fa-plus"></i>
+                    Tambah Kuota
+                </a>
+            @endcan
         </div>
     </div>
 
@@ -345,16 +347,20 @@
                                 <a href="{{ route('admin.quotas.show', $quota) }}" class="action-icon action-icon--view" title="Detail">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                <a href="{{ route('admin.quotas.edit', $quota) }}" class="action-icon action-icon--edit" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <form action="{{ route('admin.quotas.destroy', $quota) }}" method="POST" onsubmit="return confirm('Hapus kuota ini?');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="action-icon action-icon--delete" title="Hapus">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
+                                @can('update quota')
+                                    <a href="{{ route('admin.quotas.edit', $quota) }}" class="action-icon action-icon--edit" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                @endcan
+                                @can('delete quota')
+                                    <form action="{{ route('admin.quotas.destroy', $quota) }}" method="POST" onsubmit="return confirm('Hapus kuota ini?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="action-icon action-icon--delete" title="Hapus">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                @endcan
                             </div>
                         </td>
                     </tr>

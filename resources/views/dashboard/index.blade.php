@@ -4,10 +4,12 @@
     <div class="flex items-center justify-between">
         <h2 class="text-xl font-semibold leading-tight text-slate-800">Dashboard</h2>
         <div class="flex items-center gap-3">
+            @can('create purchase_orders')
             <a href="{{ route('admin.purchase-orders.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
                 Purchase Order
             </a>
+            @endcan
         </div>
     </div>
 @endsection

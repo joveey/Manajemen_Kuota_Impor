@@ -47,17 +47,17 @@
                                 <td>
                                     @if($user->roles->count() > 0)
                                         @foreach($user->roles as $role)
-                                            <span class="badge badge-success">{{ $role->name }}</span>
+                                            <span class="badge bg-success">{{ $role->name }}</span>
                                         @endforeach
                                     @else
-                                        <span class="badge badge-secondary">No Role</span>
+                                        <span class="badge bg-secondary">No Role</span>
                                     @endif
                                 </td>
                                 <td>
                                     @if($user->is_active)
-                                        <span class="badge badge-success">Active</span>
+                                        <span class="badge bg-success">Active</span>
                                     @else
-                                        <span class="badge badge-danger">Inactive</span>
+                                        <span class="badge bg-danger">Inactive</span>
                                     @endif
                                 </td>
                                 <td>{{ $user->last_login_at ? $user->last_login_at->format('d M Y H:i') : 'Never' }}</td>

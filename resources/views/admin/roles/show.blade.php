@@ -26,7 +26,7 @@
                 <dl class="row">
                     <dt class="col-sm-3">Role Name:</dt>
                     <dd class="col-sm-9">
-                        <span class="badge badge-success">{{ $role->name }}</span>
+                        <span class="badge bg-success">{{ $role->name }}</span>
                     </dd>
                     
                     <dt class="col-sm-3">Description:</dt>
@@ -95,9 +95,9 @@
                                 <td>{{ $user->email }}</td>
                                 <td>
                                     @if($user->is_active)
-                                        <span class="badge badge-success">Active</span>
+                                        <span class="badge bg-success">Active</span>
                                     @else
-                                        <span class="badge badge-danger">Inactive</span>
+                                        <span class="badge bg-danger">Inactive</span>
                                     @endif
                                 </td>
                                 <td>

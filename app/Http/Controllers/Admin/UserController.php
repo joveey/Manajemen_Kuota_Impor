@@ -33,8 +33,14 @@ class UserController extends Controller
      */
     public function create()
     {
-        // Get roles kecuali admin role
-        $roles = Role::where('name', '!=', 'admin')->orderBy('name', 'asc')->get();
+        // Hanya Admin dan Editor yang boleh memilih role selain default
+        if (auth()->user()->hasRole(['admin', 'editor'])) {
+            // Get roles kecuali admin role
+            $roles = Role::where('name', '!=', 'admin')->orderBy('name', 'asc')->get();
+        } else {
+            // Manager atau selainnya tidak bisa memilih role; fallback ke role default
+            $roles = collect();
+        }
         
         return view('admin.users.create', compact('roles'));
     }
@@ -66,14 +72,22 @@ class UserController extends Controller
             'is_active' => $request->input('is_active', 0) == 1,
         ]);
 
-        // Assign roles (pastikan tidak ada admin role)
-        if ($request->has('roles')) {
-            $roleIds = Role::whereIn('id', $request->roles)
-                ->where('name', '!=', 'admin')
-                ->pluck('id')
-                ->toArray();
-            
-            $user->roles()->sync($roleIds);
+        // Assign roles: hanya Admin/Editor dapat set role selain default
+        if (auth()->user()->hasRole(['admin', 'editor'])) {
+            if ($request->has('roles')) {
+                $roleIds = Role::whereIn('id', $request->roles)
+                    ->where('name', '!=', 'admin')
+                    ->pluck('id')
+                    ->toArray();
+                $user->roles()->sync($roleIds);
+            }
+        } else {
+            // Untuk selain Admin/Editor, set role default "user"
+            try {
+                $user->assignRole('user');
+            } catch (\Throwable $e) {
+                // ignore when seeding not ready
+            }
         }
 
         return redirect()->route('admin.users.index')
@@ -107,8 +121,13 @@ class UserController extends Controller
                 ->with('error', 'Cannot edit admin user here.');
         }
 
-        $roles = Role::where('name', '!=', 'admin')->orderBy('name', 'asc')->get();
-        $userRoles = $user->roles->pluck('id')->toArray();
+        if (auth()->user()->hasRole(['admin', 'editor'])) {
+            $roles = Role::where('name', '!=', 'admin')->orderBy('name', 'asc')->get();
+            $userRoles = $user->roles->pluck('id')->toArray();
+        } else {
+            $roles = collect();
+            $userRoles = [];
+        }
         
         return view('admin.users.edit', compact('user', 'roles', 'userRoles'));
     }
@@ -159,16 +178,17 @@ class UserController extends Controller
 
         $user->update($userData);
 
-        // Sync roles (pastikan tidak ada admin role)
-        if ($request->has('roles')) {
-            $roleIds = Role::whereIn('id', $request->roles)
-                ->where('name', '!=', 'admin')
-                ->pluck('id')
-                ->toArray();
-            
-            $user->roles()->sync($roleIds);
-        } else {
-            $user->roles()->sync([]);
+        // Sync roles hanya jika Admin/Editor; lainnya tidak diizinkan mengubah role
+        if (auth()->user()->hasRole(['admin', 'editor'])) {
+            if ($request->has('roles')) {
+                $roleIds = Role::whereIn('id', $request->roles)
+                    ->where('name', '!=', 'admin')
+                    ->pluck('id')
+                    ->toArray();
+                $user->roles()->sync($roleIds);
+            } else {
+                $user->roles()->sync([]);
+            }
         }
 
         return redirect()->route('admin.users.index')

@@ -200,10 +200,12 @@
                 <i class="fas fa-file-export"></i>
                 Export CSV
             </a>
-            <a href="{{ route('admin.shipments.create') }}" class="shipment-action shipment-action--primary">
-                <i class="fas fa-plus"></i>
-                Buat Shipment
-            </a>
+            @can('create purchase_orders')
+                <a href="{{ route('admin.shipments.create') }}" class="shipment-action shipment-action--primary">
+                    <i class="fas fa-plus"></i>
+                    Buat Shipment
+                </a>
+            @endcan
         </div>
     </div>
 
@@ -285,14 +287,16 @@
                             @if($shipment->status === \App\Models\Shipment::STATUS_DELIVERED)
                                 <span class="po-table__subtext">Selesai</span>
                             @else
-                                <button class="confirm-button" type="button"
-                                    data-bs-toggle="collapse"
-                                    data-bs-target="#receipt-form-{{ $shipment->id }}"
-                                    aria-expanded="false"
-                                    aria-controls="receipt-form-{{ $shipment->id }}">
-                                    <span class="confirm-button__icon"><i class="fas fa-box-open"></i></span>
-                                    <span>Konfirmasi</span>
-                                </button>
+                                @can('update purchase_orders')
+                                    <button class="confirm-button" type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#receipt-form-{{ $shipment->id }}"
+                                        aria-expanded="false"
+                                        aria-controls="receipt-form-{{ $shipment->id }}">
+                                        <span class="confirm-button__icon"><i class="fas fa-box-open"></i></span>
+                                        <span>Konfirmasi</span>
+                                    </button>
+                                @endcan
                             @endif
                         </td>
                     </tr>
@@ -313,6 +317,7 @@
                                             </div>
                                         </div>
                                     </div>
+                                    @can('update purchase_orders')
                                     <form action="{{ route('admin.shipments.receive', $shipment) }}" method="POST" class="confirm-form row g-3">
                                         @csrf
                                         <div class="col-md-3">
@@ -346,6 +351,7 @@
                                             </button>
                                         </div>
                                     </form>
+                                    @endcan
                                 </div>
                             </td>
                         </tr>

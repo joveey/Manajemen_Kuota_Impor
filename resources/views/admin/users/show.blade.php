@@ -33,9 +33,9 @@
                     <dt class="col-sm-3">Status:</dt>
                     <dd class="col-sm-9">
                         @if($user->is_active)
-                            <span class="badge badge-success">Active</span>
+                            <span class="badge bg-success">Active</span>
                         @else
-                            <span class="badge badge-danger">Inactive</span>
+                            <span class="badge bg-danger">Inactive</span>
                         @endif
                     </dd>
                     
@@ -60,7 +60,7 @@
                             <div class="card">
                                 <div class="card-body">
                                     <h5>
-                                        <span class="badge badge-success">{{ $role->name }}</span>
+                                        <span class="badge bg-success">{{ $role->name }}</span>
                                     </h5>
                                     <p class="mb-2">{{ $role->description ?? 'No description' }}</p>
                                     <small class="text-muted">

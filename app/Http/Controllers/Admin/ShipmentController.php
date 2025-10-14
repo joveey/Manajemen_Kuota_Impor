@@ -17,6 +17,12 @@ class ShipmentController extends Controller
         private readonly PurchaseOrderService $service,
         private readonly AuthFactory $auth
     ) {
+        // Read-only access
+        $this->middleware('permission:read purchase_orders')->only(['index', 'export']);
+        // Create shipment
+        $this->middleware('permission:create purchase_orders')->only(['create', 'store']);
+        // Confirm receipt (update)
+        $this->middleware('permission:update purchase_orders')->only(['receive']);
     }
 
     public function index(): View

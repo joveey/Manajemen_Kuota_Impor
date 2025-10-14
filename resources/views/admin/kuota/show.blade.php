@@ -17,9 +17,11 @@
                 <h3 class="card-title mb-0">
                     <i class="fas fa-file-alt me-2"></i>Informasi Kuota
                 </h3>
-                <a href="{{ route('admin.quotas.edit', $quota) }}" class="btn btn-sm btn-warning">
-                    <i class="fas fa-edit me-1"></i>Edit
-                </a>
+                @can('update quota')
+                    <a href="{{ route('admin.quotas.edit', $quota) }}" class="btn btn-sm btn-warning">
+                        <i class="fas fa-edit me-1"></i>Edit
+                    </a>
+                @endcan
             </div>
             <div class="card-body">
                 <div class="row g-3">
@@ -149,6 +151,7 @@
                     </div>
                 @endif
 
+                @can('update quota')
                 <form action="{{ route('admin.quotas.attach-product', $quota) }}" method="POST" class="mb-3">
                     @csrf
                     <div class="mb-2">
@@ -182,6 +185,7 @@
                         <i class="fas fa-plus me-1"></i>Tambah Mapping
                     </button>
                 </form>
+                @endcan
 
         <h6 class="text-muted">Daftar Mapping</h6>
         <ul class="list-group">
@@ -195,11 +199,13 @@
                         <div class="small text-muted">{{ $product->name }}</div>
                         <div class="small text-muted">Priority: {{ $pivot->priority }} {{ $pivot->is_primary ? '| Primary' : '' }}</div>
                     </div>
-                    <form action="{{ route('admin.quotas.detach-product', [$quota, $product]) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus mapping ini?');">
-                        @csrf
-                        @method('DELETE')
-                        <button class="btn btn-sm btn-outline-danger"><i class="fas fa-times"></i></button>
-                    </form>
+                    @can('update quota')
+                        <form action="{{ route('admin.quotas.detach-product', [$quota, $product]) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus mapping ini?');">
+                            @csrf
+                            @method('DELETE')
+                            <button class="btn btn-sm btn-outline-danger"><i class="fas fa-times"></i></button>
+                        </form>
+                    @endcan
                 </li>
             @empty
                 <li class="list-group-item text-muted text-center">Belum ada mapping.</li>

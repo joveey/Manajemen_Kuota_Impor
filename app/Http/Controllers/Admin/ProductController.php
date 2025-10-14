@@ -11,6 +11,13 @@ use Illuminate\View\View;
 
 class ProductController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:read master_data')->only(['index']);
+        $this->middleware('permission:create master_data')->only(['create', 'store']);
+        $this->middleware('permission:update master_data')->only(['edit', 'update']);
+        $this->middleware('permission:delete master_data')->only(['destroy']);
+    }
     public function index(Request $request): View
     {
         $products = Product::query()

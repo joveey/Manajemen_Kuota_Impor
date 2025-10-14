@@ -20,7 +20,7 @@
         <li class="nav-item dropdown">
             <a class="nav-link" data-toggle="dropdown" href="#">
                 <i class="far fa-bell"></i>
-                <span class="badge badge-warning navbar-badge">3</span>
+                <span class="badge bg-warning navbar-badge">3</span>
             </a>
             <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
                 <span class="dropdown-item dropdown-header">3 Notifications</span>
@@ -47,7 +47,7 @@
                     <strong>{{ Auth::user()->name }}</strong>
                     <p class="text-muted mb-0" style="font-size: 0.875rem;">
                         @foreach(Auth::user()->roles as $role)
-                            <span class="badge badge-info">{{ $role->display_name }}</span>
+                            <span class="badge bg-info">{{ $role->display_name }}</span>
                         @endforeach
                     </p>
                     <small class="text-muted">{{ Auth::user()->email }}</small>

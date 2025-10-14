@@ -47,11 +47,11 @@
                             <tr>
                                 <td>{{ $loop->iteration + ($permissions->currentPage() - 1) * $permissions->perPage() }}</td>
                                 <td>
-                                    <span class="badge badge-primary">{{ $permission->name }}</span>
+                                    <span class="badge bg-primary">{{ $permission->name }}</span>
                                 </td>
                                 <td>{{ $permission->description ?? '-' }}</td>
                                 <td>
-                                    <span class="badge badge-info">{{ $permission->roles->count() }}</span>
+                                    <span class="badge bg-info">{{ $permission->roles->count() }}</span>
                                 </td>
                                 <td>{{ $permission->created_at->format('d M Y') }}</td>
                                 <td>

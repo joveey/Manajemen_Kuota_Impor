@@ -69,10 +69,12 @@
                 <i class="fas fa-file-export"></i>
                 Export CSV
             </a>
-            <a href="{{ route('admin.purchase-orders.create') }}" class="po-action po-action--primary">
-                <i class="fas fa-plus"></i>
-                Buat PO Baru
-            </a>
+            @can('create purchase_orders')
+                <a href="{{ route('admin.purchase-orders.create') }}" class="po-action po-action--primary">
+                    <i class="fas fa-plus"></i>
+                    Buat PO Baru
+                </a>
+            @endcan
         </div>
     </div>
 
@@ -191,13 +193,15 @@
                                 <a href="{{ route('admin.purchase-orders.show', $po) }}" class="action-icon action-icon--view" title="Detail">
                                     <i class="fas fa-eye"></i>
                                 </a>
-                                <form action="{{ route('admin.purchase-orders.destroy', $po) }}" method="POST" onsubmit="return confirm('Hapus PO ini?');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="action-icon action-icon--delete" title="Hapus">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
+                                @can('delete purchase_orders')
+                                    <form action="{{ route('admin.purchase-orders.destroy', $po) }}" method="POST" onsubmit="return confirm('Hapus PO ini?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="action-icon action-icon--delete" title="Hapus">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                @endcan
                             </div>
                         </td>
                     </tr>
