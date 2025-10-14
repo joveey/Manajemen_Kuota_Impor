@@ -1,0 +1,202 @@
+{{-- resources/views/admin/reports/final.blade.php --}}
+@extends('layouts.admin')
+
+@section('title', 'Laporan Gabungan')
+
+@push('styles')
+<style>
+    .report-page { display:flex; flex-direction:column; gap:24px; }
+    .report-header { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:18px; }
+    .report-title { font-size:26px; font-weight:700; color:#0f172a; margin:0; }
+    .report-subtitle { color:#64748b; max-width:600px; }
+    .filter-card { border-radius:18px; border:1px solid #dbe3f3; background:#ffffff; box-shadow:0 25px 55px -48px rgba(15,23,42,.35); }
+    .filter-body { padding:18px 22px; }
+
+    .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px; }
+    .summary-card {
+        border-radius:18px;
+        border:1px solid #e2e8f0;
+        background:linear-gradient(135deg,#ffffff 0%,#f8fafc 100%);
+        padding:18px 20px;
+        display:flex;
+        flex-direction:column;
+        gap:6px;
+        box-shadow:0 26px 52px -48px rgba(15,23,42,.38);
+    }
+    .summary-card__label { font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em; }
+    .summary-card__value { font-size:24px; font-weight:700; color:#0f172a; }
+    .summary-card__meta { font-size:12px; color:#64748b; }
+
+    .report-table-shell {
+        border:1px solid #dde5f5;
+        border-radius:20px;
+        overflow:hidden;
+        background:#ffffff;
+        box-shadow:0 34px 68px -56px rgba(15,23,42,.45);
+    }
+    .report-table th {
+        background:#f8fbff;
+        font-size:12px;
+        text-transform:uppercase;
+        letter-spacing:0.08em;
+        color:#64748b;
+    }
+    .report-table td { font-size:13px; color:#1f2937; }
+
+    .top-shipments {
+        border-radius:20px;
+        border:1px solid #dbe3f3;
+        background:#ffffff;
+        padding:18px 22px;
+        box-shadow:0 30px 60px -50px rgba(15,23,42,.35);
+    }
+    .top-shipments__header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+    .top-shipments__list { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:12px; }
+    .top-shipments__item { display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; border:1px solid rgba(148,163,184,.18); border-radius:14px; padding:12px 14px; background:linear-gradient(135deg,rgba(248,250,252,.65) 0%, #ffffff 100%); }
+    .top-shipments__meta { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:#4b5563; }
+    .badge-outstanding { background:rgba(248,113,113,.14); color:#b91c1c; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:600; }
+</style>
+@endpush
+
+@section('content')
+@php
+    $filters = $filters ?? [];
+    $summary = $summary ?? [];
+    $rows = $rows ?? [];
+    $topShipments = $topShipments ?? [];
+@endphp
+<div class="report-page">
+    <div class="report-header">
+        <div>
+            <h1 class="report-title">Laporan Gabungan</h1>
+            <p class="report-subtitle">Ringkasan menyeluruh yang menggabungkan data kuota, purchase order, dan pengiriman dalam satu tampilan.</p>
+        </div>
+        <div>
+            <a href="{{ route('admin.reports.final.export.csv', request()->query()) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-file-csv me-1"></i> Export CSV
+            </a>
+        </div>
+    </div>
+
+    <div class="filter-card">
+        <div class="filter-body">
+            <form method="GET" action="{{ route('admin.reports.final') }}" class="row g-3 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label for="start_date" class="form-label small text-uppercase text-muted">Start Date</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ $filters['start_date'] ?? '' }}">
+                </div>
+                <div class="col-12 col-md-4">
+                    <label for="end_date" class="form-label small text-uppercase text-muted">End Date</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ $filters['end_date'] ?? '' }}">
+                </div>
+                <div class="col-12 col-md-4">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter me-1"></i> Terapkan Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="summary-grid">
+        <div class="summary-card">
+            <span class="summary-card__label">Total Kuota</span>
+            <span class="summary-card__value">{{ number_format($summary['total_allocation'] ?? 0) }}</span>
+            <span class="summary-card__meta">Total alokasi kuota aktif periode ini.</span>
+        </div>
+        <div class="summary-card">
+            <span class="summary-card__label">Pemakaian Actual</span>
+            <span class="summary-card__value">{{ number_format($summary['total_actual_consumed'] ?? 0) }}</span>
+            <span class="summary-card__meta">Jumlah penerimaan barang (Good Receipt).</span>
+        </div>
+        <div class="summary-card">
+            <span class="summary-card__label">Outstanding PO</span>
+            <span class="summary-card__value">{{ number_format($summary['po_outstanding'] ?? 0) }}</span>
+            <span class="summary-card__meta">Qty PO belum terpenuhi.</span>
+        </div>
+        <div class="summary-card">
+            <span class="summary-card__label">Outstanding Shipment</span>
+            <span class="summary-card__value">{{ number_format($summary['shipment_outstanding'] ?? 0) }}</span>
+            <span class="summary-card__meta">Selisih qty kirim vs penerimaan.</span>
+        </div>
+    </div>
+
+    <div class="report-table-shell">
+        <div class="table-responsive">
+            <table class="table report-table align-middle mb-0">
+                <thead>
+                <tr>
+                    <th>Quota</th>
+                    <th>Range PK</th>
+                    <th class="text-end">Alokasi</th>
+                    <th class="text-end">Forecast</th>
+                    <th class="text-end">Actual Remaining</th>
+                    <th class="text-end">PO (Qty)</th>
+                    <th class="text-end">PO (Received)</th>
+                    <th class="text-end">PO Outstanding</th>
+                    <th class="text-end">Shipment Planned</th>
+                    <th class="text-end">Shipment Received</th>
+                    <th class="text-end">Shipment Outstanding</th>
+                    <th>Latest Receipt</th>
+                </tr>
+                </thead>
+                <tbody>
+                @forelse($rows as $row)
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">{{ $row['quota_number'] }}</div>
+                            <div class="text-muted small">{{ $row['quota_name'] }}</div>
+                        </td>
+                        <td>{{ $row['range_pk'] }}</td>
+                        <td class="text-end">{{ number_format($row['total_allocation']) }}</td>
+                        <td class="text-end">{{ number_format($row['forecast_remaining']) }}</td>
+                        <td class="text-end">{{ number_format($row['actual_remaining']) }}</td>
+                        <td class="text-end">{{ number_format($row['po_quantity']) }}<div class="text-muted small">{{ $row['po_count'] }} PO</div></td>
+                        <td class="text-end">{{ number_format($row['po_received']) }}</td>
+                        <td class="text-end text-danger">{{ number_format($row['po_outstanding']) }}</td>
+                        <td class="text-end">{{ number_format($row['shipment_planned']) }}<div class="text-muted small">{{ $row['shipment_count'] }} pengiriman</div></td>
+                        <td class="text-end">{{ number_format($row['shipment_received']) }}</td>
+                        <td class="text-end text-danger">{{ number_format($row['shipment_outstanding']) }}</td>
+                        <td>{{ $row['last_receipt_date'] ?? '-' }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="12" class="text-center text-muted py-4">Tidak ada data pada rentang tanggal tersebut.</td>
+                    </tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="top-shipments">
+        <div class="top-shipments__header">
+            <h4 class="mb-0">Pengiriman Dengan Outstanding Tertinggi</h4>
+            <span class="text-muted small">{{ count($topShipments) }} data</span>
+        </div>
+        @if(empty($topShipments))
+            <div class="text-muted">Seluruh pengiriman sudah terpenuhi. Tidak ada outstanding.</div>
+        @else
+            <ul class="top-shipments__list">
+                @foreach($topShipments as $item)
+                    <li class="top-shipments__item">
+                        <div>
+                            <div class="fw-semibold">{{ $item['shipment_number'] }}</div>
+                            <div class="text-muted small">PO {{ $item['po_number'] }} — {{ $item['product_code'] }} ({{ $item['product_name'] }})</div>
+                        </div>
+                        <div class="top-shipments__meta">
+                            <span>Planned: {{ number_format($item['quantity_planned']) }}</span>
+                            <span>Received: {{ number_format($item['quantity_received']) }}</span>
+                            <span>Status: {{ ucfirst(str_replace('_',' ', $item['status'])) }}</span>
+                            <span>Ship: {{ $item['ship_date'] ?? '-' }}</span>
+                            <span>ETA: {{ $item['eta_date'] ?? '-' }}</span>
+                        </div>
+                        <div class="badge-outstanding">Outstanding {{ number_format($item['outstanding']) }}</div>
+                    </li>
+                @endforeach
+            </ul>
+        @endif
+    </div>
+</div>
+@endsection
+
