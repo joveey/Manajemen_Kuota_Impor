@@ -22,9 +22,19 @@ class ShipmentController extends Controller
     public function index(): View
     {
         $shipments = Shipment::query()
-            ->with(['purchaseOrder.product'])
+            ->with([
+                'purchaseOrder.product',
+                'statusLogs' => fn ($query) => $query->orderByDesc('recorded_at'),
+            ])
             ->latest('ship_date')
             ->get();
+
+        $shipments->each(function (Shipment $shipment) {
+            $updated = $shipment->syncScheduledStatus('Status otomatis berdasarkan jadwal pengiriman.');
+            if ($updated) {
+                $shipment->load(['statusLogs' => fn ($query) => $query->orderByDesc('recorded_at')]);
+            }
+        });
 
         $summary = [
             'total' => $shipments->count(),
