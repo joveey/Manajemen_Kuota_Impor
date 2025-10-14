@@ -1,43 +1,51 @@
-<x-guest-layout>
-    <form method="POST" action="{{ route('register') }}" class="space-y-4">
-        @csrf
+@extends('layouts.auth')
 
-        <!-- Name -->
-        <div>
-            <x-input-label for="name" value="Nama Lengkap" />
-            <x-text-input id="name" class="block mt-1 w-full" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" />
-            <x-input-error :messages="$errors->get('name')" class="mt-2" />
+@section('title','Daftar')
+
+@section('content')
+    <div class="card shadow-sm" style="width: 420px; max-width: 92vw;">
+        <div class="card-body p-4 p-md-5">
+            <h5 class="fw-bold text-center mb-4" style="letter-spacing:-.01em;">Buat Akun Baru</h5>
+
+            @if ($errors->any())
+                <div class="alert alert-danger small" role="alert">
+                    <ul class="mb-0 ps-3">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <form method="POST" action="{{ route('register') }}" novalidate>
+                @csrf
+
+                <div class="mb-3">
+                    <label for="name" class="form-label">Nama Lengkap</label>
+                    <input id="name" type="text" name="name" value="{{ old('name') }}" class="form-control" required autofocus autocomplete="name">
+                </div>
+
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input id="email" type="email" name="email" value="{{ old('email') }}" class="form-control" required autocomplete="username">
+                </div>
+
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input id="password" type="password" name="password" class="form-control" required autocomplete="new-password">
+                </div>
+
+                <div class="mb-3">
+                    <label for="password_confirmation" class="form-label">Konfirmasi Password</label>
+                    <input id="password_confirmation" type="password" name="password_confirmation" class="form-control" required autocomplete="new-password">
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">Daftar</button>
+            </form>
+
+            <p class="text-center mt-4 mb-0 small text-muted">Sudah punya akun?
+                <a href="{{ route('login') }}" class="link-primary fw-semibold">Masuk</a>
+            </p>
         </div>
-
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" value="Email" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-        </div>
-
-        <!-- Password -->
-        <div>
-            <x-input-label for="password" value="Password" />
-            <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" required autocomplete="new-password" />
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
-
-        <!-- Confirm Password -->
-        <div>
-            <x-input-label for="password_confirmation" value="Konfirmasi Password" />
-            <x-text-input id="password_confirmation" class="block mt-1 w-full" type="password" name="password_confirmation" required autocomplete="new-password" />
-            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
-        </div>
-
-        <div class="flex items-center justify-between mt-4">
-            <a class="underline text-sm text-gray-600 hover:text-gray-900" href="{{ route('login') }}">
-                Sudah punya akun? Masuk
-            </a>
-
-            <x-primary-button>
-                Daftar
-            </x-primary-button>
-        </div>
-    </form>
-</x-guest-layout>
+    </div>
+@endsection
