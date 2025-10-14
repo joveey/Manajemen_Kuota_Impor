@@ -71,8 +71,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
     });
     
-    // Manajemen Peran - Membutuhkan izin peran
-    Route::resource('roles', RoleController::class)->except(['show']);
+    // Manajemen Peran
+    Route::resource('roles', RoleController::class);
     
     // Permissions Management - Requires permission permissions
     Route::middleware(['permission:read permissions'])->group(function () {

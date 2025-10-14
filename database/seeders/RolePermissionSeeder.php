@@ -147,17 +147,18 @@ class RolePermissionSeeder extends Seeder
 
         $managerRole->permissions()->sync($pluckPermissions([
             'read dashboard',
-            // Full user management only
+            // Users CRUD
             'read users', 'create users', 'update users', 'delete users',
-            // Administration read-only
-            'read roles', 'read permissions',
+            // Roles & permissions CRUD
+            'read roles', 'create roles', 'update roles', 'delete roles',
+            'read permissions', 'create permissions', 'update permissions', 'delete permissions',
             // Operational + overview read-only
             'read quota',
             'read purchase_orders',
             'read master_data',
             'read reports',
         ]));
-        $this->command?->info('[OK] Manager role: user management + read-only operational/overview.');
+        $this->command?->info('[OK] Manager role: full management of users, roles, permissions; read-only operational/overview.');
 
         $editorRole->permissions()->sync($pluckPermissions([
             'read dashboard',
