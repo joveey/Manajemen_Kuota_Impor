@@ -8,6 +8,7 @@ use App\Models\ProductQuotaMapping;
 use App\Models\Quota;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -99,17 +100,41 @@ class QuotaController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        ProductQuotaMapping::updateOrCreate(
-            [
+        $product = Product::findOrFail($data['product_id']);
+
+        if (!$quota->matchesProduct($product)) {
+            return back()->withErrors([
+                'product_id' => 'Produk tidak sesuai dengan rentang kuota.',
+            ]);
+        }
+
+        DB::transaction(function () use ($request, $quota, $product, $data) {
+            $mapping = ProductQuotaMapping::firstOrNew([
                 'quota_id' => $quota->id,
-                'product_id' => $data['product_id'],
-            ],
-            [
-                'priority' => $data['priority'],
-                'is_primary' => $request->boolean('is_primary'),
-                'notes' => $data['notes'] ?? null,
-            ]
-        );
+                'product_id' => $product->id,
+            ]);
+
+            $mapping->priority = $data['priority'];
+            $mapping->notes = $data['notes'] ?? null;
+            $mapping->is_primary = $request->boolean('is_primary', $mapping->is_primary);
+            $mapping->save();
+
+            if ($mapping->is_primary) {
+                ProductQuotaMapping::where('product_id', $product->id)
+                    ->where('id', '!=', $mapping->id)
+                    ->update(['is_primary' => false]);
+            } else {
+                $hasPrimary = ProductQuotaMapping::where('product_id', $product->id)
+                    ->where('id', '!=', $mapping->id)
+                    ->where('is_primary', true)
+                    ->exists();
+
+                if (!$hasPrimary) {
+                    $mapping->is_primary = true;
+                    $mapping->save();
+                }
+            }
+        });
 
         return back()->with('status', 'Mapping produk berhasil disimpan');
     }

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\ProductQuotaMappingController;
 use App\Http\Controllers\Admin\QuotaController;
 use App\Http\Controllers\Admin\PurchaseOrderController;
 use App\Http\Controllers\Admin\ShipmentController;
@@ -117,6 +118,19 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         ->name('quotas.attach-product');
     Route::delete('quotas/{quota}/detach-product/{product}', [QuotaController::class, 'detachProduct'])
         ->name('quotas.detach-product');
+
+    Route::middleware(['permission:read quota'])->group(function () {
+        Route::get('product-quotas', [ProductQuotaMappingController::class, 'index'])->name('product-quotas.index');
+    });
+
+    Route::middleware(['permission:update quota'])->group(function () {
+        Route::post('product-quotas', [ProductQuotaMappingController::class, 'store'])->name('product-quotas.store');
+        Route::post('product-quotas/reorder', [ProductQuotaMappingController::class, 'reorder'])->name('product-quotas.reorder');
+        Route::match(['put', 'patch'], 'product-quotas/{productQuotaMapping}', [ProductQuotaMappingController::class, 'update'])
+            ->name('product-quotas.update');
+        Route::delete('product-quotas/{productQuotaMapping}', [ProductQuotaMappingController::class, 'destroy'])
+            ->name('product-quotas.destroy');
+    });
 
     Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
     Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');

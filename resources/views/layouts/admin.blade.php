@@ -562,6 +562,10 @@
                                     <span class="nav-icon"><i class="fas fa-percentage"></i></span>
                                     <span>Manajemen Kuota</span>
                                 </a>
+                                <a href="{{ route('admin.product-quotas.index') }}" class="nav-link {{ request()->routeIs('admin.product-quotas.*') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-link"></i></span>
+                                    <span>Mapping Produk-Kuota</span>
+                                </a>
                             @endif
                             @if($canPOCreate)
                                 <a href="{{ route('admin.purchase-orders.create') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.create') || request()->routeIs('admin.purchase-order.create') ? 'active' : '' }}">
