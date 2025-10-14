@@ -18,7 +18,7 @@
                 <h3 class="card-title">
                     Admin: <strong>{{ $admin->name }}</strong>
                     @if($admin->id === auth()->id())
-                        <span class="badge badge-info">You</span>
+                        <span class="badge bg-info">You</span>
                     @endif
                 </h3>
                 <div class="card-tools">
@@ -38,9 +38,9 @@
                     <dt class="col-sm-3">Status:</dt>
                     <dd class="col-sm-9">
                         @if($admin->is_active)
-                            <span class="badge badge-success">Active</span>
+                            <span class="badge bg-success">Active</span>
                         @else
-                            <span class="badge badge-danger">Inactive</span>
+                            <span class="badge bg-danger">Inactive</span>
                         @endif
                     </dd>
                     
@@ -65,9 +65,9 @@
                             <div class="card">
                                 <div class="card-body">
                                     <h5>
-                                        <span class="badge badge-success">{{ $role->name }}</span>
+                                        <span class="badge bg-success">{{ $role->name }}</span>
                                         @if($role->name === 'admin')
-                                            <span class="badge badge-primary">Primary</span>
+                                            <span class="badge bg-primary">Primary</span>
                                         @endif
                                     </h5>
                                     <p class="mb-2">{{ $role->description ?? 'No description' }}</p>

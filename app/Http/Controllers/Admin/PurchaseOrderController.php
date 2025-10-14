@@ -21,6 +21,12 @@ class PurchaseOrderController extends Controller
         private readonly PurchaseOrderService $service,
         private readonly AuthFactory $auth
     ) {
+        // Read
+        $this->middleware('permission:read purchase_orders')->only(['index', 'show', 'export']);
+        // Create
+        $this->middleware('permission:create purchase_orders')->only(['create', 'store']);
+        // Delete
+        $this->middleware('permission:delete purchase_orders')->only(['destroy']);
     }
 
     public function index(Request $request): View

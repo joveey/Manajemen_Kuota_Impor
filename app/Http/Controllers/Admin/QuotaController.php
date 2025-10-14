@@ -14,6 +14,17 @@ use Illuminate\View\View;
 
 class QuotaController extends Controller
 {
+    public function __construct()
+    {
+        // Read-only access
+        $this->middleware('permission:read quota')->only(['index', 'show', 'export']);
+        // Create
+        $this->middleware('permission:create quota')->only(['create', 'store']);
+        // Update
+        $this->middleware('permission:update quota')->only(['edit', 'update', 'attachProduct', 'detachProduct']);
+        // Delete
+        $this->middleware('permission:delete quota')->only(['destroy']);
+    }
     public function index(): View
     {
         $quotas = Quota::query()

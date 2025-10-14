@@ -26,7 +26,7 @@
                 <dl class="row">
                     <dt class="col-sm-3">Permission Name:</dt>
                     <dd class="col-sm-9">
-                        <span class="badge badge-primary">{{ $permission->name }}</span>
+                        <span class="badge bg-primary">{{ $permission->name }}</span>
                     </dd>
                     
                     <dt class="col-sm-3">Description:</dt>
@@ -63,11 +63,11 @@
                             <tr>
                                 <td>{{ $loop->iteration + ($roles->currentPage() - 1) * $roles->perPage() }}</td>
                                 <td>
-                                    <span class="badge badge-success">{{ $role->name }}</span>
+                                    <span class="badge bg-success">{{ $role->name }}</span>
                                 </td>
                                 <td>{{ $role->description ?? '-' }}</td>
                                 <td>
-                                    <span class="badge badge-info">{{ $role->users->count() }}</span>
+                                    <span class="badge bg-info">{{ $role->users->count() }}</span>
                                 </td>
                                 <td>
                                     @if(Route::has('admin.roles.show'))
