@@ -48,20 +48,20 @@
                                 <td>
                                     {{ $admin->name }}
                                     @if($admin->id === auth()->id())
-                                        <span class="badge badge-info">You</span>
+                                        <span class="badge bg-info">You</span>
                                     @endif
                                 </td>
                                 <td>{{ $admin->email }}</td>
                                 <td>
                                     @foreach($admin->roles as $role)
-                                        <span class="badge badge-success">{{ $role->name }}</span>
+                                        <span class="badge bg-success">{{ $role->name }}</span>
                                     @endforeach
                                 </td>
                                 <td>
                                     @if($admin->is_active)
-                                        <span class="badge badge-success">Active</span>
+                                        <span class="badge bg-success">Active</span>
                                     @else
-                                        <span class="badge badge-danger">Inactive</span>
+                                        <span class="badge bg-danger">Inactive</span>
                                     @endif
                                 </td>
                                 <td>{{ $admin->last_login_at ? $admin->last_login_at->format('d M Y H:i') : 'Never' }}</td>

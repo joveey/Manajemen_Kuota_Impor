@@ -29,14 +29,14 @@ class PurchaseOrderService
                 ->findOrFail($data['product_id']);
 
             $quantity = (int) $data['quantity'];
+            $orderDate = Carbon::parse(Arr::get($data, 'order_date', now()));
 
-            $allocation = $this->allocator->allocate($product, $quantity);
+            $allocation = $this->allocator->allocate($product, $quantity, $orderDate);
             $selectedQuota = $allocation->selectedQuota;
 
             $sequence = $data['sequence_number']
                 ?? ((int) (PurchaseOrder::lockForUpdate()->max('sequence_number')) + 1);
 
-            $orderDate = Carbon::parse($data['order_date']);
             $period = $data['period'] ?? $orderDate->format('Y-m');
 
             $po = PurchaseOrder::create([
@@ -86,15 +86,20 @@ class PurchaseOrderService
     public function registerShipment(PurchaseOrder $purchaseOrder, array $data): Shipment
     {
         return DB::transaction(function () use ($purchaseOrder, $data) {
+            $shipDate = Arr::get($data, 'ship_date');
+            $initialStatus = Shipment::initialStatusFor($shipDate ? Carbon::parse($shipDate) : null);
+
             $shipment = $purchaseOrder->shipments()->create([
                 'shipment_number' => $data['shipment_number'] ?? null,
                 'quantity_planned' => $data['quantity_planned'],
                 'ship_date' => Arr::get($data, 'ship_date'),
                 'eta_date' => Arr::get($data, 'eta_date'),
-                'status' => Shipment::STATUS_IN_TRANSIT,
+                'status' => $initialStatus,
                 'detail' => Arr::get($data, 'detail'),
                 'auto_generated' => Arr::get($data, 'auto_generated', false),
             ]);
+
+            $shipment->logStatus($initialStatus, 'Shipment dibuat.');
 
             $purchaseOrder->refreshAggregates();
 
@@ -146,13 +151,15 @@ class PurchaseOrderService
                     ->exists();
 
                 if (!$exists) {
-                    $purchaseOrder->shipments()->create([
+                    $autoShipment = $purchaseOrder->shipments()->create([
                         'parent_shipment_id' => $shipment->id,
                         'quantity_planned' => $remaining,
                         'status' => Shipment::STATUS_PENDING,
                         'auto_generated' => true,
                         'detail' => 'Auto-generated after partial receipt',
                     ]);
+
+                    $autoShipment->logStatus(Shipment::STATUS_PENDING, 'Shipment lanjutan otomatis dibuat.');
                 }
             }
 

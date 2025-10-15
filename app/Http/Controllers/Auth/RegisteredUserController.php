@@ -42,8 +42,12 @@ class RegisteredUserController extends Controller
             'is_active' => true, // Set user as active
         ]);
 
-        // Auto-assign "viewer" role to new registered users
-        $user->assignRole('viewer');
+        // Auto-assign default role "user" for new registrations
+        try {
+            $user->assignRole('user');
+        } catch (\Throwable $e) {
+            // Seeder may not have run yet; continue registration
+        }
 
         event(new Registered($user));
 

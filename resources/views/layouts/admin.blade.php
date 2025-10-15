@@ -506,11 +506,14 @@
                     $canQuota = $currentUser?->can('read quota');
                     $canPOCreate = $currentUser?->can('create purchase_orders');
                     $canPORead = $currentUser?->can('read purchase_orders');
+                    $canReports = $currentUser?->can('read reports');
 
                     $operationalActive = ($canQuota && (request()->is('admin/quotas*') || request()->is('admin/kuota*'))) ||
                         ($canPOCreate && request()->is('admin/purchase-order/create')) ||
                         ($canPORead && (request()->is('admin/purchase-orders*') || request()->is('admin/purchase-order*') ||
                             request()->is('admin/shipments*') || request()->is('admin/shipment')));
+
+                    $reportsActive = $canReports && (request()->is('admin/reports*') || request()->is('analytics*'));
 
                     $adminActive = request()->is('admin/users*') || request()->is('admin/roles*') ||
                         request()->is('admin/permissions*') || request()->is('admin/admins*');
@@ -562,6 +565,10 @@
                                     <span class="nav-icon"><i class="fas fa-percentage"></i></span>
                                     <span>Manajemen Kuota</span>
                                 </a>
+                                <a href="{{ route('admin.product-quotas.index') }}" class="nav-link {{ request()->routeIs('admin.product-quotas.*') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-link"></i></span>
+                                    <span>Mapping Produk-Kuota</span>
+                                </a>
                             @endif
                             @if($canPOCreate)
                                 <a href="{{ route('admin.purchase-orders.create') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.create') || request()->routeIs('admin.purchase-order.create') ? 'active' : '' }}">
@@ -579,6 +586,29 @@
                                     <span>Pengiriman & Receipt</span>
                                 </a>
                             @endif
+                        </div>
+                    </div>
+                @endif
+
+                @if($canReports)
+                    <div class="nav-group {{ $reportsActive ? 'is-open is-current' : '' }}" data-nav-group>
+                        <button type="button"
+                                class="nav-group__toggle"
+                                data-nav-toggle
+                                aria-expanded="{{ $reportsActive ? 'true' : 'false' }}"
+                                aria-controls="nav-group-reports">
+                            <span class="nav-title">Reports</span>
+                            <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
+                        </button>
+                        <div class="nav-group__body" id="nav-group-reports">
+                            <a href="{{ route('analytics.index') }}" class="nav-link {{ request()->is('analytics*') ? 'active' : '' }}">
+                                <span class="nav-icon"><i class="fas fa-chart-line"></i></span>
+                                <span>Analytics</span>
+                            </a>
+                            <a href="{{ route('admin.reports.final') }}" class="nav-link {{ request()->routeIs('admin.reports.final') ? 'active' : '' }}">
+                                <span class="nav-icon"><i class="fas fa-file-alt"></i></span>
+                                <span>Laporan Gabungan</span>
+                            </a>
                         </div>
                     </div>
                 @endif

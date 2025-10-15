@@ -49,18 +49,18 @@ class UserSeeder extends Seeder
         $editor->assignRole('editor');
         $this->command->info('✅ Editor user created: editor@example.com / password');
 
-        // VIEWER USER
-        $viewer = User::firstOrCreate(
-            ['email' => 'viewer@example.com'],
+        // REGULAR USER
+        $regular = User::firstOrCreate(
+            ['email' => 'user@example.com'],
             [
-                'name' => 'Viewer User',
+                'name' => 'Regular User',
                 'password' => Hash::make('password'),
                 'is_active' => true,
                 'email_verified_at' => now(),
             ]
         );
-        $viewer->assignRole('viewer');
-        $this->command->info('✅ Viewer user created: viewer@example.com / password');
+        $regular->assignRole('user');
+        $this->command->info('✅ Regular user created: user@example.com / password');
 
         $this->command->info('🎉 User seeding completed!');
     }

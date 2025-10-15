@@ -14,19 +14,33 @@
 <div class="row">
     <div class="col-md-8">
         <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">Role: <strong>{{ $role->name }}</strong></h3>
-                <div class="card-tools">
-                    <a href="{{ route('admin.roles.edit', $role) }}" class="btn btn-warning btn-sm">
-                        <i class="fas fa-edit"></i> Edit
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="card-title mb-0">Role: <strong>{{ $role->name }}</strong></h3>
+                <div class="card-tools d-flex gap-2">
+                    <a href="{{ route('admin.roles.index') }}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-list"></i> Back to List
                     </a>
+                    @can('update roles')
+                        <a href="{{ route('admin.roles.edit', $role) }}" class="btn btn-warning btn-sm">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                    @endcan
+                    @if(auth()->user()->can('delete roles') && !in_array($role->name, ['admin','super-admin']))
+                        <button type="button" class="btn btn-danger btn-sm" onclick="deleteRole()">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    @endif
+                    <form id="delete-form" action="{{ route('admin.roles.destroy', $role) }}" method="POST" class="d-none">
+                        @csrf
+                        @method('DELETE')
+                    </form>
                 </div>
             </div>
             <div class="card-body">
                 <dl class="row">
                     <dt class="col-sm-3">Role Name:</dt>
                     <dd class="col-sm-9">
-                        <span class="badge badge-success">{{ $role->name }}</span>
+                        <span class="badge bg-success">{{ $role->name }}</span>
                     </dd>
                     
                     <dt class="col-sm-3">Description:</dt>
@@ -95,9 +109,9 @@
                                 <td>{{ $user->email }}</td>
                                 <td>
                                     @if($user->is_active)
-                                        <span class="badge badge-success">Active</span>
+                                        <span class="badge bg-success">Active</span>
                                     @else
-                                        <span class="badge badge-danger">Inactive</span>
+                                        <span class="badge bg-danger">Inactive</span>
                                     @endif
                                 </td>
                                 <td>
@@ -132,33 +146,6 @@
     </div>
 
     <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">Quick Actions</h3>
-            </div>
-            <div class="card-body">
-                <a href="{{ route('admin.roles.edit', $role) }}" class="btn btn-warning btn-block">
-                    <i class="fas fa-edit"></i> Edit Role
-                </a>
-                <a href="{{ route('admin.roles.index') }}" class="btn btn-secondary btn-block">
-                    <i class="fas fa-list"></i> Back to List
-                </a>
-                @if($role->name !== 'admin' && $role->name !== 'super-admin')
-                <button type="button" class="btn btn-danger btn-block" onclick="deleteRole()">
-                    <i class="fas fa-trash"></i> Delete Role
-                </button>
-                @endif
-                
-                <form id="delete-form" 
-                      action="{{ route('admin.roles.destroy', $role) }}" 
-                      method="POST" 
-                      style="display: none;">
-                    @csrf
-                    @method('DELETE')
-                </form>
-            </div>
-        </div>
-
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">Statistics</h3>

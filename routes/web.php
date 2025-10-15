@@ -2,9 +2,12 @@
 
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\FinalReportController;
+use App\Http\Controllers\Admin\ProductQuotaMappingController;
 use App\Http\Controllers\Admin\QuotaController;
 use App\Http\Controllers\Admin\PurchaseOrderController;
 use App\Http\Controllers\Admin\ShipmentController;
+use App\Http\Controllers\Admin\ReceiptController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UserController;
@@ -71,8 +74,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
     });
     
-    // Manajemen Peran - Membutuhkan izin peran
-    Route::resource('roles', RoleController::class)->except(['show']);
+    // Manajemen Peran
+    Route::resource('roles', RoleController::class);
     
     // Permissions Management - Requires permission permissions
     Route::middleware(['permission:read permissions'])->group(function () {
@@ -118,6 +121,24 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::delete('quotas/{quota}/detach-product/{product}', [QuotaController::class, 'detachProduct'])
         ->name('quotas.detach-product');
 
+    Route::middleware(['permission:read quota'])->group(function () {
+        Route::get('product-quotas', [ProductQuotaMappingController::class, 'index'])->name('product-quotas.index');
+    });
+
+    Route::middleware(['permission:update quota'])->group(function () {
+        Route::post('product-quotas', [ProductQuotaMappingController::class, 'store'])->name('product-quotas.store');
+        Route::post('product-quotas/reorder', [ProductQuotaMappingController::class, 'reorder'])->name('product-quotas.reorder');
+        Route::match(['put', 'patch'], 'product-quotas/{productQuotaMapping}', [ProductQuotaMappingController::class, 'update'])
+            ->name('product-quotas.update');
+        Route::delete('product-quotas/{productQuotaMapping}', [ProductQuotaMappingController::class, 'destroy'])
+            ->name('product-quotas.destroy');
+    });
+
+    Route::middleware(['permission:read reports'])->group(function () {
+        Route::get('reports/final', [FinalReportController::class, 'index'])->name('reports.final');
+        Route::get('reports/final/export/csv', [FinalReportController::class, 'exportCsv'])->name('reports.final.export.csv');
+    });
+
     Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
     Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
     Route::get('purchase-order', [PurchaseOrderController::class, 'index'])->name('purchase-order.index');
@@ -130,8 +151,15 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::post('shipments', [ShipmentController::class, 'store'])->name('shipments.store');
     Route::get('shipments', [ShipmentController::class, 'index'])->name('shipments.index');
     Route::get('shipments/export/csv', [ShipmentController::class, 'export'])->name('shipments.export');
-    Route::post('shipments/{shipment}/receive', [ShipmentController::class, 'receive'])->name('shipments.receive');
     Route::get('shipment', [ShipmentController::class, 'index'])->name('shipment.index');
+    Route::get('shipments/{shipment}', [ShipmentController::class, 'show'])->name('shipments.show');
+
+    // Receipts
+    Route::post('shipments/{shipment}/receipts', [ReceiptController::class, 'store'])
+        ->name('shipments.receipts.store');
+    Route::get('shipments/{shipment}/receipts/create', function(\App\Models\Shipment $shipment) {
+        return view('admin.shipments.receipts.create', compact('shipment'));
+    })->name('shipments.receipts.create');
 
 });
 

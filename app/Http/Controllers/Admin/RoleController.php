@@ -11,6 +11,13 @@ use Illuminate\Support\Facades\Validator;
 
 class RoleController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:read roles')->only(['index', 'show']);
+        $this->middleware('permission:create roles')->only(['create', 'store']);
+        $this->middleware('permission:update roles')->only(['edit', 'update']);
+        $this->middleware('permission:delete roles')->only(['destroy']);
+    }
     /**
      * Display a listing of the roles.
      */
@@ -28,7 +35,7 @@ class RoleController extends Controller
      */
     public function create()
     {
-        // Check permission
+        // Guard by permission (middleware already enforces)
         if (!auth()->user()->hasPermission('create roles')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You do not have permission to create roles.');
@@ -44,7 +51,7 @@ class RoleController extends Controller
      */
     public function store(Request $request)
     {
-        // Check permission
+        // Guard by permission (middleware already enforces)
         if (!auth()->user()->hasPermission('create roles')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You do not have permission to create roles.');
@@ -93,7 +100,7 @@ class RoleController extends Controller
      */
     public function edit(Role $role)
     {
-        // Check permission
+        // Guard by permission (middleware already enforces)
         if (!auth()->user()->hasPermission('update roles')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You do not have permission to edit roles.');
@@ -116,7 +123,7 @@ class RoleController extends Controller
      */
     public function update(Request $request, Role $role)
     {
-        // Check permission
+        // Guard by permission (middleware already enforces)
         if (!auth()->user()->hasPermission('update roles')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You do not have permission to update roles.');
@@ -162,7 +169,7 @@ class RoleController extends Controller
      */
     public function destroy(Role $role)
     {
-        // Check permission
+        // Guard by permission (middleware already enforces)
         if (!auth()->user()->hasPermission('delete roles')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You do not have permission to delete roles.');

@@ -27,7 +27,8 @@ class Product extends Model
 
     public function quotaMappings()
     {
-        return $this->hasMany(ProductQuotaMapping::class);
+        return $this->hasMany(ProductQuotaMapping::class)
+            ->orderBy('priority');
     }
 
     public function quotas()

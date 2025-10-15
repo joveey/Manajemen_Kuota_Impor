@@ -14,19 +14,33 @@
 <div class="row">
     <div class="col-md-8">
         <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">Permission: <strong>{{ $permission->name }}</strong></h3>
-                <div class="card-tools">
-                    <a href="{{ route('admin.permissions.edit', $permission) }}" class="btn btn-warning btn-sm">
-                        <i class="fas fa-edit"></i> Edit
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="card-title mb-0">Permission: <strong>{{ $permission->name }}</strong></h3>
+                <div class="card-tools d-flex gap-2">
+                    <a href="{{ route('admin.permissions.index') }}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-list"></i> Back to List
                     </a>
+                    @can('update permissions')
+                        <a href="{{ route('admin.permissions.edit', $permission) }}" class="btn btn-warning btn-sm">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                    @endcan
+                    @can('delete permissions')
+                        <button type="button" class="btn btn-danger btn-sm" onclick="deletePermission()">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    @endcan
+                    <form id="delete-form" action="{{ route('admin.permissions.destroy', $permission) }}" method="POST" class="d-none">
+                        @csrf
+                        @method('DELETE')
+                    </form>
                 </div>
             </div>
             <div class="card-body">
                 <dl class="row">
                     <dt class="col-sm-3">Permission Name:</dt>
                     <dd class="col-sm-9">
-                        <span class="badge badge-primary">{{ $permission->name }}</span>
+                        <span class="badge bg-primary">{{ $permission->name }}</span>
                     </dd>
                     
                     <dt class="col-sm-3">Description:</dt>
@@ -63,11 +77,11 @@
                             <tr>
                                 <td>{{ $loop->iteration + ($roles->currentPage() - 1) * $roles->perPage() }}</td>
                                 <td>
-                                    <span class="badge badge-success">{{ $role->name }}</span>
+                                    <span class="badge bg-success">{{ $role->name }}</span>
                                 </td>
                                 <td>{{ $role->description ?? '-' }}</td>
                                 <td>
-                                    <span class="badge badge-info">{{ $role->users->count() }}</span>
+                                    <span class="badge bg-info">{{ $role->users->count() }}</span>
                                 </td>
                                 <td>
                                     @if(Route::has('admin.roles.show'))
@@ -95,31 +109,6 @@
     </div>
 
     <div class="col-md-4">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">Quick Actions</h3>
-            </div>
-            <div class="card-body">
-                <a href="{{ route('admin.permissions.edit', $permission) }}" class="btn btn-warning btn-block">
-                    <i class="fas fa-edit"></i> Edit Permission
-                </a>
-                <a href="{{ route('admin.permissions.index') }}" class="btn btn-secondary btn-block">
-                    <i class="fas fa-list"></i> Back to List
-                </a>
-                <button type="button" class="btn btn-danger btn-block" onclick="deletePermission()">
-                    <i class="fas fa-trash"></i> Delete Permission
-                </button>
-                
-                <form id="delete-form" 
-                      action="{{ route('admin.permissions.destroy', $permission) }}" 
-                      method="POST" 
-                      style="display: none;">
-                    @csrf
-                    @method('DELETE')
-                </form>
-            </div>
-        </div>
-
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">Statistics</h3>

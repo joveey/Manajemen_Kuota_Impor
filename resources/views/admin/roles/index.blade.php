@@ -76,12 +76,12 @@
             <p class="roles-subtitle">Kelola role dan distribusi permissions untuk mengatur akses pengguna di platform.</p>
         </div>
         <div class="roles-actions">
-            @if(auth()->user()->hasPermission('create roles'))
+            @can('create roles')
                 <a href="{{ route('admin.roles.create') }}" class="roles-action roles-action--primary">
                     <i class="fas fa-plus"></i>
                     Buat Role Baru
                 </a>
-            @endif
+            @endcan
         </div>
     </div>
 
@@ -116,19 +116,19 @@
                         </td>
                         <td>{{ $role->created_at->format('d M Y') }}</td>
                         <td class="text-end">
-                            <div class="table-actions">
+                            <div class="btn-group" role="group" aria-label="Actions">
                                 @if(Route::has('admin.roles.show'))
-                                    <a href="{{ route('admin.roles.show', $role) }}" class="action-badge action-badge--view" title="Detail">
+                                    <a href="{{ route('admin.roles.show', $role) }}" class="btn btn-info btn-sm" title="Detail">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                 @endif
-                                @if(auth()->user()->hasPermission('update roles'))
-                                    <a href="{{ route('admin.roles.edit', $role) }}" class="action-badge action-badge--edit" title="Edit">
+                                @can('update roles')
+                                    <a href="{{ route('admin.roles.edit', $role) }}" class="btn btn-warning btn-sm" title="Edit">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                @endif
-                                @if(auth()->user()->hasPermission('delete roles') && !in_array($role->name, ['admin','super-admin']))
-                                    <button type="button" class="action-badge action-badge--delete" onclick="deleteRole({{ $role->id }})" title="Hapus">
+                                @endcan
+                                @if(auth()->user()->can('delete roles') && !in_array($role->name, ['admin','super-admin']))
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="deleteRole({{ $role->id }})" title="Hapus">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 @endif
@@ -142,7 +142,7 @@
                 @empty
                     <tr>
                         <td colspan="7" class="text-center text-muted py-4">
-                            Belum ada role yang terdaftar. @if(auth()->user()->hasPermission('create roles'))<a href="{{ route('admin.roles.create') }}">Buat role baru</a>@endif
+                            Belum ada role yang terdaftar. @can('create roles')<a href="{{ route('admin.roles.create') }}">Buat role baru</a>@endcan
                         </td>
                     </tr>
                 @endforelse

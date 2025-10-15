@@ -101,7 +101,7 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'manager'],
             [
                 'display_name' => 'Manager',
-                'description' => 'Manages users, roles, and permissions with data read access.',
+                'description' => 'Administration-focused. Full user management; read-only operational & overview.',
                 'is_active' => true,
             ]
         );
@@ -115,16 +115,31 @@ class RolePermissionSeeder extends Seeder
             ]
         );
 
-        $viewerRole = Role::firstOrCreate(
-            ['name' => 'viewer'],
+        $userRole = Role::firstOrCreate(
+            ['name' => 'user'],
             [
-                'display_name' => 'Viewer',
-                'description' => 'Read-only access to dashboard and operational data.',
+                'display_name' => 'User',
+                'description' => 'Read-only access to overview & operational (no administration).',
                 'is_active' => true,
             ]
         );
 
         $this->command?->info('[OK] Roles created or updated successfully.');
+
+        // Migrate legacy role name "viewer" -> "user" if necessary
+        try {
+            $legacyViewer = Role::where('name', 'viewer')->first();
+            if ($legacyViewer && isset($userRole)) {
+                // Re-attach all users to the new "user" role
+                foreach ($legacyViewer->users()->pluck('id') as $uid) {
+                    \App\Models\User::find($uid)?->assignRole('user');
+                }
+                $legacyViewer->delete();
+                $this->command?->info('[OK] Migrated legacy role "viewer" to "user".');
+            }
+        } catch (\Throwable $e) {
+            // ignore if relations not available during early seeding
+        }
 
         // Assign permission sets based on the final specification.
         $adminRole->permissions()->sync(array_values($permissionIds));
@@ -132,33 +147,39 @@ class RolePermissionSeeder extends Seeder
 
         $managerRole->permissions()->sync($pluckPermissions([
             'read dashboard',
+            // Users CRUD
             'read users', 'create users', 'update users', 'delete users',
+            // Roles & permissions CRUD
             'read roles', 'create roles', 'update roles', 'delete roles',
             'read permissions', 'create permissions', 'update permissions', 'delete permissions',
+            // Operational + overview read-only
             'read quota',
             'read purchase_orders',
             'read master_data',
             'read reports',
         ]));
-        $this->command?->info('[OK] Manager role: administration + data read permissions assigned.');
+        $this->command?->info('[OK] Manager role: full management of users, roles, permissions; read-only operational/overview.');
 
         $editorRole->permissions()->sync($pluckPermissions([
             'read dashboard',
+            // Operational & overview: full manage
             'read quota', 'create quota', 'update quota', 'delete quota',
             'read purchase_orders', 'create purchase_orders', 'update purchase_orders', 'delete purchase_orders',
             'read master_data', 'create master_data', 'update master_data', 'delete master_data',
             'read reports', 'create reports', 'update reports', 'delete reports',
+            // Administration read-only
+            'read users', 'update users', 'read roles', 'read permissions',
         ]));
-        $this->command?->info('[OK] Editor role: data management permissions assigned.');
+        $this->command?->info('[OK] Editor role: manage operational/overview; read-only administration.');
 
-        $viewerRole->permissions()->sync($pluckPermissions([
+        $userRole->permissions()->sync($pluckPermissions([
             'read dashboard',
             'read quota',
             'read purchase_orders',
             'read master_data',
             'read reports',
         ]));
-        $this->command?->info('[OK] Viewer role: read-only permissions assigned.');
+        $this->command?->info('[OK] User role: read-only operational/overview assigned.');
 
         $this->command?->info('[DONE] Role & permission seeding completed.');
     }

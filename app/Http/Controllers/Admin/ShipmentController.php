@@ -6,25 +6,37 @@ use App\Http\Controllers\Controller;
 use App\Models\PurchaseOrder;
 use App\Models\Shipment;
 use App\Services\PurchaseOrderService;
-use Illuminate\Contracts\Auth\Factory as AuthFactory;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
 class ShipmentController extends Controller
 {
     public function __construct(
-        private readonly PurchaseOrderService $service,
-        private readonly AuthFactory $auth
+        private readonly PurchaseOrderService $service
     ) {
+        // Read-only access
+        $this->middleware('permission:read purchase_orders')->only(['index', 'export']);
+        // Create shipment
+        $this->middleware('permission:create purchase_orders')->only(['create', 'store']);
     }
 
     public function index(): View
     {
         $shipments = Shipment::query()
-            ->with(['purchaseOrder.product'])
+            ->with([
+                'purchaseOrder.product',
+                'statusLogs' => fn ($query) => $query->orderByDesc('recorded_at'),
+            ])
             ->latest('ship_date')
             ->get();
+
+        $shipments->each(function (Shipment $shipment) {
+            $updated = $shipment->syncScheduledStatus('Status otomatis berdasarkan jadwal pengiriman.');
+            if ($updated) {
+                $shipment->load(['statusLogs' => fn ($query) => $query->orderByDesc('recorded_at')]);
+            }
+        });
 
         $summary = [
             'total' => $shipments->count(),
@@ -76,27 +88,6 @@ class ShipmentController extends Controller
             ->with('status', "Shipment {$shipment->shipment_number} berhasil dibuat");
     }
 
-    public function receive(Request $request, Shipment $shipment): RedirectResponse
-    {
-        $data = $request->validate([
-            'receipt_date' => ['required', 'date'],
-            'quantity_received' => ['required', 'integer', 'min:1'],
-            'document_number' => ['nullable', 'string', 'max:255'],
-            'notes' => ['nullable', 'string'],
-        ]);
-
-        if ($data['quantity_received'] > ($shipment->quantity_planned - $shipment->quantity_received)) {
-            return back()->withInput()->withErrors([
-                'quantity_received' => 'Qty diterima melebihi sisa qty yang belum diterima.',
-            ]);
-        }
-
-        $user = $this->auth->guard()->user();
-        $this->service->registerShipmentReceipt($shipment, $data, $user);
-
-        return back()->with('status', 'Penerimaan barang berhasil dikonfirmasi');
-    }
-
     public function export()
     {
         $query = Shipment::query()->with(['purchaseOrder.product']);
@@ -128,5 +119,15 @@ class ShipmentController extends Controller
         }, $filename, [
             'Content-Type' => 'text/csv',
         ]);
+    }
+
+    public function show(Shipment $shipment): View
+    {
+        $shipment->load([
+            'purchaseOrder.quota',
+            'receipts' => fn ($q) => $q->orderByDesc('receipt_date'),
+        ]);
+
+        return view('admin.shipments.show', compact('shipment'));
     }
 }
