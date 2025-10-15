@@ -6,23 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\PurchaseOrder;
 use App\Models\Shipment;
 use App\Services\PurchaseOrderService;
-use Illuminate\Contracts\Auth\Factory as AuthFactory;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
 class ShipmentController extends Controller
 {
     public function __construct(
-        private readonly PurchaseOrderService $service,
-        private readonly AuthFactory $auth
+        private readonly PurchaseOrderService $service
     ) {
         // Read-only access
         $this->middleware('permission:read purchase_orders')->only(['index', 'export']);
         // Create shipment
         $this->middleware('permission:create purchase_orders')->only(['create', 'store']);
-        // Confirm receipt (update)
-        $this->middleware('permission:update purchase_orders')->only(['receive']);
     }
 
     public function index(): View
@@ -90,27 +86,6 @@ class ShipmentController extends Controller
         return redirect()
             ->route('admin.shipments.index')
             ->with('status', "Shipment {$shipment->shipment_number} berhasil dibuat");
-    }
-
-    public function receive(Request $request, Shipment $shipment): RedirectResponse
-    {
-        $data = $request->validate([
-            'receipt_date' => ['required', 'date'],
-            'quantity_received' => ['required', 'integer', 'min:1'],
-            'document_number' => ['nullable', 'string', 'max:255'],
-            'notes' => ['nullable', 'string'],
-        ]);
-
-        if ($data['quantity_received'] > ($shipment->quantity_planned - $shipment->quantity_received)) {
-            return back()->withInput()->withErrors([
-                'quantity_received' => 'Qty diterima melebihi sisa qty yang belum diterima.',
-            ]);
-        }
-
-        $user = $this->auth->guard()->user();
-        $this->service->registerShipmentReceipt($shipment, $data, $user);
-
-        return back()->with('status', 'Penerimaan barang berhasil dikonfirmasi');
     }
 
     public function export()

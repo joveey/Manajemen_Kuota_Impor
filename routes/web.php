@@ -150,7 +150,6 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::post('shipments', [ShipmentController::class, 'store'])->name('shipments.store');
     Route::get('shipments', [ShipmentController::class, 'index'])->name('shipments.index');
     Route::get('shipments/export/csv', [ShipmentController::class, 'export'])->name('shipments.export');
-    Route::post('shipments/{shipment}/receive', [ShipmentController::class, 'receive'])->name('shipments.receive');
     Route::get('shipment', [ShipmentController::class, 'index'])->name('shipment.index');
 
 });
