@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ProductQuotaMappingController;
 use App\Http\Controllers\Admin\QuotaController;
 use App\Http\Controllers\Admin\PurchaseOrderController;
 use App\Http\Controllers\Admin\ShipmentController;
+use App\Http\Controllers\Admin\ReceiptController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UserController;
@@ -151,6 +152,14 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('shipments', [ShipmentController::class, 'index'])->name('shipments.index');
     Route::get('shipments/export/csv', [ShipmentController::class, 'export'])->name('shipments.export');
     Route::get('shipment', [ShipmentController::class, 'index'])->name('shipment.index');
+    Route::get('shipments/{shipment}', [ShipmentController::class, 'show'])->name('shipments.show');
+
+    // Receipts
+    Route::post('shipments/{shipment}/receipts', [ReceiptController::class, 'store'])
+        ->name('shipments.receipts.store');
+    Route::get('shipments/{shipment}/receipts/create', function(\App\Models\Shipment $shipment) {
+        return view('admin.shipments.receipts.create', compact('shipment'));
+    })->name('shipments.receipts.create');
 
 });
 

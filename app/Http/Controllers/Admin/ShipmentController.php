@@ -120,4 +120,14 @@ class ShipmentController extends Controller
             'Content-Type' => 'text/csv',
         ]);
     }
+
+    public function show(Shipment $shipment): View
+    {
+        $shipment->load([
+            'purchaseOrder.quota',
+            'receipts' => fn ($q) => $q->orderByDesc('receipt_date'),
+        ]);
+
+        return view('admin.shipments.show', compact('shipment'));
+    }
 }
