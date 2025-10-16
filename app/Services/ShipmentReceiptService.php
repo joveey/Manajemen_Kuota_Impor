@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Shipment;
 use App\Models\ShipmentReceipt;
-use App\Models\Quota;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -54,8 +53,10 @@ class ShipmentReceiptService
             $receipt->save();
 
             // Lock baris Quota dan update actual_remaining
-            $quotaId = $shipment->purchaseOrder->quota_id;
-            $quota = Quota::whereKey($quotaId)->lockForUpdate()->firstOrFail();
+            $quota = $shipment->purchaseOrder
+                ->quota()
+                ->lockForUpdate()
+                ->firstOrFail();
             $quota->actual_remaining = max(0, (int)$quota->actual_remaining - $qty);
 
             // Update status quota (fallback sederhana bila updateStatus() belum ada)
@@ -74,10 +75,11 @@ class ShipmentReceiptService
             }
             $quota->save();
 
-            // Opsional: update status shipment bila total diterima == planned
-            $totalAfter = $receivedSoFar + $qty;
-            if ($totalAfter === $planned && method_exists($shipment, 'setReceivedStatus')) {
-                $shipment->setReceivedStatus();
+            // Update status shipment bila seluruh quantity sudah diterima
+            $totalReceived = (int) $shipment->receipts()->sum('quantity_received');
+            if ($totalReceived === $planned) {
+                $shipment->status = 'received';
+                $shipment->save();
             }
 
             // Kembalikan receipt yang baru dibuat
