@@ -47,9 +47,10 @@ class PurchaseOrderController extends Controller
             $term = '%'.$request->string('search').'%';
             $query->where(function ($q) use ($term) {
                 $q->where('po_number', 'like', $term)
-                    ->orWhere('customer_name', 'like', $term)
-                    ->orWhere('pgi_branch', 'like', $term)
-                    ->orWhere('pic_name', 'like', $term);
+                    ->orWhere('vendor_number', 'like', $term)
+                    ->orWhere('vendor_name', 'like', $term)
+                    ->orWhere('item_code', 'like', $term)
+                    ->orWhere('item_description', 'like', $term);
             });
         }
 
@@ -130,9 +131,10 @@ class PurchaseOrderController extends Controller
             $term = '%'.$request->string('search').'%';
             $query->where(function ($q) use ($term) {
                 $q->where('po_number', 'like', $term)
-                    ->orWhere('customer_name', 'like', $term)
-                    ->orWhere('pgi_branch', 'like', $term)
-                    ->orWhere('pic_name', 'like', $term);
+                    ->orWhere('vendor_number', 'like', $term)
+                    ->orWhere('vendor_name', 'like', $term)
+                    ->orWhere('item_code', 'like', $term)
+                    ->orWhere('item_description', 'like', $term);
             });
         }
 
@@ -141,34 +143,49 @@ class PurchaseOrderController extends Controller
         return response()->streamDownload(function () use ($query) {
             $out = fopen('php://output', 'w');
             fputcsv($out, [
-                'Period', 'PO Number', 'Order Date', 'Status', 'Status Display', 'Product Code', 'Product Name',
-                'Qty', 'Qty Shipped', 'Qty Received', 'Customer', 'PGI Branch', 'PIC', 'Truck', 'MOQ', 'Category',
-                'Plant Name', 'Plant Detail', 'Quota Number', 'Remarks',
+                'PO_DOC',
+                'CREATED_DATE',
+                'VENDOR_NO',
+                'VENDOR_NAME',
+                'LINE_NO',
+                'ITEM_CODE',
+                'ITEM_DESC',
+                'WH_CODE',
+                'WH_NAME',
+                'WH_SOURCE',
+                'SUBINV_CODE',
+                'SUBINV_NAME',
+                'SUBINV_SOURCE',
+                'QTY',
+                'AMOUNT',
+                'CAT_PO',
+                'CAT_DESC',
+                'MAT_GRP',
+                'SAP_STATUS',
             ]);
 
             $query->chunk(500, function ($rows) use ($out) {
                 foreach ($rows as $po) {
                     fputcsv($out, [
-                        $po->period,
                         $po->po_number,
                         optional($po->order_date)->format('Y-m-d'),
-                        $po->status,
-                        $po->status_po_display,
-                        $po->product?->code,
-                        $po->product?->name,
+                        $po->vendor_number,
+                        $po->vendor_name,
+                        $po->line_number,
+                        $po->item_code ?? $po->product?->code,
+                        $po->item_description ?? $po->product?->name,
+                        $po->warehouse_code,
+                        $po->warehouse_name,
+                        $po->warehouse_source,
+                        $po->subinventory_code,
+                        $po->subinventory_name,
+                        $po->subinventory_source,
                         $po->quantity,
-                        $po->quantity_shipped,
-                        $po->quantity_received,
-                        $po->customer_name,
-                        $po->pgi_branch,
-                        $po->pic_name,
-                        $po->truck,
-                        $po->moq,
+                        $po->amount,
+                        $po->category_code,
                         $po->category,
-                        $po->plant_name,
-                        $po->plant_detail,
-                        $po->quota?->quota_number,
-                        $po->remarks,
+                        $po->material_group,
+                        $po->sap_order_status,
                     ]);
                 }
             });
@@ -184,27 +201,35 @@ class PurchaseOrderController extends Controller
     private function validateData(Request $request): array
     {
         $data = $request->validate([
-            'sequence_number' => ['nullable', 'integer', 'min:1'],
-            'period' => ['nullable', 'string', 'max:7'],
             'po_number' => ['required', 'string', 'max:100', 'unique:purchase_orders,po_number'],
-            'sap_reference' => ['nullable', 'string', 'max:100'],
+            'created_date' => ['required', 'date'],
             'product_id' => ['required', 'exists:products,id'],
             'quantity' => ['required', 'integer', 'min:1'],
-            'order_date' => ['required', 'date'],
-            'pgi_branch' => ['nullable', 'string', 'max:255'],
-            'customer_name' => ['nullable', 'string', 'max:255'],
-            'pic_name' => ['nullable', 'string', 'max:255'],
-            'status_po_display' => ['nullable', 'string', 'max:255'],
-            'truck' => ['nullable', 'string', 'max:255'],
-            'moq' => ['nullable', 'string', 'max:255'],
+            'amount' => ['nullable', 'numeric', 'min:0'],
+            'vendor_number' => ['nullable', 'string', 'max:50'],
+            'vendor_name' => ['nullable', 'string', 'max:255'],
+            'line_number' => ['nullable', 'string', 'max:30'],
+            'item_code' => ['nullable', 'string', 'max:100'],
+            'item_description' => ['nullable', 'string'],
+            'warehouse_code' => ['nullable', 'string', 'max:50'],
+            'warehouse_name' => ['nullable', 'string', 'max:255'],
+            'warehouse_source' => ['nullable', 'string', 'max:255'],
+            'subinventory_code' => ['nullable', 'string', 'max:50'],
+            'subinventory_name' => ['nullable', 'string', 'max:255'],
+            'subinventory_source' => ['nullable', 'string', 'max:255'],
+            'category_code' => ['nullable', 'string', 'max:50'],
             'category' => ['nullable', 'string', 'max:255'],
-            'plant_name' => ['required', 'string', 'max:255'],
-            'plant_detail' => ['required', 'string'],
-            'remarks' => ['nullable', 'string'],
+            'material_group' => ['nullable', 'string', 'max:100'],
+            'sap_order_status' => ['nullable', 'string', 'max:100'],
         ]);
 
         $data['quantity'] = (int) $data['quantity'];
-        $data['period'] = $data['period'] ?? Carbon::parse($data['order_date'])->format('Y-m');
+        if (array_key_exists('amount', $data) && $data['amount'] !== null) {
+            $data['amount'] = (float) $data['amount'];
+        }
+
+        $data['order_date'] = Carbon::parse($data['created_date'])->toDateString();
+        unset($data['created_date']);
 
         return $data;
     }
