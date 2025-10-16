@@ -17,14 +17,25 @@ class AdminController extends Controller
      */
     public function index()
     {
-        // Get users yang punya admin role
-        $admins = User::whereHas('roles', function ($query) {
+        $baseQuery = User::whereHas('roles', function ($query) {
             $query->where('name', 'admin');
-        })
-        ->orderBy('created_at', 'desc')
-        ->paginate(10);
+        });
+
+        $admins = (clone $baseQuery)
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        $stats = [
+            'total' => (clone $baseQuery)->count(),
+            'active' => (clone $baseQuery)->where('is_active', true)->count(),
+            'inactive' => (clone $baseQuery)->where('is_active', false)->count(),
+            'recent_login' => (clone $baseQuery)
+                ->whereNotNull('last_login_at')
+                ->orderByDesc('last_login_at')
+                ->value('last_login_at'),
+        ];
         
-        return view('admin.admins.index', compact('admins'));
+        return view('admin.admins.index', compact('admins', 'stats'));
     }
 
     /**

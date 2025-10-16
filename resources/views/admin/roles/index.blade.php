@@ -64,7 +64,40 @@
     .action-badge--delete { background:rgba(248,113,113,.16); color:#dc2626; }
     .action-badge:hover { transform:translateY(-1px); }
 
-    .pagination-modern { display:flex; justify-content:flex-end; margin-top:20px; }
+    
+    @media (max-width: 640px) {
+        .table-shell { border-radius:18px; }
+        .roles-table thead { display:none; }
+        .roles-table tbody tr {
+            display:block; margin-bottom:18px; border:1px solid #e2e8f0; border-radius:16px; padding:12px 16px;
+            box-shadow:0 10px 24px -18px rgba(15,23,42,.35);
+        }
+        .roles-table tbody td {
+            display:flex; justify-content:space-between; align-items:flex-start; padding:8px 0; border:none;
+        }
+        .roles-table tbody td::before {
+            content: attr(data-label); font-weight:600; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.08em;
+            margin-right:12px;
+        }
+        .roles-table tbody td:last-child { justify-content:flex-start; }
+    }
+.pagination-modern { display:flex; justify-content:flex-end; margin-top:20px; }
+    @media (max-width: 768px) {
+        .roles-table thead { display:none; }
+        .roles-table tbody tr {
+            display:block; margin-bottom:18px; border:1px solid #e2e8f0; border-radius:16px; padding:12px 16px;
+            box-shadow:0 10px 24px -18px rgba(15,23,42,.35);
+        }
+        .roles-table tbody td {
+            display:flex; justify-content:space-between; align-items:flex-start; padding:8px 0; border:none;
+        }
+        .roles-table tbody td::before {
+            content: attr(data-label); font-weight:600; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.08em;
+            margin-right:12px;
+        }
+        .roles-table tbody td:last-child { justify-content:flex-start; }
+    }
+
 </style>
 @endpush
 
@@ -101,21 +134,21 @@
             <tbody>
                 @forelse($roles as $role)
                     <tr>
-                        <td>{{ $roles->firstItem() + $loop->index }}</td>
-                        <td>
+                        <td data-label="#">{{ $roles->firstItem() + $loop->index }}</td>
+                        <td data-label="Role">
                             <span class="role-name-chip">{{ $role->name }}</span>
                         </td>
-                        <td>
+                        <td data-label="Deskripsi">
                             <div class="roles-table__description">{{ $role->description ?? 'Tidak ada deskripsi' }}</div>
                         </td>
-                        <td class="text-center">
+                        <td data-label="Permissions" class="text-center">
                             <span class="count-pill">{{ $role->permissions_count }}</span>
                         </td>
-                        <td class="text-center">
+                        <td data-label="Users" class="text-center">
                             <span class="count-pill">{{ $role->users_count }}</span>
                         </td>
-                        <td>{{ $role->created_at->format('d M Y') }}</td>
-                        <td class="text-end">
+                        <td data-label="Dibuat">{{ $role->created_at->format('d M Y') }}</td>
+                        <td data-label="Aksi" class="text-end">
                             <div class="btn-group" role="group" aria-label="Actions">
                                 @if(Route::has('admin.roles.show'))
                                     <a href="{{ route('admin.roles.show', $role) }}" class="btn btn-info btn-sm" title="Detail">

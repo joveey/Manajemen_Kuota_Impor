@@ -485,6 +485,27 @@
             .search-lite { display: block; }
             .quick-action { display: none; }
         }
+
+        @media (max-width: 640px) {
+            html { font-size: 13px; }
+            body { padding: 0; }
+            .app-shell { flex-direction: column; min-height: 100vh; }
+            .sidebar {
+                position: fixed;
+                inset: 0 0 auto 0;
+                height: 58px;
+                width: 100%;
+                padding: 0 16px;
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                box-shadow: 0 14px 24px -18px rgba(15,23,42,.2);
+            }
+            .nav-groups,
+            .account-area { display:none; }
+            .app-main { margin-left: 0; margin-top: 70px; }
+            .app-content { padding: 16px 18px 28px; }
+        }
     </style>
     @stack('styles')
 </head>
