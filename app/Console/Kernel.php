@@ -12,7 +12,7 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-        \App\Console\Commands\HsImportCommand::class,
+        // no custom CLI commands registered
     ];
 
     protected function commands(): void
@@ -22,4 +22,3 @@ class Kernel extends ConsoleKernel
         require base_path('routes/console.php');
     }
 }
-
