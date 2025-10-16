@@ -14,6 +14,8 @@ class ProductQuotaMapping extends Model
         'quota_id',
         'priority',
         'is_primary',
+        'source',
+        'period_key',
         'notes',
     ];
 
