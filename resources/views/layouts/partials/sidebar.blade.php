@@ -81,6 +81,55 @@
                 </li>
                 @endcan
 
+                {{-- Imports --}}
+                @php
+                    $importsMenuOpen = request()->is('admin/imports/hs-pk*') || request()->is('admin/imports/quotas*');
+                @endphp
+                <li class="nav-item {{ $importsMenuOpen ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ $importsMenuOpen ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-file-import"></i>
+                        <p>
+                            Imports
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>HS→PK</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Quotas</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {{-- Mapping --}}
+                @php
+                    $mappingMenuOpen = request()->is('admin/mapping/*');
+                @endphp
+                <li class="nav-item {{ $mappingMenuOpen ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ $mappingMenuOpen ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-project-diagram"></i>
+                        <p>
+                            Mapping
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="{{ route('admin.mapping.unmapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.unmapped.page') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Unmapped</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
                 <!-- Purchase Orders -->
                 @can('read purchase_orders')
                 @php

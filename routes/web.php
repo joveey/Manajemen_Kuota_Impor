@@ -14,6 +14,11 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\ImportController;
+use App\Http\Controllers\Admin\MappingController;
+use App\Http\Controllers\Admin\HsPkImportPageController;
+use App\Http\Controllers\Admin\QuotaImportPageController;
+use App\Http\Controllers\Admin\MappingPageController;
 use Illuminate\Support\Facades\Auth;
 
 /*
@@ -160,6 +165,32 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('shipments/{shipment}/receipts/create', function(\App\Models\Shipment $shipment) {
         return view('admin.shipments.receipts.create', compact('shipment'));
     })->name('shipments.receipts.create');
+
+    // HS→PK Imports upload (backend only)
+    Route::post('imports/hs-pk', [ImportController::class, 'uploadHsPk'])->name('imports.hs_pk.upload');
+    Route::post('imports/quotas', [ImportController::class, 'uploadQuotas'])->name('imports.quotas.upload');
+
+    // HS→PK Import preview (backend only)
+    Route::get('imports/{import}/summary', [ImportController::class, 'showSummary'])->name('imports.summary');
+    Route::get('imports/{import}/items', [ImportController::class, 'listItems'])->name('imports.items');
+    Route::post('imports/{import}/publish', [ImportController::class, 'publish'])->name('imports.publish');
+    Route::post('imports/{import}/publish-quotas', [ImportController::class, 'publishQuotas'])->name('imports.quotas.publish');
+    // Mapping diagnostics
+    Route::get('mapping/unmapped', [MappingController::class, 'unmapped'])->name('mapping.unmapped');
+    // Mapping UI page (uses JSON endpoint above via XHR)
+    Route::get('mapping/unmapped/view', [MappingPageController::class, 'unmapped'])->name('mapping.unmapped.page');
+
+    // HS→PK Import Pages (UI)
+    Route::get('imports/hs-pk', [HsPkImportPageController::class, 'index'])->name('imports.hs_pk.index');
+    Route::post('imports/hs-pk/upload', [HsPkImportPageController::class, 'uploadForm'])->name('imports.hs_pk.upload.form');
+    Route::get('imports/hs-pk/{import}', [HsPkImportPageController::class, 'preview'])->name('imports.hs_pk.preview');
+    Route::post('imports/hs-pk/{import}/publish', [HsPkImportPageController::class, 'publishForm'])->name('imports.hs_pk.publish.form');
+
+    // Quotas Import Pages (UI)
+    Route::get('imports/quotas', [QuotaImportPageController::class, 'index'])->name('imports.quotas.index');
+    Route::post('imports/quotas/upload', [QuotaImportPageController::class, 'uploadForm'])->name('imports.quotas.upload.form');
+    Route::get('imports/quotas/{import}', [QuotaImportPageController::class, 'preview'])->name('imports.quotas.preview');
+    Route::post('imports/quotas/{import}/publish', [QuotaImportPageController::class, 'publishForm'])->name('imports.quotas.publish.form');
 
 });
 

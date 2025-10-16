@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Models\Quota;
 use App\Observers\QuotaObserver;
+namespace App\Providers;
+
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class EventServiceProvider extends ServiceProvider
@@ -15,5 +17,10 @@ class EventServiceProvider extends ServiceProvider
     {
         Quota::observe(QuotaObserver::class);
     }
+    protected $listen = [
+        \App\Events\QuotaImportCompleted::class => [
+            \App\Listeners\RunProductQuotaAutoMapping::class,
+        ],
+    ];
 }
 
