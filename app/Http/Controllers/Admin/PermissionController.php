@@ -25,8 +25,15 @@ class PermissionController extends Controller
     public function index()
     {
         $permissions = Permission::orderBy('name', 'asc')->paginate(10);
+        $stats = [
+            'total' => Permission::count(),
+            'create' => Permission::where('name', 'like', 'create%')->count(),
+            'read' => Permission::where('name', 'like', 'read%')->count(),
+            'update' => Permission::where('name', 'like', 'update%')->count(),
+            'delete' => Permission::where('name', 'like', 'delete%')->count(),
+        ];
         
-        return view('admin.permissions.index', compact('permissions'));
+        return view('admin.permissions.index', compact('permissions', 'stats'));
     }
 
     /**

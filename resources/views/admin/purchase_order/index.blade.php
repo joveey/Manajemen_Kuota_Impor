@@ -156,7 +156,6 @@
                     <th>Cat Desc</th>
                     <th>Mat Grp</th>
                     <th>SAP Status</th>
-                    <th>SAP Status</th>
                     <th class="text-end">Aksi</th>
                 </tr>
             </thead>

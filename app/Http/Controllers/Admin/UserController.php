@@ -17,15 +17,23 @@ class UserController extends Controller
      */
     public function index()
     {
-        // Get users yang bukan admin dan bukan user yang sedang login
-        $users = User::whereDoesntHave('roles', function ($query) {
+        // Query dasar: hanya pengguna non-admin dan bukan akun saat ini
+        $baseQuery = User::whereDoesntHave('roles', function ($query) {
             $query->where('name', 'admin');
         })
-        ->where('id', '!=', auth()->id()) // Exclude current logged-in user
-        ->orderBy('created_at', 'desc')
-        ->paginate(10);
+        ->where('id', '!=', auth()->id());
+
+        $users = (clone $baseQuery)
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        $stats = [
+            'total' => (clone $baseQuery)->count(),
+            'active' => (clone $baseQuery)->where('is_active', true)->count(),
+            'inactive' => (clone $baseQuery)->where('is_active', false)->count(),
+        ];
         
-        return view('admin.users.index', compact('users'));
+        return view('admin.users.index', compact('users', 'stats'));
     }
 
     /**
