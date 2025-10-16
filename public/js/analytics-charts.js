@@ -26,17 +26,43 @@
       colors: ['#2563eb','#94a3b8']
   }).render(); }
 
-  function fillTable(tbodyId, rows){
+  function escapeHtml(value){
+    if (value === null || value === undefined) return '';
+    return String(value).replace(/[&<>"']/g, function(ch){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]);
+    });
+  }
+
+  function formatNumber(value){
+    var n = Number(value);
+    if (!isFinite(n)) return '0';
+    return n.toLocaleString();
+  }
+
+  function fillTable(tbodyId, tablePayload, mode, labels){
     var tb = q(tbodyId); if(!tb) return;
-    if(!rows || !rows.length){ tb.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Tidak ada data.</td></tr>'; return; }
-    tb.innerHTML = rows.map(function(r){
+    var rows = [];
+    if (Array.isArray(tablePayload)) {
+      rows = tablePayload;
+    } else if (tablePayload && Array.isArray(tablePayload.rows)) {
+      rows = tablePayload.rows;
+    }
+    if(!rows.length){
+      tb.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Tidak ada data.</td></tr>';
+      return;
+    }
+
+    tb.innerHTML = rows.map(function(row){
+      var primary = Number(row.primary_value) || 0;
+      var secondary = Number(row.secondary_value) || 0;
+      var percentage = Number(row.percentage) || 0;
       return '<tr>'+
-        '<td>'+ (r.quota_number||'') +'</td>'+
-        '<td>'+ (r.range_pk||'') +'</td>'+
-        '<td class="text-end">'+ (Number(r.initial_quota)||0).toLocaleString() +'</td>'+
-        '<td class="text-end">'+ (Number(r.forecast)||0).toLocaleString() +'</td>'+
-        '<td class="text-end">'+ (Number(r.actual)||0).toLocaleString() +'</td>'+
-        '<td class="text-end">'+ (Number(r.actual_pct)||0).toFixed(2) +'%</td>'+
+        '<td>'+ escapeHtml(row.quota_number || '') +'</td>'+
+        '<td>'+ escapeHtml(row.range_pk || '') +'</td>'+
+        '<td class="text-end">'+ formatNumber(row.initial_quota) +'</td>'+
+        '<td class="text-end">'+ formatNumber(primary) +'</td>'+
+        '<td class="text-end">'+ formatNumber(secondary) +'</td>'+
+        '<td class="text-end">'+ percentage.toFixed(2) +'%</td>'+
       '</tr>';
     }).join('');
   }
@@ -47,17 +73,25 @@
       var donutEl = q(cfg.donutElId || 'analyticsDonut');
       var dataUrl = cfg.dataUrl;
       var tbodyId = cfg.tableBodyId || 'analyticsTableBody';
-      if(!dataUrl){ fillTable(tbodyId, []); return; }
+      var defaultMode = cfg.mode || 'actual';
+      var defaultLabels = cfg.labels || {};
+      if(!dataUrl){ fillTable(tbodyId, [], defaultMode, defaultLabels); return; }
 
       fetch(dataUrl, { headers: { 'Accept':'application/json' }})
         .then(function(r){ return r.json(); })
         .then(function(json){
           try{ renderBar(barEl, json.bar || {}); }catch(e){}
           try{ renderDonut(donutEl, json.donut || {}); }catch(e){}
-          try{ fillTable(tbodyId, json.table || []); }catch(e){}
+          try{
+            fillTable(
+              tbodyId,
+              json.table || [],
+              json.mode || defaultMode,
+              json.labels || defaultLabels
+            );
+          }catch(e){}
         })
-        .catch(function(){ fillTable(tbodyId, []); });
+        .catch(function(){ fillTable(tbodyId, [], defaultMode, defaultLabels); });
     });
   };
 })();
-
