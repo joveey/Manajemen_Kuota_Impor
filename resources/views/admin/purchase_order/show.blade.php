@@ -19,25 +19,34 @@
             </div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-6">
-                        <h6 class="text-muted">PO Number</h6>
+                    <div class="col-md-4">
+                        <h6 class="text-muted">PO Doc</h6>
                         <h3>{{ $purchaseOrder->po_number }}</h3>
-                        <p class="text-muted mb-0">SAP Ref: {{ $purchaseOrder->sap_reference ?? '-' }}</p>
+                        <p class="text-muted mb-0">Created: {{ $purchaseOrder->order_date?->format('d M Y') ?? '-' }}</p>
+                        <p class="text-muted mb-0">Line No: {{ $purchaseOrder->line_number ?? '-' }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Vendor</h6>
+                        <p class="mb-1"><strong>{{ $purchaseOrder->vendor_number ?? '-' }}</strong></p>
+                        <p class="text-muted mb-0">{{ $purchaseOrder->vendor_name ?? '-' }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Qty & Amount</h6>
+                        <p class="mb-1">{{ number_format($purchaseOrder->quantity) }} unit</p>
+                        <p class="text-muted mb-0">Amount: {{ $purchaseOrder->amount !== null ? number_format($purchaseOrder->amount, 2) : '-' }}</p>
+                    </div>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Item SAP</h6>
+                        <p class="mb-1"><strong>{{ $purchaseOrder->item_code ?? $purchaseOrder->product->code }}</strong> - {{ $purchaseOrder->item_description ?? $purchaseOrder->product->name }}</p>
                     </div>
                     <div class="col-md-6">
-                        <h6 class="text-muted">Periode</h6>
-                        <h3>{{ $purchaseOrder->period }}</h3>
-                        <p class="text-muted mb-0">Tanggal Order: {{ $purchaseOrder->order_date?->format('d M Y') }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="text-muted">Produk</h6>
-                        <p class="mb-1"><strong>{{ $purchaseOrder->product->code }}</strong> - {{ $purchaseOrder->product->name }}</p>
-                        <p class="text-muted mb-0">Kategori: {{ $purchaseOrder->category ?? '-' }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="text-muted">Customer & PIC</h6>
-                        <p class="mb-1">Customer: {{ $purchaseOrder->customer_name ?? '-' }}</p>
-                        <p class="mb-0">PIC: {{ $purchaseOrder->pic_name ?? '-' }}</p>
+                        <h6 class="text-muted">Kategori</h6>
+                        <p class="mb-1">Cat PO: {{ $purchaseOrder->category_code ?? '-' }}</p>
+                        <p class="text-muted mb-0">Cat Desc: {{ $purchaseOrder->category ?? '-' }}</p>
+                        <p class="text-muted mb-0">Mat Grp: {{ $purchaseOrder->material_group ?? '-' }}</p>
+                        <p class="text-muted mb-0">SAP Status: {{ $purchaseOrder->sap_order_status ?? '-' }}</p>
                     </div>
                 </div>
                 <hr>
@@ -58,21 +67,18 @@
                 <hr>
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <h6 class="text-muted">Branch & Truck</h6>
-                        <p class="mb-1">PGI Branch: {{ $purchaseOrder->pgi_branch ?? '-' }}</p>
-                        <p class="mb-0">Truck: {{ $purchaseOrder->truck ?? '-' }}</p>
+                        <h6 class="text-muted">Warehouse</h6>
+                        <p class="mb-1">WH: {{ $purchaseOrder->warehouse_code ?? '-' }} - {{ $purchaseOrder->warehouse_name ?? '-' }}</p>
+                        <p class="text-muted mb-1">WH Source: {{ $purchaseOrder->warehouse_source ?? '-' }}</p>
+                        <p class="text-muted mb-1">Subinv: {{ $purchaseOrder->subinventory_code ?? '-' }} - {{ $purchaseOrder->subinventory_name ?? '-' }}</p>
+                        <p class="text-muted mb-0">Subinv Source: {{ $purchaseOrder->subinventory_source ?? '-' }}</p>
                     </div>
                     <div class="col-md-6">
-                        <h6 class="text-muted">Plant</h6>
-                        <p class="mb-1">{{ $purchaseOrder->plant_name }}</p>
-                        <p class="mb-0 text-muted">{{ $purchaseOrder->plant_detail }}</p>
+                        <h6 class="text-muted">Produk Internal</h6>
+                        <p class="mb-1"><strong>{{ $purchaseOrder->product->code }}</strong> - {{ $purchaseOrder->product->name }}</p>
+                        <p class="text-muted mb-0">Quota Number: {{ $purchaseOrder->quota?->quota_number ?? '-' }}</p>
                     </div>
                 </div>
-                @if($purchaseOrder->remarks)
-                    <hr>
-                    <h6 class="text-muted">Catatan</h6>
-                    <p class="mb-0">{{ $purchaseOrder->remarks }}</p>
-                @endif
             </div>
         </div>
 

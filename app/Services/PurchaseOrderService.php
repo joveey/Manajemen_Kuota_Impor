@@ -34,31 +34,50 @@ class PurchaseOrderService
             $allocation = $this->allocator->allocate($product, $quantity, $orderDate);
             $selectedQuota = $allocation->selectedQuota;
 
-            $sequence = $data['sequence_number']
-                ?? ((int) (PurchaseOrder::lockForUpdate()->max('sequence_number')) + 1);
+            $latestSequence = PurchaseOrder::lockForUpdate()
+                ->orderByDesc('sequence_number')
+                ->value('sequence_number');
+            $sequence = ((int) $latestSequence) + 1;
+            $period = $orderDate->format('Y-m');
 
-            $period = $data['period'] ?? $orderDate->format('Y-m');
+            $itemCode = Arr::get($data, 'item_code', $product->code);
+            $itemDescription = Arr::get($data, 'item_description', $product->name);
 
             $po = PurchaseOrder::create([
                 'sequence_number' => $sequence,
                 'period' => $period,
                 'po_number' => $data['po_number'],
-                'sap_reference' => Arr::get($data, 'sap_reference'),
+                'sap_reference' => null,
+                'vendor_number' => Arr::get($data, 'vendor_number'),
+                'vendor_name' => Arr::get($data, 'vendor_name'),
+                'line_number' => Arr::get($data, 'line_number'),
+                'item_code' => $itemCode,
+                'item_description' => $itemDescription,
                 'product_id' => $product->id,
                 'quota_id' => $selectedQuota->id,
                 'quantity' => $quantity,
+                'amount' => Arr::has($data, 'amount') ? (float) $data['amount'] : null,
                 'order_date' => $orderDate->toDateString(),
-                'pgi_branch' => Arr::get($data, 'pgi_branch'),
-                'customer_name' => Arr::get($data, 'customer_name'),
-                'pic_name' => Arr::get($data, 'pic_name'),
+                'warehouse_code' => Arr::get($data, 'warehouse_code'),
+                'warehouse_name' => Arr::get($data, 'warehouse_name'),
+                'warehouse_source' => Arr::get($data, 'warehouse_source'),
+                'subinventory_code' => Arr::get($data, 'subinventory_code'),
+                'subinventory_name' => Arr::get($data, 'subinventory_name'),
+                'subinventory_source' => Arr::get($data, 'subinventory_source'),
+                'pgi_branch' => null,
+                'customer_name' => null,
+                'pic_name' => null,
                 'status' => PurchaseOrder::STATUS_ORDERED,
-                'status_po_display' => Arr::get($data, 'status_po_display', 'Released'),
-                'truck' => Arr::get($data, 'truck'),
-                'moq' => Arr::get($data, 'moq'),
+                'status_po_display' => 'Released',
+                'truck' => null,
+                'moq' => null,
                 'category' => Arr::get($data, 'category'),
-                'plant_name' => $data['plant_name'],
-                'plant_detail' => $data['plant_detail'],
-                'remarks' => Arr::get($data, 'remarks'),
+                'category_code' => Arr::get($data, 'category_code'),
+                'material_group' => Arr::get($data, 'material_group'),
+                'sap_order_status' => Arr::get($data, 'sap_order_status'),
+                'plant_name' => Arr::get($data, 'warehouse_name', 'SAP Plant'),
+                'plant_detail' => Arr::get($data, 'warehouse_name', 'Imported from SAP'),
+                'remarks' => null,
                 'created_by' => $user?->getAuthIdentifier(),
                 'forecast_deducted_at' => now(),
             ]);

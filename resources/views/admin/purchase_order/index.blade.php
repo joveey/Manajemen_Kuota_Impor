@@ -118,7 +118,7 @@
         </div>
         <div class="filter-panel__control" style="flex:2">
             <label class="form-label text-muted small mb-1">Pencarian</label>
-            <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Cari nomor PO, pelanggan, atau branch">
+            <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Cari nomor PO, vendor, atau item">
         </div>
         <div class="filter-panel__buttons">
             <button class="filter-button filter-button--apply" type="submit">
@@ -137,57 +137,56 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Period</th>
-                    <th>P/O Number</th>
-                    <th>PGI Branch</th>
-                    <th>Customer</th>
-                    <th>PIC</th>
-                    <th>Status</th>
-                    <th>Truck</th>
-                    <th>MOQ</th>
-                    <th>Category</th>
-                    <th>Produk</th>
+                    <th>PO Doc</th>
+                    <th>Created Date</th>
+                    <th>Vendor No</th>
+                    <th>Vendor Name</th>
+                    <th>Line No</th>
+                    <th>Item Code</th>
+                    <th>Item Desc</th>
+                    <th>WH Code</th>
+                    <th>WH Name</th>
+                    <th>WH Source</th>
+                    <th>Subinv Code</th>
+                    <th>Subinv Name</th>
+                    <th>Subinv Source</th>
                     <th class="text-end">Qty</th>
+                    <th class="text-end">Amount</th>
+                    <th>Cat PO</th>
+                    <th>Cat Desc</th>
+                    <th>Mat Grp</th>
+                    <th>SAP Status</th>
+                    <th>SAP Status</th>
                     <th class="text-end">Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($purchaseOrders as $po)
-                    @php
-                        $statusStyles = [
-                            \App\Models\PurchaseOrder::STATUS_ORDERED => 'status-badge--ordered',
-                            \App\Models\PurchaseOrder::STATUS_IN_TRANSIT => 'status-badge--in-transit',
-                            \App\Models\PurchaseOrder::STATUS_PARTIAL => 'status-badge--partial',
-                            \App\Models\PurchaseOrder::STATUS_COMPLETED => 'status-badge--completed',
-                        ];
-                        $statusClass = $statusStyles[$po->status] ?? 'status-badge--ordered';
-                    @endphp
                     <tr>
                         <td>{{ $purchaseOrders->firstItem() + $loop->index }}</td>
-                        <td>{{ $po->period }}</td>
-                        <td>
-                            <strong>{{ $po->po_number }}</strong><br>
-                            <span class="po-table__subtext">{{ $po->order_date->format('d M Y') }}</span>
-                        </td>
-                        <td>{{ $po->pgi_branch ?? '-' }}</td>
-                        <td>{{ $po->customer_name ?? '-' }}</td>
-                        <td>{{ $po->pic_name ?? '-' }}</td>
-                        <td>
-                            <span class="status-badge {{ $statusClass }}">{{ $po->status_po_display ?? ucfirst($po->status) }}</span>
-                        </td>
-                        <td>{{ $po->truck ?? '-' }}</td>
-                        <td>{{ $po->moq ?? '-' }}</td>
-                        <td>{{ $po->category ?? '-' }}</td>
-                        <td>
-                            <div class="fw-semibold">{{ $po->product->code }}</div>
-                            <div class="po-table__subtext">{{ $po->product->name }}</div>
-                        </td>
+                        <td><strong>{{ $po->po_number }}</strong></td>
+                        <td>{{ optional($po->order_date)->format('d M Y') ?? '-' }}</td>
+                        <td>{{ $po->vendor_number ?? '-' }}</td>
+                        <td>{{ $po->vendor_name ?? '-' }}</td>
+                        <td>{{ $po->line_number ?? '-' }}</td>
+                        <td>{{ $po->item_code ?? $po->product->code }}</td>
+                        <td class="text-nowrap">{{ \Illuminate\Support\Str::limit($po->item_description ?? $po->product->name, 36) }}</td>
+                        <td>{{ $po->warehouse_code ?? '-' }}</td>
+                        <td>{{ $po->warehouse_name ?? '-' }}</td>
+                        <td>{{ $po->warehouse_source ?? '-' }}</td>
+                        <td>{{ $po->subinventory_code ?? '-' }}</td>
+                        <td>{{ $po->subinventory_name ?? '-' }}</td>
+                        <td>{{ $po->subinventory_source ?? '-' }}</td>
                         <td class="text-end">
                             {{ number_format($po->quantity) }}<br>
-                            <span class="po-table__subtext">
-                                Shipped: {{ number_format($po->quantity_shipped) }} | Received: {{ number_format($po->quantity_received) }}
-                            </span>
                         </td>
+                        <td class="text-end">
+                            {{ $po->amount !== null ? number_format($po->amount, 2) : '-' }}
+                        </td>
+                        <td>{{ $po->category_code ?? '-' }}</td>
+                        <td>{{ $po->category ?? '-' }}</td>
+                        <td>{{ $po->material_group ?? '-' }}</td>
+                        <td>{{ $po->sap_order_status ?? '-' }}</td>
                         <td class="text-end">
                             <div class="table-actions">
                                 <a href="{{ route('admin.purchase-orders.show', $po) }}" class="action-icon action-icon--view" title="Detail">

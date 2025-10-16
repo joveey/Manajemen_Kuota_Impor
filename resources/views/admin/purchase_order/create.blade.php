@@ -30,36 +30,32 @@
                     @endif
 
                     <div class="row g-3">
-                        <div class="col-md-4">
-                            <label for="sequence_number" class="form-label">Nomor Urut</label>
-                            <input type="number" class="form-control" id="sequence_number" name="sequence_number" value="{{ old('sequence_number') }}" min="1" placeholder="Auto">
+                        <div class="col-md-6">
+                            <label for="po_number" class="form-label">PO Doc <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="po_number" name="po_number" value="{{ old('po_number') }}" placeholder="Contoh: 7,971E+09" required>
                         </div>
-                        <div class="col-md-4">
-                            <label for="period" class="form-label">Periode</label>
-                            <input type="text" class="form-control" id="period" name="period" value="{{ old('period') }}" placeholder="YYYY-MM">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="order_date" class="form-label">Tanggal PO <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="order_date" name="order_date" value="{{ old('order_date', now()->format('Y-m-d')) }}" required>
+                        <div class="col-md-6">
+                            <label for="created_date" class="form-label">Created Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="created_date" name="created_date" value="{{ old('created_date', now()->format('Y-m-d')) }}" required>
                         </div>
                     </div>
 
                     <div class="row g-3 mt-1">
                         <div class="col-md-6">
-                            <label for="po_number" class="form-label">PO Number <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="po_number" name="po_number" value="{{ old('po_number') }}" placeholder="Contoh: PO100001" required>
+                            <label for="vendor_number" class="form-label">Vendor No.</label>
+                            <input type="text" class="form-control" id="vendor_number" name="vendor_number" value="{{ old('vendor_number') }}" placeholder="Contoh: 21932">
                         </div>
                         <div class="col-md-6">
-                            <label for="sap_reference" class="form-label">SAP Reference</label>
-                            <input type="text" class="form-control" id="sap_reference" name="sap_reference" value="{{ old('sap_reference') }}" placeholder="Referensi SAP">
+                            <label for="vendor_name" class="form-label">Vendor Name</label>
+                            <input type="text" class="form-control" id="vendor_name" name="vendor_name" value="{{ old('vendor_name') }}" placeholder="Nama vendor SAP">
                         </div>
                     </div>
 
                     <div class="row g-3 mt-1">
                         <div class="col-md-6">
-                            <label for="product_id" class="form-label">Produk <span class="text-danger">*</span></label>
+                            <label for="product_id" class="form-label">Item Code <span class="text-danger">*</span></label>
                             <select class="form-select" id="product_id" name="product_id" required>
-                                <option value="">-- Pilih Produk --</option>
+                                <option value="">-- Pilih Item --</option>
                                 @foreach($products as $product)
                                     @php
                                         $primaryMapping = $product->quotaMappings->sortBy('priority')->first();
@@ -67,7 +63,7 @@
                                     @endphp
                                     <option value="{{ $product->id }}"
                                         data-code="{{ $product->code }}"
-                                        data-name="{{ $product->name }}"
+        data-name="{{ $product->name }}"
                                         data-quota-number="{{ $quota->quota_number ?? '' }}"
                                         data-forecast="{{ $quota->forecast_remaining ?? 0 }}"
                                         data-actual="{{ $quota->actual_remaining ?? 0 }}"
@@ -77,61 +73,75 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <label for="quantity" class="form-label">Quantity PO <span class="text-danger">*</span></label>
+                        <div class="col-md-3">
+                            <label for="line_number" class="form-label">Line No.</label>
+                            <input type="text" class="form-control" id="line_number" name="line_number" value="{{ old('line_number') }}" placeholder="Contoh: 10">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="quantity" class="form-label">Qty <span class="text-danger">*</span></label>
                             <input type="number" class="form-control" id="quantity" name="quantity" value="{{ old('quantity') }}" min="1" required>
                         </div>
                     </div>
 
-                    <div class="row g-3 mt-1">
-                        <div class="col-md-4">
-                            <label for="pgi_branch" class="form-label">PGI Branch</label>
-                            <input type="text" class="form-control" id="pgi_branch" name="pgi_branch" value="{{ old('pgi_branch') }}" placeholder="Contoh: PGI GREAT JKT 1">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="customer_name" class="form-label">Customer</label>
-                            <input type="text" class="form-control" id="customer_name" name="customer_name" value="{{ old('customer_name') }}">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="pic_name" class="form-label">PIC</label>
-                            <input type="text" class="form-control" id="pic_name" name="pic_name" value="{{ old('pic_name') }}">
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mt-1">
-                        <div class="col-md-4">
-                            <label for="status_po_display" class="form-label">Status P/O</label>
-                            <input type="text" class="form-control" id="status_po_display" name="status_po_display" value="{{ old('status_po_display', 'Released') }}">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="truck" class="form-label">Truck</label>
-                            <input type="text" class="form-control" id="truck" name="truck" value="{{ old('truck') }}">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="moq" class="form-label">MOQ / Scheme</label>
-                            <input type="text" class="form-control" id="moq" name="moq" value="{{ old('moq') }}">
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mt-1">
-                        <div class="col-md-6">
-                            <label for="category" class="form-label">Kategori</label>
-                            <input type="text" class="form-control" id="category" name="category" value="{{ old('category') }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="plant_name" class="form-label">Nama Pabrik <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="plant_name" name="plant_name" value="{{ old('plant_name', 'Panasonic Corp. Osaka Plant') }}" required>
-                        </div>
-                    </div>
-
                     <div class="mb-3 mt-1">
-                        <label for="plant_detail" class="form-label">Detail Pabrik <span class="text-danger">*</span></label>
-                        <textarea class="form-control" id="plant_detail" name="plant_detail" rows="3" required>{{ old('plant_detail', '1-1 Matsushita-cho, Moriguchi, Osaka, Japan') }}</textarea>
+                        <label for="item_description" class="form-label">Item Description</label>
+                        <textarea class="form-control" id="item_description" name="item_description" rows="2" placeholder="Deskripsi item SAP">{{ old('item_description') }}</textarea>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="remarks" class="form-label">Catatan</label>
-                        <textarea class="form-control" id="remarks" name="remarks" rows="3" placeholder="Catatan tambahan">{{ old('remarks') }}</textarea>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-4">
+                            <label for="amount" class="form-label">Amount</label>
+                            <input type="number" class="form-control" id="amount" name="amount" value="{{ old('amount') }}" min="0" step="0.01" placeholder="Nilai PO">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="sap_order_status" class="form-label">SAP Order Status</label>
+                            <input type="text" class="form-control" id="sap_order_status" name="sap_order_status" value="{{ old('sap_order_status') }}" placeholder="Contoh: Trade Overseas">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="category_code" class="form-label">Cat PO</label>
+                            <input type="text" class="form-control" id="category_code" name="category_code" value="{{ old('category_code') }}" placeholder="Kode kategori">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="category" class="form-label">Cat Desc</label>
+                            <input type="text" class="form-control" id="category" name="category" value="{{ old('category') }}" placeholder="Deskripsi kategori">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-4">
+                            <label for="material_group" class="form-label">Material Group</label>
+                            <input type="text" class="form-control" id="material_group" name="material_group" value="{{ old('material_group') }}" placeholder="Contoh: COMAC">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="warehouse_code" class="form-label">WH Code</label>
+                            <input type="text" class="form-control" id="warehouse_code" name="warehouse_code" value="{{ old('warehouse_code') }}" placeholder="Contoh: 7971">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="warehouse_name" class="form-label">WH Name</label>
+                            <input type="text" class="form-control" id="warehouse_name" name="warehouse_name" value="{{ old('warehouse_name') }}" placeholder="Nama gudang">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-4">
+                            <label for="warehouse_source" class="form-label">WH Source</label>
+                            <input type="text" class="form-control" id="warehouse_source" name="warehouse_source" value="{{ old('warehouse_source') }}" placeholder="Sumber WH">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="subinventory_code" class="form-label">Subinv Code</label>
+                            <input type="text" class="form-control" id="subinventory_code" name="subinventory_code" value="{{ old('subinventory_code') }}" placeholder="Contoh: M001">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="subinventory_name" class="form-label">Subinv Name</label>
+                            <input type="text" class="form-control" id="subinventory_name" name="subinventory_name" value="{{ old('subinventory_name') }}" placeholder="Nama Subinventory">
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label for="subinventory_source" class="form-label">Subinv Source</label>
+                            <input type="text" class="form-control" id="subinventory_source" name="subinventory_source" value="{{ old('subinventory_source') }}" placeholder="Sumber Subinventory">
+                        </div>
                     </div>
                 </div>
                 <div class="card-footer d-flex justify-content-between align-items-center">
@@ -186,6 +196,8 @@
 @push('scripts')
 <script>
     const historyLog = document.getElementById('history-log');
+    const itemCodeInput = document.getElementById('item_code');
+    const itemDescriptionInput = document.getElementById('item_description');
 
     function logHistory(message) {
         const item = document.createElement('li');
@@ -219,6 +231,14 @@
         document.getElementById('switch-alert').style.display = 'block';
 
         logHistory(`Identifikasi model ${productCode} -> quota ${quotaNumber || 'N/A'}`);
+
+        if (itemCodeInput && option.dataset.code) {
+            itemCodeInput.value = option.dataset.code;
+        }
+
+        if (itemDescriptionInput && option.dataset.name && !itemDescriptionInput.value) {
+            itemDescriptionInput.value = option.dataset.name;
+        }
     }
 
     document.getElementById('product_id').addEventListener('change', function() {
