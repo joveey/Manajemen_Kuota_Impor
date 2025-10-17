@@ -18,8 +18,6 @@
     .po-action { display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:14px; font-size:13px; font-weight:600; text-decoration:none; transition:all .2s ease; border:1px solid transparent; }
     .po-action--outline { background:rgba(148,163,184,.1); color:#1f2937; border-color:rgba(148,163,184,.35); }
     .po-action--outline:hover { background:rgba(148,163,184,.16); }
-    .po-action--primary { background:#2563eb; color:#fff; box-shadow:0 18px 38px -30px rgba(37,99,235,.8); }
-    .po-action--primary:hover { background:#1d4ed8; transform:translateY(-1px); }
     .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; }
     .summary-tile { border-radius:18px; border:1px solid #e6ebf5; background:linear-gradient(135deg,#fff 0%,#f8fafc 100%); padding:20px; box-shadow:0 24px 48px -44px rgba(15,23,42,.45); display:flex; flex-direction:column; gap:6px; }
     .summary-tile__label { font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:.12em; }
@@ -69,12 +67,6 @@
                 <i class="fas fa-file-export"></i>
                 Export CSV
             </a>
-            @can('create purchase_orders')
-                <a href="{{ route('admin.purchase-orders.create') }}" class="po-action po-action--primary">
-                    <i class="fas fa-plus"></i>
-                    Buat PO Baru
-                </a>
-            @endcan
         </div>
     </div>
 

@@ -189,14 +189,6 @@
                                 <p>PO List</p>
                             </a>
                         </li>
-                        @can('create purchase_orders')
-                        <li class="nav-item">
-                            <a href="{{ route('admin.purchase-orders.create') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.create') || request()->routeIs('admin.purchase-order.create') ? 'active' : '' }}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Create PO</p>
-                            </a>
-                        </li>
-                        @endcan
                     </ul>
                 </li>
                 @endcan
