@@ -633,10 +633,17 @@
                     $canPORead = $currentUser?->can('read purchase_orders');
                     $canReports = $currentUser?->can('read reports');
 
-                    $operationalActive = ($canQuota && (request()->is('admin/quotas*') || request()->is('admin/kuota*'))) ||
+                    // Include imports and unmapped pages so Operasional opens on those routes
+                    $operationalActive = (
+                        request()->routeIs('admin.imports.hs_pk.*') ||
+                        request()->routeIs('admin.imports.quotas.*') ||
+                        request()->routeIs('admin.mapping.unmapped') ||
+                        request()->routeIs('admin.mapping.unmapped.*') ||
+                        ($canQuota && (request()->is('admin/quotas*') || request()->is('admin/kuota*'))) ||
                         ($canPOCreate && request()->is('admin/purchase-order/create')) ||
                         ($canPORead && (request()->is('admin/purchase-orders*') || request()->is('admin/purchase-order*') ||
-                            request()->is('admin/shipments*') || request()->is('admin/shipment')));
+                            request()->is('admin/shipments*') || request()->is('admin/shipment')))
+                    );
 
                     $reportsActive = $canReports && (request()->is('admin/reports*') || request()->is('analytics*'));
 
@@ -695,6 +702,20 @@
                                     <span>Mapping Produk-Kuota</span>
                                 </a>
                             @endif
+
+                            {{-- Import menus (kept outside permission blocks to ensure visibility) --}}
+                            <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}">
+                                <span class="nav-icon"><i class="fas fa-file-import"></i></span>
+                                <span>Import HS→PK</span>
+                            </a>
+                            <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
+                                <span class="nav-icon"><i class="fas fa-file-import"></i></span>
+                                <span>Import Kuota</span>
+                            </a>
+                            <a href="{{ route('admin.mapping.unmapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.unmapped') || request()->routeIs('admin.mapping.unmapped.*') ? 'active' : '' }}">
+                                <span class="nav-icon"><i class="fas fa-puzzle-piece"></i></span>
+                                <span>Produk Unmapped</span>
+                            </a>
                             @if($canPOCreate)
                                 <a href="{{ route('admin.purchase-orders.create') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.create') || request()->routeIs('admin.purchase-order.create') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-plus"></i></span>
