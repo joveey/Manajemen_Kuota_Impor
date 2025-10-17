@@ -3,7 +3,6 @@
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\FinalReportController;
-use App\Http\Controllers\Admin\ProductQuotaMappingController;
 use App\Http\Controllers\Admin\QuotaController;
 use App\Http\Controllers\Admin\PurchaseOrderController;
 use App\Http\Controllers\Admin\ShipmentController;
@@ -126,29 +125,14 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::delete('quotas/{quota}/detach-product/{product}', [QuotaController::class, 'detachProduct'])
         ->name('quotas.detach-product');
 
-    Route::middleware(['permission:read quota'])->group(function () {
-        Route::get('product-quotas', [ProductQuotaMappingController::class, 'index'])->name('product-quotas.index');
-    });
-
-    Route::middleware(['permission:update quota'])->group(function () {
-        Route::post('product-quotas', [ProductQuotaMappingController::class, 'store'])->name('product-quotas.store');
-        Route::post('product-quotas/reorder', [ProductQuotaMappingController::class, 'reorder'])->name('product-quotas.reorder');
-        Route::match(['put', 'patch'], 'product-quotas/{productQuotaMapping}', [ProductQuotaMappingController::class, 'update'])
-            ->name('product-quotas.update');
-        Route::delete('product-quotas/{productQuotaMapping}', [ProductQuotaMappingController::class, 'destroy'])
-            ->name('product-quotas.destroy');
-    });
-
     Route::middleware(['permission:read reports'])->group(function () {
         Route::get('reports/final', [FinalReportController::class, 'index'])->name('reports.final');
         Route::get('reports/final/export/csv', [FinalReportController::class, 'exportCsv'])->name('reports.final.export.csv');
     });
 
-    Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+    Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'show', 'destroy']);
     Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
     Route::get('purchase-order', [PurchaseOrderController::class, 'index'])->name('purchase-order.index');
-    Route::get('purchase-order/create', [PurchaseOrderController::class, 'create'])->name('purchase-order.create');
-    Route::post('purchase-order', [PurchaseOrderController::class, 'store'])->name('purchase-order.store');
     Route::get('purchase-order/{purchase_order}', [PurchaseOrderController::class, 'show'])->name('purchase-order.show');
     Route::delete('purchase-order/{purchase_order}', [PurchaseOrderController::class, 'destroy'])->name('purchase-order.destroy');
 

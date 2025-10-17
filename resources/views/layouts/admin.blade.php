@@ -629,7 +629,6 @@
                     $overviewExpand = request()->is('admin/master-data*');
 
                     $canQuota = $currentUser?->can('read quota');
-                    $canPOCreate = $currentUser?->can('create purchase_orders');
                     $canPORead = $currentUser?->can('read purchase_orders');
                     $canReports = $currentUser?->can('read reports');
 
@@ -640,7 +639,6 @@
                         request()->routeIs('admin.mapping.unmapped') ||
                         request()->routeIs('admin.mapping.unmapped.*') ||
                         ($canQuota && (request()->is('admin/quotas*') || request()->is('admin/kuota*'))) ||
-                        ($canPOCreate && request()->is('admin/purchase-order/create')) ||
                         ($canPORead && (request()->is('admin/purchase-orders*') || request()->is('admin/purchase-order*') ||
                             request()->is('admin/shipments*') || request()->is('admin/shipment')))
                     );
@@ -681,7 +679,7 @@
                     </div>
                 </div>
 
-                @if($canQuota || $canPOCreate || $canPORead)
+                @if($canQuota || $canPORead)
                     <div class="nav-group {{ $operationalActive ? 'is-open is-current' : '' }}" data-nav-group>
                         <button type="button"
                                 class="nav-group__toggle"
@@ -696,10 +694,6 @@
                                 <a href="{{ route('admin.quotas.index') }}" class="nav-link {{ request()->is('admin/quotas*') || request()->is('admin/kuota*') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-percentage"></i></span>
                                     <span>Manajemen Kuota</span>
-                                </a>
-                                <a href="{{ route('admin.product-quotas.index') }}" class="nav-link {{ request()->routeIs('admin.product-quotas.*') ? 'active' : '' }}">
-                                    <span class="nav-icon"><i class="fas fa-link"></i></span>
-                                    <span>Mapping Produk-Kuota</span>
                                 </a>
                             @endif
 
@@ -716,12 +710,6 @@
                                 <span class="nav-icon"><i class="fas fa-puzzle-piece"></i></span>
                                 <span>Produk Unmapped</span>
                             </a>
-                            @if($canPOCreate)
-                                <a href="{{ route('admin.purchase-orders.create') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.create') || request()->routeIs('admin.purchase-order.create') ? 'active' : '' }}">
-                                    <span class="nav-icon"><i class="fas fa-plus"></i></span>
-                                    <span>Buat Purchase Order</span>
-                                </a>
-                            @endif
                             @if($canPORead)
                                 <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') || request()->routeIs('admin.purchase-order.index') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
@@ -864,14 +852,6 @@
                     @endif
                 </div>
                 <div class="bar-actions">
-                    @if($currentUser?->can('create purchase_orders'))
-                        <a href="{{ route('admin.purchase-orders.create') }}" class="quick-action">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-                            </svg>
-                            <span>Purchase Order</span>
-                        </a>
-                    @endif
                     <div class="search-lite">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M18 11.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0z" />

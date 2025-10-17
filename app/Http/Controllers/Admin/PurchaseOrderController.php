@@ -3,28 +3,18 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Product;
 use App\Models\PurchaseOrder;
-use App\Models\Quota;
-use App\Services\Exceptions\InsufficientQuotaException;
-use App\Services\PurchaseOrderService;
-use Illuminate\Contracts\Auth\Factory as AuthFactory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 class PurchaseOrderController extends Controller
 {
-    public function __construct(
-        private readonly PurchaseOrderService $service,
-        private readonly AuthFactory $auth
-    ) {
+    public function __construct()
+    {
         // Read
         $this->middleware('permission:read purchase_orders')->only(['index', 'show', 'export']);
-        // Create
-        $this->middleware('permission:create purchase_orders')->only(['create', 'store']);
         // Delete
         $this->middleware('permission:delete purchase_orders')->only(['destroy']);
     }
@@ -65,37 +55,6 @@ class PurchaseOrderController extends Controller
         ];
 
         return view('admin.purchase_order.index', compact('purchaseOrders', 'stats'));
-    }
-
-    public function create(): View
-    {
-        $products = Product::active()
-            ->with(['quotaMappings.quota' => function ($query) {
-                $query->orderBy('quota_number');
-            }])
-            ->orderBy('name')
-            ->get();
-        $quotas = Quota::active()->orderBy('quota_number')->get();
-
-        return view('admin.purchase_order.create', compact('products', 'quotas'));
-    }
-
-    public function store(Request $request): RedirectResponse
-    {
-        $data = $this->validateData($request);
-
-        try {
-            $user = $this->auth->guard()->user();
-            $po = $this->service->create($data, $user);
-        } catch (InsufficientQuotaException $e) {
-            return back()
-                ->withInput()
-                ->withErrors(['quantity' => $e->getMessage()]);
-        }
-
-        return redirect()
-            ->route('admin.purchase-orders.show', $po)
-            ->with('status', 'Purchase Order berhasil dibuat.');
     }
 
     public function show(PurchaseOrder $purchaseOrder): View
@@ -195,42 +154,4 @@ class PurchaseOrderController extends Controller
         ]);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function validateData(Request $request): array
-    {
-        $data = $request->validate([
-            'po_number' => ['required', 'string', 'max:100', 'unique:purchase_orders,po_number'],
-            'created_date' => ['required', 'date'],
-            'product_id' => ['required', 'exists:products,id'],
-            'quantity' => ['required', 'integer', 'min:1'],
-            'amount' => ['nullable', 'numeric', 'min:0'],
-            'vendor_number' => ['nullable', 'string', 'max:50'],
-            'vendor_name' => ['nullable', 'string', 'max:255'],
-            'line_number' => ['nullable', 'string', 'max:30'],
-            'item_code' => ['nullable', 'string', 'max:100'],
-            'item_description' => ['nullable', 'string'],
-            'warehouse_code' => ['nullable', 'string', 'max:50'],
-            'warehouse_name' => ['nullable', 'string', 'max:255'],
-            'warehouse_source' => ['nullable', 'string', 'max:255'],
-            'subinventory_code' => ['nullable', 'string', 'max:50'],
-            'subinventory_name' => ['nullable', 'string', 'max:255'],
-            'subinventory_source' => ['nullable', 'string', 'max:255'],
-            'category_code' => ['nullable', 'string', 'max:50'],
-            'category' => ['nullable', 'string', 'max:255'],
-            'material_group' => ['nullable', 'string', 'max:100'],
-            'sap_order_status' => ['nullable', 'string', 'max:100'],
-        ]);
-
-        $data['quantity'] = (int) $data['quantity'];
-        if (array_key_exists('amount', $data) && $data['amount'] !== null) {
-            $data['amount'] = (float) $data['amount'];
-        }
-
-        $data['order_date'] = Carbon::parse($data['created_date'])->toDateString();
-        unset($data['created_date']);
-
-        return $data;
-    }
 }
