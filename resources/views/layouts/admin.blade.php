@@ -47,11 +47,28 @@
             color: var(--text);
         }
 
+        body.sidebar-open { overflow: hidden; }
+
         a { text-decoration: none; color: inherit; }
 
         .app-shell {
             display: flex;
             min-height: 100vh;
+        }
+
+        .sidebar-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.45);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.28s ease;
+            z-index: 1025;
+        }
+
+        .sidebar-backdrop.is-visible {
+            opacity: 1;
+            pointer-events: auto;
         }
 
         .sidebar {
@@ -398,6 +415,20 @@
             gap: 14px;
         }
 
+        .nav-toggle {
+            display: none;
+        }
+
+        .app-bar-brand {
+            display: none;
+        }
+
+        .app-bar-brand img {
+            width: 128px;
+            height: auto;
+            display: block;
+        }
+
         .quick-action {
             display: inline-flex;
             align-items: center;
@@ -479,10 +510,43 @@
 
         @media (max-width: 1024px) {
             :root { --sidebar-width: 220px; }
-            .sidebar { transform: translateX(-100%); }
-            .sidebar.is-open { transform: translateX(0); }
+            .sidebar {
+                width: min(300px, 82vw);
+                transform: translateX(-100%);
+            }
+            .sidebar.is-open {
+                transform: translateX(0);
+                box-shadow: 0 16px 36px -20px rgba(15, 23, 42, 0.42);
+            }
             .app-main { margin-left: 0; }
-            .search-lite { display: block; }
+            .app-bar {
+                flex-wrap: wrap;
+                align-items: flex-start;
+                gap: 12px;
+                padding: 18px 24px;
+            }
+            .app-bar .nav-toggle { display: inline-flex; order: 0; }
+            .app-bar-brand {
+                display: inline-flex;
+                align-items: center;
+                order: 0;
+                margin: 0 auto;
+            }
+            .bar-left { order: 1; width: 100%; }
+            .bar-actions {
+                order: 2;
+                width: 100%;
+                justify-content: flex-start;
+                gap: 10px;
+            }
+            .search-lite {
+                display: flex;
+                flex: 1 1 auto;
+                align-items: center;
+            }
+            .search-lite input {
+                width: 100%;
+            }
             .quick-action { display: none; }
         }
 
@@ -492,19 +556,59 @@
             .app-shell { flex-direction: column; min-height: 100vh; }
             .sidebar {
                 position: fixed;
-                inset: 0 0 auto 0;
-                height: 58px;
-                width: 100%;
-                padding: 0 16px;
-                display:flex;
-                align-items:center;
-                justify-content:space-between;
-                box-shadow: 0 14px 24px -18px rgba(15,23,42,.2);
+                top: 0;
+                left: 0;
+                height: 100vh;
+                width: min(84vw, 320px);
+                padding: calc(env(safe-area-inset-top, 0) + 24px) 20px calc(env(safe-area-inset-bottom, 0) + 32px);
+                display: flex;
+                flex-direction: column;
+                gap: 22px;
+                background: #ffffff;
+                box-shadow: 0 16px 32px -18px rgba(15, 23, 42, 0.45);
+                border-right: 1px solid rgba(148, 163, 184, 0.25);
+                transform: translateX(-100%);
+                overflow-y: auto;
             }
-            .nav-groups,
-            .account-area { display:none; }
-            .app-main { margin-left: 0; margin-top: 70px; }
+            .sidebar .brand {
+                justify-content: flex-start;
+                margin: 0;
+            }
+            .sidebar .brand-symbol { width: 132px; }
+            .nav-groups { padding: 0; }
+            .app-main { margin: 0; width: 100%; }
+            .app-bar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                padding: 16px 18px;
+            }
+            .app-bar-brand {
+                align-self: center;
+            }
+            .app-bar .nav-toggle {
+                align-self: flex-start;
+                margin-left: -4px;
+            }
+            .bar-left {
+                gap: 8px;
+            }
+            .bar-left h1 { font-size: 20px; }
+            .bar-meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 6px;
+            }
+            .bar-actions {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .bar-actions .search-lite {
+                width: 100%;
+            }
             .app-content { padding: 16px 18px 28px; }
+            .sidebar.is-open { transform: translateX(0); }
         }
     </style>
     @stack('styles')
@@ -695,14 +799,18 @@
                 </form>
             </div>
         </aside>
+        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
         <div class="app-main">
             <header class="app-bar">
-                <button class="nav-toggle btn btn-light d-lg-none" id="navToggle">
+                <button class="nav-toggle btn btn-light" id="navToggle">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                 </button>
+                <span class="app-bar-brand d-lg-none">
+                    <img src="{{ asset('images/panasonic-logo.svg') }}" alt="Panasonic logo">
+                </span>
                 <div class="bar-left">
                     @php
                         $pageTitle = trim($__env->yieldContent('page-title'));
@@ -780,18 +888,83 @@
     <script>
         const navToggle = document.getElementById('navToggle');
         const sidebar = document.getElementById('sidebar');
+        const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+        const openSidebar = () => {
+            if (!sidebar) return;
+            sidebar.classList.add('is-open');
+            document.body.classList.add('sidebar-open');
+            if (navToggle) {
+                navToggle.setAttribute('aria-expanded', 'true');
+            }
+            if (sidebarBackdrop) {
+                sidebarBackdrop.classList.add('is-visible');
+            }
+        };
+
+        const closeSidebar = () => {
+            if (!sidebar) return;
+            sidebar.classList.remove('is-open');
+            document.body.classList.remove('sidebar-open');
+            if (navToggle) {
+                navToggle.setAttribute('aria-expanded', 'false');
+            }
+            if (sidebarBackdrop) {
+                sidebarBackdrop.classList.remove('is-visible');
+            }
+        };
 
         if (navToggle) {
+            navToggle.setAttribute('aria-expanded', 'false');
+            navToggle.setAttribute('aria-controls', 'sidebar');
+        }
+
+        if (navToggle && sidebar) {
             navToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('is-open');
+                if (sidebar.classList.contains('is-open')) {
+                    closeSidebar();
+                } else {
+                    openSidebar();
+                }
+            });
+        }
+
+        if (sidebarBackdrop) {
+            sidebarBackdrop.addEventListener('click', closeSidebar);
+        }
+
+        if (sidebar) {
+            sidebar.querySelectorAll('a, button.logout-btn').forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth <= 1024) {
+                        closeSidebar();
+                    }
+                });
             });
         }
 
         document.addEventListener('click', (event) => {
-            if (window.innerWidth <= 1024 && sidebar.classList.contains('is-open')) {
-                if (!sidebar.contains(event.target) && !navToggle.contains(event.target)) {
-                    sidebar.classList.remove('is-open');
-                }
+            if (!sidebar || window.innerWidth > 1024 || !sidebar.classList.contains('is-open')) {
+                return;
+            }
+
+            const clickedToggle = navToggle && navToggle.contains(event.target);
+            const clickedSidebar = sidebar.contains(event.target);
+
+            if (!clickedSidebar && !clickedToggle) {
+                closeSidebar();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && sidebar && sidebar.classList.contains('is-open')) {
+                closeSidebar();
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 1024) {
+                closeSidebar();
             }
         });
 
