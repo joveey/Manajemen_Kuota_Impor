@@ -25,17 +25,18 @@
             </div>
         </div>
 
+        @php
+          $isHsPk     = request()->routeIs('admin.imports.hs_pk.*');
+          $isQuotas   = request()->routeIs('admin.imports.quotas.*');
+          $isUnmapped = request()->routeIs('admin.mapping.unmapped.*');
+          // pastikan grup Operasional membuka saat salah satu aktif
+          $operationalOpen = ($isHsPk || $isQuotas || $isUnmapped || ($operationalOpen ?? false));
+        @endphp
+
         <!-- Sidebar Menu -->
         <nav class="mt-2">
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
                 
-                @php
-                    $isHsPk = request()->routeIs('admin.imports.hs_pk.*');
-                    $isQuotas = request()->routeIs('admin.imports.quotas.*');
-                    $isUnmapped = request()->routeIs('admin.mapping.unmapped.*');
-                    $operationalOpen = $isHsPk || $isQuotas || $isUnmapped;
-                @endphp
-
                 <!-- Operational -->
                 <li class="nav-item {{ $operationalOpen ? 'menu-open' : '' }}">
                     <a href="#" class="nav-link {{ $operationalOpen ? 'active' : '' }}">
@@ -49,7 +50,7 @@
                         <li class="nav-item">
                             <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ $isHsPk ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Import HS→PK</p>
+                                <p>Import HS?PK</p>
                             </a>
                         </li>
                         <li class="nav-item">
