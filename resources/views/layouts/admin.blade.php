@@ -906,14 +906,6 @@
                                 </svg>
                                 {{ $currentUser->name }}
                             </span>
-                        @endif
-                        @if(Auth::user()->roles->isNotEmpty())
-                            <span class="meta-pill">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14c-4 0-7 2-7 4v2h14v-2c0-2-3-4-7-4z" />
-                                </svg>
-                                Role: <span class="role-chip"> {{ $role->name }}</span>
-                        </span>
                          @endif
                     </div>
                     @if(trim($__env->yieldContent('breadcrumb')) !== '')
