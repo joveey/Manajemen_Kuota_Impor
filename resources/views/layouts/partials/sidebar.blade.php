@@ -47,10 +47,11 @@
                         </p>
                     </a>
                     <ul class="nav nav-treeview">
+                        @if(auth()->user()?->hasRole('admin') || auth()->user()?->hasRole('editor'))
                         <li class="nav-item">
                             <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ $isHsPk ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Import HS?PK</p>
+                                <p>Import HS -> PK</p>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -59,6 +60,7 @@
                                 <p>Import Kuota</p>
                             </a>
                         </li>
+                        @endif
                         <li class="nav-item">
                             <a href="{{ route('admin.mapping.unmapped.page') }}" class="nav-link {{ $isUnmapped ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
@@ -121,6 +123,7 @@
                 @endcan
 
                 {{-- Imports --}}
+                @if(auth()->user()?->hasRole('admin') || auth()->user()?->hasRole('editor'))
                 @php
                     $importsMenuOpen = request()->is('admin/imports/hs-pk*') || request()->is('admin/imports/quotas*');
                 @endphp
@@ -136,7 +139,7 @@
                         <li class="nav-item">
                             <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>HS→PK</p>
+                                <p>HS -> PK</p>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -147,6 +150,7 @@
                         </li>
                     </ul>
                 </li>
+                @endif
                 {{-- Mapping --}}
                 @php
                     $mappingMenuOpen = request()->is('admin/mapping/*');

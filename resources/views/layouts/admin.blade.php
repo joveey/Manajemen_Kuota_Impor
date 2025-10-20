@@ -1,4 +1,4 @@
-﻿{{-- resources/views/layouts/admin.blade.php --}}
+{{-- resources/views/layouts/admin.blade.php --}}
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
@@ -404,7 +404,7 @@
         }
 
         .breadcrumb-item + .breadcrumb-item::before {
-            content: '›';
+            content: '>';
             color: #cbd5f5;
             font-size: 12px;
         }
@@ -760,15 +760,20 @@
                                 </a>
                             @endif
 
+                            @php
+                                $canImportMenu = auth()->user()?->hasRole('admin') || auth()->user()?->hasRole('editor');
+                            @endphp
+                            @if($canImportMenu)
                             {{-- Import menus (kept outside permission blocks to ensure visibility) --}}
                             <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-file-import"></i></span>
-                                <span>Import HS→PK</span>
+                                <span>Import HS -> PK</span>
                             </a>
                             <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-file-import"></i></span>
                                 <span>Import Kuota</span>
                             </a>
+                            @endif
                             <a href="{{ route('admin.mapping.unmapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.unmapped') || request()->routeIs('admin.mapping.unmapped.*') ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-puzzle-piece"></i></span>
                                 <span>Produk Unmapped</span>

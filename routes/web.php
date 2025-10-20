@@ -147,30 +147,31 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     })->name('shipments.receipts.create');
 
     // HS→PK Imports upload (backend only)
-    Route::post('imports/hs-pk', [ImportController::class, 'uploadHsPk'])->name('imports.hs_pk.upload');
-    Route::post('imports/quotas', [ImportController::class, 'uploadQuotas'])->name('imports.quotas.upload');
+    Route::middleware(['permission:read quota'])->group(function () {
+        Route::post('imports/hs-pk', [ImportController::class, 'uploadHsPk'])->name('imports.hs_pk.upload');
+        Route::post('imports/quotas', [ImportController::class, 'uploadQuotas'])->name('imports.quotas.upload');
 
-    // HS→PK Import preview (backend only)
-    Route::get('imports/{import}/summary', [ImportController::class, 'showSummary'])->name('imports.summary');
-    Route::get('imports/{import}/items', [ImportController::class, 'listItems'])->name('imports.items');
-    Route::post('imports/{import}/publish', [ImportController::class, 'publish'])->name('imports.publish');
-    Route::post('imports/{import}/publish-quotas', [ImportController::class, 'publishQuotas'])->name('imports.quotas.publish');
+        Route::get('imports/{import}/summary', [ImportController::class, 'showSummary'])->name('imports.summary');
+        Route::get('imports/{import}/items', [ImportController::class, 'listItems'])->name('imports.items');
+        Route::post('imports/{import}/publish', [ImportController::class, 'publish'])->name('imports.publish');
+        Route::post('imports/{import}/publish-quotas', [ImportController::class, 'publishQuotas'])->name('imports.quotas.publish');
+
+        Route::get('imports/hs-pk', [HsPkImportPageController::class, 'index'])->name('imports.hs_pk.index');
+        Route::post('imports/hs-pk/upload', [HsPkImportPageController::class, 'uploadForm'])->name('imports.hs_pk.upload.form');
+        Route::get('imports/hs-pk/{import}', [HsPkImportPageController::class, 'preview'])->name('imports.hs_pk.preview');
+        Route::post('imports/hs-pk/{import}/publish', [HsPkImportPageController::class, 'publishForm'])->name('imports.hs_pk.publish.form');
+
+        Route::get('imports/quotas', [QuotaImportPageController::class, 'index'])->name('imports.quotas.index');
+        Route::post('imports/quotas/upload', [QuotaImportPageController::class, 'uploadForm'])->name('imports.quotas.upload.form');
+        Route::get('imports/quotas/{import}', [QuotaImportPageController::class, 'preview'])->name('imports.quotas.preview');
+        Route::post('imports/quotas/{import}/publish', [QuotaImportPageController::class, 'publishForm'])->name('imports.quotas.publish.form');
+    });
+
     // Mapping diagnostics
     Route::get('mapping/unmapped', [MappingController::class, 'unmapped'])->name('mapping.unmapped');
     // Mapping UI page (uses JSON endpoint above via XHR)
     Route::get('mapping/unmapped/view', [MappingPageController::class, 'unmapped'])->name('mapping.unmapped.page');
 
-    // HS→PK Import Pages (UI)
-    Route::get('imports/hs-pk', [HsPkImportPageController::class, 'index'])->name('imports.hs_pk.index');
-    Route::post('imports/hs-pk/upload', [HsPkImportPageController::class, 'uploadForm'])->name('imports.hs_pk.upload.form');
-    Route::get('imports/hs-pk/{import}', [HsPkImportPageController::class, 'preview'])->name('imports.hs_pk.preview');
-    Route::post('imports/hs-pk/{import}/publish', [HsPkImportPageController::class, 'publishForm'])->name('imports.hs_pk.publish.form');
-
-    // Quotas Import Pages (UI)
-    Route::get('imports/quotas', [QuotaImportPageController::class, 'index'])->name('imports.quotas.index');
-    Route::post('imports/quotas/upload', [QuotaImportPageController::class, 'uploadForm'])->name('imports.quotas.upload.form');
-    Route::get('imports/quotas/{import}', [QuotaImportPageController::class, 'preview'])->name('imports.quotas.preview');
-    Route::post('imports/quotas/{import}/publish', [QuotaImportPageController::class, 'publishForm'])->name('imports.quotas.publish.form');
 
 });
 
