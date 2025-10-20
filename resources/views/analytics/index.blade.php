@@ -1,15 +1,13 @@
+{{-- resources/views/analytics/index.blade.php --}}
 @extends('layouts.admin')
 
 @section('title','Analytics')
-
 @section('page-title','Analytics')
 
-@section('content')
 @php
     $mode = $mode ?? 'actual';
     $isForecast = $mode === 'forecast';
     $modeLabel = $isForecast ? 'Forecast' : 'Actual';
-    $badgeClass = $isForecast ? 'text-bg-warning' : 'text-bg-primary';
     $primaryLabel = $isForecast ? 'Forecast (Purchase Orders)' : 'Actual (Good Receipt)';
     $secondaryLabel = $isForecast ? 'Sisa Forecast' : 'Sisa Kuota';
     $percentageLabel = $isForecast ? 'Penggunaan Forecast %' : 'Pemakaian Actual %';
@@ -17,115 +15,218 @@
     $forecastUrl = route('analytics.index', array_merge($query, ['mode' => 'forecast']));
     $actualUrl = route('analytics.index', array_merge($query, ['mode' => 'actual']));
 @endphp
-<div class="app-analytics">
-    <div class="card glass-card mb-4">
-        <div class="card-body">
-            <form method="GET" action="{{ route('analytics.index') }}" class="row g-3 align-items-end">
-                <input type="hidden" name="mode" value="{{ $mode }}">
-                <div class="col-12 col-sm-4 col-lg-3">
-                    <label for="start_date" class="form-label">Start Date</label>
-                    <input type="date" id="start_date" name="start_date" value="{{ $start_date }}" class="form-control">
-                </div>
-                <div class="col-12 col-sm-4 col-lg-3">
-                    <label for="end_date" class="form-label">End Date</label>
-                    <input type="date" id="end_date" name="end_date" value="{{ $end_date }}" class="form-control">
-                </div>
-                <div class="col-12 col-sm-4 col-lg-3">
-                    <button type="submit" class="btn btn-primary w-100">Terapkan</button>
-                </div>
-            </form>
-            <div class="d-flex flex-wrap gap-2 mt-3">
-                <div class="btn-group" role="group" aria-label="Pilih Mode Data">
-                    <a href="{{ $forecastUrl }}" class="btn btn-outline-warning {{ $isForecast ? 'active' : '' }}">Forecast</a>
-                    <a href="{{ $actualUrl }}" class="btn btn-outline-primary {{ $isForecast ? '' : 'active' }}">Actual</a>
-                </div>
-                <span class="badge rounded-pill {{ $badgeClass }}">{{ $modeLabel }} data</span>
-            </div>
+
+@section('content')
+<div class="page-shell analytics-shell">
+    <div class="page-header">
+        <div>
+            <h1 class="page-header__title">Analytics</h1>
+            <p class="page-header__subtitle">
+                Lihat perbandingan kuota terhadap realisasi pengiriman dan status forecast untuk tiap periode.
+            </p>
+        </div>
+        <div class="page-header__actions">
+            <a href="{{ route('analytics.export.csv', request()->query()) }}" class="page-header__button page-header__button--outline">
+                <i class="fas fa-file-csv me-2"></i>CSV
+            </a>
+            <a href="{{ route('analytics.export.xlsx', request()->query()) }}" class="page-header__button page-header__button--outline">
+                <i class="fas fa-file-excel me-2"></i>XLSX
+            </a>
+            <a href="{{ route('analytics.export.pdf', request()->query()) }}" class="page-header__button page-header__button--outline">
+                <i class="fas fa-file-pdf me-2"></i>PDF
+            </a>
         </div>
     </div>
 
-    <div class="row g-3">
-        <div class="col-12 col-xl-6">
-            <div class="card glass-card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h5 class="mb-0">Perbandingan Kuota vs {{ $modeLabel }}</h5>
-                        <span class="badge rounded-pill {{ $badgeClass }}">{{ $modeLabel }} Based</span>
-                    </div>
-                    <div id="analyticsBar" class="chart-container"></div>
-                </div>
+    <section class="analytics-card analytics-card--filters">
+        <form method="GET" action="{{ route('analytics.index') }}" class="analytics-filters">
+            <input type="hidden" name="mode" value="{{ $mode }}">
+            <div class="analytics-filters__group">
+                <label for="start_date" class="analytics-filters__label">Start Date</label>
+                <input type="date" id="start_date" name="start_date" value="{{ $start_date }}" class="analytics-filters__input">
             </div>
-        </div>
-        <div class="col-12 col-xl-6">
-            <div class="card glass-card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h5 class="mb-0">Proporsi Pemakaian {{ $modeLabel }}</h5>
-                        <span class="badge rounded-pill text-bg-secondary">Donut</span>
-                    </div>
-                    <div id="analyticsDonut" class="chart-container"></div>
-                </div>
+            <div class="analytics-filters__group">
+                <label for="end_date" class="analytics-filters__label">End Date</label>
+                <input type="date" id="end_date" name="end_date" value="{{ $end_date }}" class="analytics-filters__input">
             </div>
+            <button type="submit" class="analytics-filters__submit">
+                <i class="fas fa-filter me-2"></i>Terapkan
+            </button>
+        </form>
+        <div class="analytics-mode">
+            <a href="{{ $forecastUrl }}" class="analytics-mode__chip {{ $isForecast ? 'analytics-mode__chip--active' : '' }}">Forecast</a>
+            <a href="{{ $actualUrl }}" class="analytics-mode__chip {{ $isForecast ? '' : 'analytics-mode__chip--active' }}">Actual</a>
         </div>
-    </div>
+    </section>
 
-    <div class="card glass-card mt-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Detail {{ $modeLabel }} per Kuota</h5>
-            <div class="btn-group">
-                <a class="btn btn-outline-secondary btn-sm" href="{{ route('analytics.export.csv', request()->query()) }}">CSV</a>
-                <a class="btn btn-outline-secondary btn-sm" href="{{ route('analytics.export.xlsx', request()->query()) }}">XLSX</a>
-                <a class="btn btn-outline-secondary btn-sm" href="{{ route('analytics.export.pdf', request()->query()) }}">PDF</a>
+    <section class="analytics-grid">
+        <article class="analytics-card">
+            <header class="analytics-card__header">
+                <h2 class="analytics-card__title">Perbandingan Kuota vs {{ $modeLabel }}</h2>
+                <span class="analytics-card__badge">{{ $modeLabel }} Based</span>
+            </header>
+            <div id="analyticsBar" class="analytics-card__chart"></div>
+        </article>
+
+        <article class="analytics-card">
+            <header class="analytics-card__header">
+                <h2 class="analytics-card__title">Proporsi Pemakaian {{ $modeLabel }}</h2>
+                <span class="analytics-card__badge analytics-card__badge--muted">Donut</span>
+            </header>
+            <div id="analyticsDonut" class="analytics-card__chart"></div>
+        </article>
+    </section>
+
+    <section class="analytics-card">
+        <header class="analytics-card__header">
+            <div>
+                <h2 class="analytics-card__title">Detail {{ $modeLabel }} per Kuota</h2>
+                <p class="analytics-card__subtitle">Angka-angka berikut memudahkan tim operasional memantau sisa kuota dan realisasi shipment.</p>
             </div>
+            <span class="analytics-card__badge analytics-card__badge--muted">{{ $modeLabel }} data</span>
+        </header>
+        <div class="table-responsive">
+            <table class="analytics-table">
+                <thead>
+                    <tr>
+                        <th>Nomor Kuota</th>
+                        <th>Range PK</th>
+                        <th class="text-end">Kuota Awal</th>
+                        <th class="text-end">{{ $primaryLabel }}</th>
+                        <th class="text-end">{{ $secondaryLabel }}</th>
+                        <th class="text-end">{{ $percentageLabel }}</th>
+                    </tr>
+                </thead>
+                <tbody id="analyticsTableBody">
+                    <tr><td colspan="6" class="text-center text-muted py-4">Memuat data...</td></tr>
+                </tbody>
+            </table>
         </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead>
-                        <tr>
-                            <th>Nomor Kuota</th>
-                            <th>Range PK</th>
-                            <th class="text-end">Kuota Awal</th>
-                            <th class="text-end">{{ $primaryLabel }}</th>
-                            <th class="text-end">{{ $secondaryLabel }}</th>
-                            <th class="text-end">{{ $percentageLabel }}</th>
-                        </tr>
-                    </thead>
-                    <tbody id="analyticsTableBody">
-                        <tr><td colspan="6" class="text-center text-muted">Memuat data...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+    </section>
 </div>
+@endsection
+
+@push('styles')
+<style>
+    .analytics-shell { display:flex; flex-direction:column; gap:24px; }
+    .analytics-card {
+        border:1px solid #dfe4f3;
+        border-radius:16px;
+        background:#ffffff;
+        box-shadow:0 20px 45px -36px rgba(15,23,42,.35);
+        padding:22px 24px;
+        display:flex;
+        flex-direction:column;
+        gap:18px;
+    }
+    .analytics-card--filters { gap:16px; }
+    .analytics-card__header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
+    .analytics-card__title { font-size:18px; font-weight:600; color:#0f172a; margin:0; }
+    .analytics-card__subtitle { font-size:13px; color:#64748b; margin:6px 0 0; max-width:520px; }
+    .analytics-card__badge { border-radius:999px; padding:6px 12px; font-size:12px; font-weight:600; color:#2563eb; background:rgba(37,99,235,0.12); }
+    .analytics-card__badge--muted { color:#475569; background:rgba(148,163,184,0.16); }
+    .analytics-card__chart { min-height:320px; }
+
+    .analytics-filters { display:flex; flex-wrap:wrap; gap:16px; }
+    .analytics-filters__group { display:flex; flex-direction:column; gap:6px; flex:1 1 200px; }
+    .analytics-filters__label { font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#94a3b8; }
+    .analytics-filters__input {
+        border-radius:12px;
+        border:1px solid #cbd5f5;
+        padding:10px 14px;
+        font-size:13px;
+        transition:border-color .2s ease, box-shadow .2s ease;
+    }
+    .analytics-filters__input:focus {
+        border-color:#2563eb;
+        box-shadow:0 0 0 3px rgba(37,99,235,0.15);
+        outline:none;
+    }
+    .analytics-filters__submit {
+        background:#2563eb;
+        color:#fff;
+        border:none;
+        border-radius:12px;
+        padding:10px 18px;
+        font-size:13px;
+        font-weight:600;
+        display:inline-flex;
+        align-items:center;
+        gap:8px;
+    }
+    .analytics-mode { display:flex; flex-wrap:wrap; gap:12px; }
+    .analytics-mode__chip {
+        border:1px solid #cbd5f5;
+        border-radius:999px;
+        padding:8px 16px;
+        font-size:13px;
+        font-weight:600;
+        color:#1f2937;
+        text-decoration:none;
+        transition:all .2s ease;
+    }
+    .analytics-mode__chip:hover { border-color:#2563eb; color:#2563eb; }
+    .analytics-mode__chip--active { background:#2563eb; color:#fff; border-color:#2563eb; }
+
+    .analytics-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; }
+
+    .analytics-table { width:100%; border-collapse:separate; border-spacing:0; }
+    .analytics-table thead th {
+        background:#f8fbff;
+        padding:12px 14px;
+        font-size:12px;
+        text-transform:uppercase;
+        letter-spacing:0.08em;
+        color:#64748b;
+    }
+    .analytics-table tbody td {
+        padding:14px;
+        font-size:13px;
+        color:#1f2937;
+        border-top:1px solid #e5eaf5;
+    }
+    .analytics-table tbody tr:hover { background:rgba(37,99,235,0.04); }
+
+    @media (max-width: 640px) {
+        .analytics-card,
+        .analytics-card--filters { padding:18px; }
+    }
+</style>
+@endpush
 
 @push('scripts')
-    <style>
-        /* Prevent layout shift: fixed chart height */
-        .chart-container { min-height: 20rem; height: 20rem; }
-        @media (min-width: 768px) { .chart-container { height: 28rem; } }
-    </style>
-    <script src="{{ asset('js/analytics-charts.js') }}?v={{ time() }}"></script>
-    <script>
-        window.analyticsConfig = {
-            dataUrl: @json(route('analytics.data', request()->query())),
-            tableBodyId: 'analyticsTableBody',
-            barElId: 'analyticsBar',
-            donutElId: 'analyticsDonut',
-            mode: @json($mode),
-            labels: {
-                primary: @json($primaryLabel),
-                secondary: @json($secondaryLabel),
-                percentage: @json($percentageLabel)
-            }
-        };
-        (function(){
-            function call(){ if (window.initAnalyticsCharts) window.initAnalyticsCharts(window.analyticsConfig); }
-            if (!window.__apexInjected) {
-                var s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/apexcharts'; s.async=true; s.onload=call; document.head.appendChild(s); window.__apexInjected=true;
-            } else { call(); }
-        })();
-    </script>
+<script src="{{ asset('js/analytics-charts.js') }}?v={{ time() }}"></script>
+<script>
+(function(){
+    const config = {
+        dataUrl: @json(route('analytics.data', request()->query())),
+        tableBodyId: 'analyticsTableBody',
+        barElId: 'analyticsBar',
+        donutElId: 'analyticsDonut',
+        mode: @json($mode),
+        labels: {
+            primary: @json($primaryLabel),
+            secondary: @json($secondaryLabel),
+            percentage: @json($percentageLabel)
+        }
+    };
+
+    function initCharts() {
+        if (typeof window.initAnalyticsCharts === 'function') {
+            window.initAnalyticsCharts(config);
+        }
+    }
+
+    if (!window.__apexInjected) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/apexcharts';
+        script.async = true;
+        script.onload = initCharts;
+        document.head.appendChild(script);
+        window.__apexInjected = true;
+    } else {
+        initCharts();
+    }
+})();
+</script>
 @endpush
-@endsection

@@ -10,14 +10,6 @@
 
 @push('styles')
 <style>
-    .po-page { display:flex; flex-direction:column; gap:28px; }
-    .po-header { display:flex; flex-wrap:wrap; justify-content:space-between; gap:18px; align-items:flex-start; }
-    .po-title { font-size:26px; font-weight:700; color:#0f172a; margin:0; }
-    .po-subtitle { margin-top:6px; color:#64748b; font-size:13px; max-width:540px; }
-    .po-actions { display:flex; gap:12px; }
-    .po-action { display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:14px; font-size:13px; font-weight:600; text-decoration:none; transition:all .2s ease; border:1px solid transparent; }
-    .po-action--outline { background:rgba(148,163,184,.1); color:#1f2937; border-color:rgba(148,163,184,.35); }
-    .po-action--outline:hover { background:rgba(148,163,184,.16); }
     .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; }
     .summary-tile { border-radius:18px; border:1px solid #e6ebf5; background:linear-gradient(135deg,#fff 0%,#f8fafc 100%); padding:20px; box-shadow:0 24px 48px -44px rgba(15,23,42,.45); display:flex; flex-direction:column; gap:6px; }
     .summary-tile__label { font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:.12em; }
@@ -48,22 +40,20 @@
     .action-icon:hover { transform:translateY(-1px); }
     .pagination-modern { display:flex; justify-content:flex-end; margin-top:20px; }
     @media (max-width: 992px) {
-        .po-header { flex-direction:column; align-items:stretch; }
-        .po-actions { justify-content:flex-start; }
         .filter-panel__buttons { flex-direction:column; }
     }
 </style>
 @endpush
 
 @section('content')
-<div class="po-page">
-    <div class="po-header">
+<div class="page-shell">
+    <div class="page-header">
         <div>
-            <h1 class="po-title">Daftar Purchase Order</h1>
-            <p class="po-subtitle">Pantau status purchase order, progres pengiriman, dan detail pelanggan dalam satu tampilan ringkas.</p>
+            <h1 class="page-header__title">Daftar Purchase Order</h1>
+            <p class="page-header__subtitle">Pantau status purchase order, progres pengiriman, dan detail pelanggan dalam satu tampilan ringkas.</p>
         </div>
-        <div class="po-actions">
-            <a href="{{ route('admin.purchase-orders.export', request()->query()) }}" class="po-action po-action--outline">
+        <div class="page-header__actions">
+            <a href="{{ route('admin.purchase-orders.export', request()->query()) }}" class="page-header__button page-header__button--outline">
                 <i class="fas fa-file-export"></i>
                 Export CSV
             </a>

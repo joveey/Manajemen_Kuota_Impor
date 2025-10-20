@@ -45,6 +45,7 @@
             font-family: 'Inter', sans-serif;
             background: var(--surface);
             color: var(--text);
+            overflow-x: hidden;
         }
 
         body.sidebar-open { overflow: hidden; }
@@ -332,14 +333,23 @@
             background: #ffffff;
             border-bottom: 1px solid rgba(148, 163, 184, 0.18);
             display: flex;
-            align-items: center;
-            justify-content: space-between;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 18px;
             padding: 20px 32px;
             position: sticky;
             top: 0;
             z-index: 1020;
             backdrop-filter: blur(14px);
             box-shadow: 0 18px 36px -30px rgba(15, 23, 42, 0.4);
+        }
+
+        .app-bar__masthead {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            width: 100%;
         }
 
         .bar-left { display: flex; flex-direction: column; gap: 12px; }
@@ -412,6 +422,7 @@
         .bar-actions {
             display: flex;
             align-items: center;
+            justify-content: flex-end;
             gap: 14px;
         }
 
@@ -458,19 +469,6 @@
             box-shadow: 0 20px 44px -28px rgba(37, 99, 235, 0.85);
         }
 
-        .search-lite {
-            position: relative;
-            display: none;
-        }
-
-        .search-lite input {
-            background: rgba(15, 23, 42, 0.04);
-            border: 1px solid var(--stroke);
-            border-radius: 10px;
-            padding: 8px 12px 8px 36px;
-            font-size: 11.5px;
-        }
-
         /* Scale down common form/control text sizes */
         .btn { --bs-btn-font-size: calc(1rem * var(--font-scale)); }
         .form-control, .form-select, .form-label, .form-check-label, .input-group-text {
@@ -481,16 +479,82 @@
         .dataTable, .table, .select2-container, .select2-selection__rendered,
         .select2-dropdown, .flatpickr-input, .pagination { font-size: 0.875rem; }
 
-        .search-lite svg {
-            position: absolute;
-            top: 50%;
-            left: 12px;
-            transform: translateY(-50%);
-            color: #cbd5f5;
-        }
-
         .app-content {
             padding: 20px 36px 36px;
+            width: 100%;
+            overflow-x: hidden;
+        }
+
+        .page-shell {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .page-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 18px;
+        }
+
+        .page-header__title {
+            margin: 0;
+            font-size: 26px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .page-header__subtitle {
+            margin-top: 6px;
+            color: #64748b;
+            font-size: 13px;
+            max-width: 540px;
+        }
+
+        .page-header__actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .page-header__button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid transparent;
+            text-decoration: none;
+            transition: all .2s ease;
+        }
+
+        .page-header__button--primary {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #2563eb;
+            box-shadow: 0 18px 38px -30px rgba(37, 99, 235, .78);
+        }
+
+        .page-header__button--primary:hover {
+            background: #1d4ed8;
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        .page-header__button--outline {
+            background: rgba(148, 163, 184, .08);
+            color: #1f2937;
+            border-color: rgba(148, 163, 184, .35);
+        }
+
+        .page-header__button--outline:hover {
+            background: rgba(148, 163, 184, .14);
         }
 
         .card,
@@ -520,32 +584,27 @@
             }
             .app-main { margin-left: 0; }
             .app-bar {
-                flex-wrap: wrap;
-                align-items: flex-start;
-                gap: 12px;
                 padding: 18px 24px;
+                gap: 16px;
             }
-            .app-bar .nav-toggle { display: inline-flex; order: 0; }
-            .app-bar-brand {
-                display: inline-flex;
+            .app-bar__masthead {
+                display: grid;
+                grid-template-columns: auto 1fr;
                 align-items: center;
-                order: 0;
-                margin: 0 auto;
+                gap: 12px;
             }
-            .bar-left { order: 1; width: 100%; }
+            .app-bar__masthead .nav-toggle {
+                display: inline-flex;
+                justify-self: start;
+            }
+            .app-bar-brand {
+                display: flex;
+                justify-self: end;
+            }
             .bar-actions {
-                order: 2;
-                width: 100%;
+                grid-column: 1 / -1;
                 justify-content: flex-start;
                 gap: 10px;
-            }
-            .search-lite {
-                display: flex;
-                flex: 1 1 auto;
-                align-items: center;
-            }
-            .search-lite input {
-                width: 100%;
             }
             .quick-action { display: none; }
         }
@@ -578,16 +637,14 @@
             .nav-groups { padding: 0; }
             .app-main { margin: 0; width: 100%; }
             .app-bar {
-                flex-direction: column;
-                align-items: stretch;
                 gap: 12px;
                 padding: 16px 18px;
             }
-            .app-bar-brand {
-                align-self: center;
+            .app-bar__masthead {
+                grid-template-columns: auto 1fr;
+                gap: 10px;
             }
-            .app-bar .nav-toggle {
-                align-self: flex-start;
+            .app-bar__masthead .nav-toggle {
                 margin-left: -4px;
             }
             .bar-left {
@@ -600,14 +657,20 @@
                 gap: 6px;
             }
             .bar-actions {
-                flex-direction: column;
+                grid-column: 1 / -1;
+                justify-content: flex-start;
                 align-items: stretch;
                 gap: 8px;
             }
-            .bar-actions .search-lite {
-                width: 100%;
+            .page-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 14px;
             }
-            .app-content { padding: 16px 18px 28px; }
+            .page-header__actions {
+                justify-content: flex-start;
+            }
+            .app-content { padding: 16px 18px 28px; width: 100%; overflow-x: hidden; }
             .sidebar.is-open { transform: translateX(0); }
         }
     </style>
@@ -639,8 +702,8 @@
                         request()->routeIs('admin.mapping.unmapped') ||
                         request()->routeIs('admin.mapping.unmapped.*') ||
                         ($canQuota && (request()->is('admin/quotas*') || request()->is('admin/kuota*'))) ||
-                        ($canPORead && (request()->is('admin/purchase-orders*') || request()->is('admin/purchase-order*') ||
-                            request()->is('admin/shipments*') || request()->is('admin/shipment')))
+                        ($canPORead && (request()->is('admin/purchase-orders*') ||
+                            request()->is('admin/shipments*')))
                     );
 
                     $reportsActive = $canReports && (request()->is('admin/reports*') || request()->is('analytics*'));
@@ -711,11 +774,11 @@
                                 <span>Produk Unmapped</span>
                             </a>
                             @if($canPORead)
-                                <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') || request()->routeIs('admin.purchase-order.index') ? 'active' : '' }}">
+                                <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
                                     <span>Daftar Purchase Order</span>
                                 </a>
-                                <a href="{{ route('admin.shipments.index') }}" class="nav-link {{ request()->routeIs('admin.shipments.index') || request()->is('admin/shipments*') || request()->is('admin/shipment') ? 'active' : '' }}">
+                                <a href="{{ route('admin.shipments.index') }}" class="nav-link {{ request()->routeIs('admin.shipments.index') || request()->is('admin/shipments*') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-truck"></i></span>
                                     <span>Pengiriman & Receipt</span>
                                 </a>
@@ -812,23 +875,23 @@
 
         <div class="app-main">
             <header class="app-bar">
-                <button class="nav-toggle btn btn-light" id="navToggle">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                </button>
-                <span class="app-bar-brand d-lg-none">
-                    <img src="{{ asset('images/panasonic-logo.svg') }}" alt="Panasonic logo">
-                </span>
+                <div class="app-bar__masthead">
+                    <button class="nav-toggle btn btn-light" id="navToggle">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                    <span class="app-bar-brand">
+                        <img src="{{ asset('images/panasonic-logo.svg') }}" alt="Panasonic logo">
+                    </span>
+                    <div class="bar-actions"></div>
+                </div>
                 <div class="bar-left">
                     @php
-                        $pageTitle = trim($__env->yieldContent('page-title'));
-                        if ($pageTitle === '') {
-                            $pageTitle = trim($__env->yieldContent('title', 'Dashboard'));
-                        }
+                        $pageTitle = trim($__env->yieldContent('page-title', trim($__env->yieldContent('title', 'Dashboard'))));
                         $displayDate = now()->format('l, d F Y');
                     @endphp
-                    <h1>{{ $pageTitle }}</h1>
+                    <h1>{!! $pageTitle !!}</h1>
                     <div class="bar-meta">
                         <span class="meta-pill neutral">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -850,14 +913,6 @@
                             @yield('breadcrumb')
                         </ol>
                     @endif
-                </div>
-                <div class="bar-actions">
-                    <div class="search-lite">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M18 11.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0z" />
-                        </svg>
-                        <input type="search" placeholder="Cari...">
-                    </div>
                 </div>
             </header>
 

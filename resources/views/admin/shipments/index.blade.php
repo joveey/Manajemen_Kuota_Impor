@@ -1,4 +1,4 @@
-{{-- resources/views/admin/shipment/index.blade.php --}}
+{{-- resources/views/admin/shipments/index.blade.php --}}
 @extends('layouts.admin')
 
 @section('title', 'Pengiriman (Shipment)')
@@ -10,30 +10,6 @@
 
 @push('styles')
 <style>
-    .shipment-page { display:flex; flex-direction:column; gap:28px; }
-
-    .shipment-header {
-        display:flex;
-        flex-wrap:wrap;
-        justify-content:space-between;
-        gap:18px;
-        align-items:flex-start;
-    }
-
-    .shipment-title { font-size:26px; font-weight:700; color:#0f172a; margin:0; }
-    .shipment-subtitle { margin-top:6px; color:#64748b; font-size:13px; max-width:520px; }
-
-    .shipment-actions { display:flex; gap:12px; }
-    .shipment-action {
-        display:inline-flex; align-items:center; gap:8px;
-        padding:10px 18px; border-radius:14px; font-size:13px; font-weight:600;
-        text-decoration:none; transition:all .2s ease; border:1px solid transparent;
-    }
-    .shipment-action--outline { background:rgba(148,163,184,.1); color:#1f2937; border-color:rgba(148,163,184,.35); }
-    .shipment-action--outline:hover { background:rgba(148,163,184,.16); }
-    .shipment-action--primary { background:#2563eb; color:#fff; box-shadow:0 18px 38px -30px rgba(37,99,235,.78); }
-    .shipment-action--primary:hover { background:#1d4ed8; transform:translateY(-1px); }
-
     .summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; }
     .summary-card {
         border-radius:18px; border:1px solid #e6ebf5;
@@ -111,19 +87,19 @@
 @endpush
 
 @section('content')
-<div class="shipment-page">
-    <div class="shipment-header">
+<div class="page-shell">
+    <div class="page-header">
         <div>
-            <h1 class="shipment-title">Pengiriman (Shipment)</h1>
-            <p class="shipment-subtitle">Lacak seluruh pengiriman, status penerimaan, dan ETA dalam satu dashboard modern.</p>
+            <h1 class="page-header__title">Pengiriman (Shipment)</h1>
+            <p class="page-header__subtitle">Lacak seluruh pengiriman, status penerimaan, dan ETA dalam satu dashboard modern.</p>
         </div>
-        <div class="shipment-actions">
-            <a href="{{ route('admin.shipments.export') }}" class="shipment-action shipment-action--outline">
+        <div class="page-header__actions">
+            <a href="{{ route('admin.shipments.export') }}" class="page-header__button page-header__button--outline">
                 <i class="fas fa-file-export"></i>
                 Export CSV
             </a>
             @can('create purchase_orders')
-                <a href="{{ route('admin.shipments.create') }}" class="shipment-action shipment-action--primary">
+                <a href="{{ route('admin.shipments.create') }}" class="page-header__button page-header__button--primary">
                     <i class="fas fa-plus"></i>
                     Buat Shipment
                 </a>

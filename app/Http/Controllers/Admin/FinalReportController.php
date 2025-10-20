@@ -99,6 +99,11 @@ class FinalReportController extends Controller
 
         $start = $startDate ? Carbon::parse($startDate)->startOfDay() : now()->startOfYear();
         $end = $endDate ? Carbon::parse($endDate)->endOfDay() : now()->endOfDay();
+
+        if ($start->greaterThan($end)) {
+            [$start, $end] = [$end->copy(), $start];
+        }
+
         $startString = $start->toDateString();
         $endString = $end->toDateString();
 
@@ -112,33 +117,54 @@ class FinalReportController extends Controller
                 'quotas.forecast_remaining',
                 'quotas.actual_remaining',
             ])
-            ->leftJoin('purchase_orders as po', function ($join) use ($startString, $endString) {
-                $join->on('po.quota_id', '=', 'quotas.id')
-                    ->whereDate('po.order_date', '>=', $startString)
-                    ->whereDate('po.order_date', '<=', $endString);
-            })
-            ->leftJoin('shipments as s', 's.purchase_order_id', '=', 'po.id')
-            ->leftJoin('shipment_receipts as sr', function ($join) use ($startString, $endString) {
-                $join->on('sr.shipment_id', '=', 's.id')
-                    ->whereDate('sr.receipt_date', '>=', $startString)
-                    ->whereDate('sr.receipt_date', '<=', $endString);
-            })
-            ->groupBy([
-                'quotas.id',
-                'quotas.quota_number',
-                'quotas.name',
-                'quotas.government_category',
-                'quotas.total_allocation',
-                'quotas.forecast_remaining',
-                'quotas.actual_remaining',
-            ])
-            ->selectRaw('COUNT(DISTINCT po.id) as po_count')
-            ->selectRaw('COALESCE(SUM(po.quantity),0) as po_quantity')
-            ->selectRaw('COALESCE(SUM(po.quantity_received),0) as po_received')
-            ->selectRaw('COUNT(DISTINCT s.id) as shipment_count')
-            ->selectRaw('COALESCE(SUM(s.quantity_planned),0) as shipment_planned')
-            ->selectRaw('COALESCE(SUM(sr.quantity_received),0) as shipment_received')
-            ->selectRaw('MAX(sr.receipt_date) as last_receipt_date')
+            ->selectSub(function ($query) use ($startString, $endString) {
+                $query->from('purchase_orders')
+                    ->selectRaw('COUNT(*)')
+                    ->whereColumn('quota_id', 'quotas.id')
+                    ->whereBetween('order_date', [$startString, $endString]);
+            }, 'po_count')
+            ->selectSub(function ($query) use ($startString, $endString) {
+                $query->from('purchase_orders')
+                    ->selectRaw('COALESCE(SUM(quantity), 0)')
+                    ->whereColumn('quota_id', 'quotas.id')
+                    ->whereBetween('order_date', [$startString, $endString]);
+            }, 'po_quantity')
+            ->selectSub(function ($query) use ($startString, $endString) {
+                $query->from('purchase_orders')
+                    ->selectRaw('COALESCE(SUM(quantity_received), 0)')
+                    ->whereColumn('quota_id', 'quotas.id')
+                    ->whereBetween('order_date', [$startString, $endString]);
+            }, 'po_received')
+            ->selectSub(function ($query) use ($startString, $endString) {
+                $query->from('shipments')
+                    ->selectRaw('COUNT(*)')
+                    ->join('purchase_orders as po2', 'po2.id', '=', 'shipments.purchase_order_id')
+                    ->whereColumn('po2.quota_id', 'quotas.id')
+                    ->whereBetween('po2.order_date', [$startString, $endString]);
+            }, 'shipment_count')
+            ->selectSub(function ($query) use ($startString, $endString) {
+                $query->from('shipments')
+                    ->selectRaw('COALESCE(SUM(shipments.quantity_planned), 0)')
+                    ->join('purchase_orders as po2', 'po2.id', '=', 'shipments.purchase_order_id')
+                    ->whereColumn('po2.quota_id', 'quotas.id')
+                    ->whereBetween('po2.order_date', [$startString, $endString]);
+            }, 'shipment_planned')
+            ->selectSub(function ($query) use ($startString, $endString) {
+                $query->from('shipments')
+                    ->selectRaw('COALESCE(SUM(shipments.quantity_received), 0)')
+                    ->join('purchase_orders as po2', 'po2.id', '=', 'shipments.purchase_order_id')
+                    ->whereColumn('po2.quota_id', 'quotas.id')
+                    ->whereBetween('po2.order_date', [$startString, $endString]);
+            }, 'shipment_received')
+            ->selectSub(function ($query) use ($startString, $endString) {
+                $query->from('shipment_receipts as sr')
+                    ->selectRaw('MAX(sr.receipt_date)')
+                    ->join('shipments as s', 's.id', '=', 'sr.shipment_id')
+                    ->join('purchase_orders as po2', 'po2.id', '=', 's.purchase_order_id')
+                    ->whereColumn('po2.quota_id', 'quotas.id')
+                    ->whereBetween('po2.order_date', [$startString, $endString])
+                    ->whereBetween('sr.receipt_date', [$startString, $endString]);
+            }, 'last_receipt_date')
             ->orderBy('quotas.quota_number')
             ->get();
 
@@ -168,12 +194,25 @@ class FinalReportController extends Controller
             ];
         })->values()->all();
 
-        $summary = $this->buildSummary($startString, $endString, $rows);
         $rowCollection = collect($rows);
 
-        $shipmentPlannedTotal = (int) $rowCollection->sum('shipment_planned');
-        $shipmentReceivedTotal = (int) $rowCollection->sum('shipment_received');
-        $shipmentOutstandingTotal = max(0, $shipmentPlannedTotal - $shipmentReceivedTotal);
+        $summary = [
+            'po_count' => (int) $rowCollection->sum('po_count'),
+            'po_quantity' => (int) $rowCollection->sum('po_quantity'),
+            'po_received' => (int) $rowCollection->sum('po_received'),
+            'po_outstanding' => max(0, (int) $rowCollection->sum('po_quantity') - (int) $rowCollection->sum('po_received')),
+            'shipment_count' => (int) $rowCollection->sum('shipment_count'),
+            'shipment_planned' => (int) $rowCollection->sum('shipment_planned'),
+            'shipment_received' => (int) $rowCollection->sum('shipment_received'),
+            'shipment_outstanding' => max(0, (int) $rowCollection->sum('shipment_planned') - (int) $rowCollection->sum('shipment_received')),
+            'total_allocation' => (int) $rowCollection->sum('total_allocation'),
+            'total_actual_consumed' => (int) $rowCollection->sum('shipment_received'),
+            'total_actual_remaining' => (int) $rowCollection->sum('actual_remaining'),
+        ];
+
+        $shipmentPlannedTotal = $summary['shipment_planned'];
+        $shipmentReceivedTotal = $summary['shipment_received'];
+        $shipmentOutstandingTotal = $summary['shipment_outstanding'];
 
         $highlights = $rowCollection
             ->map(function (array $row) {
@@ -242,46 +281,6 @@ class FinalReportController extends Controller
                     'series' => [$shipmentReceivedTotal, $shipmentOutstandingTotal],
                 ],
             ],
-        ];
-    }
-
-    /**
-     * @param array<int,array<string,mixed>> $rows
-     * @return array<string,int>
-     */
-    private function buildSummary(string $startDate, string $endDate, array $rows): array
-    {
-        $poBase = PurchaseOrder::query()
-            ->whereDate('order_date', '>=', $startDate)
-            ->whereDate('order_date', '<=', $endDate);
-
-        $poCount = (clone $poBase)->count();
-        $poQuantity = (clone $poBase)->sum('quantity');
-        $poReceived = (clone $poBase)->sum('quantity_received');
-
-        $shipmentBase = Shipment::query()
-            ->join('purchase_orders as po', 'shipments.purchase_order_id', '=', 'po.id')
-            ->whereDate('po.order_date', '>=', $startDate)
-            ->whereDate('po.order_date', '<=', $endDate);
-
-        $shipmentCount = (clone $shipmentBase)->count('shipments.id');
-        $shipmentPlanned = (clone $shipmentBase)->sum('shipments.quantity_planned');
-        $shipmentReceived = (clone $shipmentBase)->sum('shipments.quantity_received');
-
-        $rowCollection = collect($rows);
-
-        return [
-            'po_count' => (int) $poCount,
-            'po_quantity' => (int) $poQuantity,
-            'po_received' => (int) $poReceived,
-            'po_outstanding' => max(0, (int) $poQuantity - (int) $poReceived),
-            'shipment_count' => (int) $shipmentCount,
-            'shipment_planned' => (int) $shipmentPlanned,
-            'shipment_received' => (int) $shipmentReceived,
-            'shipment_outstanding' => max(0, (int) $shipmentPlanned - (int) $shipmentReceived),
-            'total_allocation' => (int) $rowCollection->sum('total_allocation'),
-            'total_actual_consumed' => (int) $rowCollection->sum('shipment_received'),
-            'total_actual_remaining' => (int) $rowCollection->sum('actual_remaining'),
         ];
     }
 
