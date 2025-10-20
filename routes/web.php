@@ -72,7 +72,6 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::middleware(['permission:update users'])->group(function () {
         Route::get('users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
         Route::put('users/{user}', [UserController::class, 'update'])->name('users.update');
-        Route::patch('users/{user}', [UserController::class, 'update']);
     });
     Route::middleware(['permission:delete users'])->group(function () {
         Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
@@ -95,7 +94,6 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::middleware(['permission:update permissions'])->group(function () {
         Route::get('permissions/{permission}/edit', [PermissionController::class, 'edit'])->name('permissions.edit');
         Route::put('permissions/{permission}', [PermissionController::class, 'update'])->name('permissions.update');
-        Route::patch('permissions/{permission}', [PermissionController::class, 'update']);
     });
     Route::middleware(['permission:delete permissions'])->group(function () {
         Route::delete('permissions/{permission}', [PermissionController::class, 'destroy'])->name('permissions.destroy');
