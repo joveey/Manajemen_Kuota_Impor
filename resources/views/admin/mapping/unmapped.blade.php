@@ -1,7 +1,22 @@
 @extends('layouts.admin')
 
+@section('title', 'Produk Unmapped')
+@section('page-title', 'Produk Unmapped')
+
+@section('breadcrumb')
+    <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
+    <li class="breadcrumb-item active">Produk Unmapped</li>
+@endsection
+
 @section('content')
-<div class="container-fluid">
+<div class="page-shell">
+  <div class="page-header">
+    <div>
+      <h1 class="page-header__title">Produk Unmapped</h1>
+      <p class="page-header__subtitle">Daftar produk yang belum memiliki relasi kuota atau data referensi.</p>
+    </div>
+  </div>
+
   <div class="card mb-3">
     <div class="card-header">Unmapped Products</div>
     <div class="card-body">
@@ -183,4 +198,3 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 @endsection
-

@@ -132,16 +132,14 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
     Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'show', 'destroy']);
     Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
-    Route::get('purchase-order', [PurchaseOrderController::class, 'index'])->name('purchase-order.index');
-    Route::get('purchase-order/{purchase_order}', [PurchaseOrderController::class, 'show'])->name('purchase-order.show');
-    Route::delete('purchase-order/{purchase_order}', [PurchaseOrderController::class, 'destroy'])->name('purchase-order.destroy');
 
-    Route::get('shipments/create', [ShipmentController::class, 'create'])->name('shipments.create');
-    Route::post('shipments', [ShipmentController::class, 'store'])->name('shipments.store');
-    Route::get('shipments', [ShipmentController::class, 'index'])->name('shipments.index');
-    Route::get('shipments/export/csv', [ShipmentController::class, 'export'])->name('shipments.export');
-    Route::get('shipment', [ShipmentController::class, 'index'])->name('shipment.index');
-    Route::get('shipments/{shipment}', [ShipmentController::class, 'show'])->name('shipments.show');
+    Route::prefix('shipments')->name('shipments.')->group(function () {
+        Route::get('/', [ShipmentController::class, 'index'])->name('index');
+        Route::get('/create', [ShipmentController::class, 'create'])->name('create');
+        Route::post('/', [ShipmentController::class, 'store'])->name('store');
+        Route::get('/export/csv', [ShipmentController::class, 'export'])->name('export');
+        Route::get('/{shipment}', [ShipmentController::class, 'show'])->name('show');
+    });
 
     // Receipts
     Route::post('shipments/{shipment}/receipts', [ReceiptController::class, 'store'])

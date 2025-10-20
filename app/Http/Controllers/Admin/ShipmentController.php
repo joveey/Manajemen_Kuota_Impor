@@ -45,7 +45,7 @@ class ShipmentController extends Controller
             'quantity_total' => $shipments->sum('quantity_planned'),
         ];
 
-        return view('admin.shipment.index', compact('shipments', 'summary'));
+        return view('admin.shipments.index', compact('shipments', 'summary'));
     }
 
     public function create(): View
@@ -60,7 +60,7 @@ class ShipmentController extends Controller
             ->orderBy('order_date', 'desc')
             ->get();
 
-        return view('admin.shipment.create', compact('purchaseOrders'));
+        return view('admin.shipments.create', compact('purchaseOrders'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -125,7 +125,9 @@ class ShipmentController extends Controller
     {
         $shipment->load([
             'purchaseOrder.quota',
+            'purchaseOrder.product',
             'receipts' => fn ($q) => $q->orderByDesc('receipt_date'),
+            'statusLogs' => fn ($query) => $query->orderByDesc('recorded_at'),
         ]);
 
         return view('admin.shipments.show', compact('shipment'));

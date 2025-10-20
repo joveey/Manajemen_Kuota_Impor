@@ -172,7 +172,7 @@
                 <!-- Purchase Orders -->
                 @can('read purchase_orders')
                 @php
-                    $poMenuOpen = request()->is('admin/purchase-orders*') || request()->is('admin/purchase-order*');
+                    $poMenuOpen = request()->is('admin/purchase-orders*');
                 @endphp
                 <li class="nav-item {{ $poMenuOpen ? 'menu-open' : '' }}">
                     <a href="#" class="nav-link {{ $poMenuOpen ? 'active' : '' }}">
@@ -184,7 +184,7 @@
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') || request()->routeIs('admin.purchase-order.index') ? 'active' : '' }}">
+                            <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>PO List</p>
                             </a>
@@ -240,7 +240,7 @@
                     <a href="#" class="nav-link {{ request()->routeIs('admin.shipments.*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-truck"></i>
                         <p>
-                            Shipments
+                            Pengiriman &amp; Receipt
                             <i class="right fas fa-angle-left"></i>
                         </p>
                     </a>
@@ -248,14 +248,14 @@
                         <li class="nav-item">
                             <a href="{{ route('admin.shipments.index') }}" class="nav-link {{ request()->routeIs('admin.shipments.index') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Shipment List</p>
+                                <p>Daftar Pengiriman</p>
                             </a>
                         </li>
                         @if(Route::has('admin.shipments.create') && Auth::user()->hasPermission('create purchase_orders'))
                         <li class="nav-item">
                             <a href="{{ route('admin.shipments.create') }}" class="nav-link {{ request()->routeIs('admin.shipments.create') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Create Shipment</p>
+                                <p>Buat Pengiriman</p>
                             </a>
                         </li>
                         @endif

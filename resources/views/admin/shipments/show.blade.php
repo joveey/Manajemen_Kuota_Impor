@@ -1,97 +1,213 @@
 @extends('layouts.admin')
 
+@include('admin.shipments.partials.styles')
+
+@section('title', 'Detail Shipment')
+
+@section('breadcrumb')
+    <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
+    <li class="breadcrumb-item"><a href="{{ route('admin.shipments.index') }}">Pengiriman</a></li>
+    <li class="breadcrumb-item active">Detail Shipment</li>
+@endsection
+
 @section('content')
 @php
-  $totalReceived = (int) $shipment->receipts->sum('quantity_received');
-  $planned = max(0, (int) $shipment->quantity_planned);
-  $percentage = $planned > 0 ? min(100, (int) round(($totalReceived / $planned) * 100)) : 0;
-  $quota = optional(optional($shipment->purchaseOrder)->quota);
-  $quotaStatus = $quota?->status ?? 'unknown';
-  $statusClass = match ($quotaStatus) {
-    'depleted' => 'bg-danger',
-    'limited' => 'bg-warning text-dark',
-    'available' => 'bg-success',
-    default => 'bg-secondary',
-  };
+    $totalReceived = (int) $shipment->receipts->sum('quantity_received');
+    $planned = max(0, (int) $shipment->quantity_planned);
+    $percentage = $planned > 0 ? min(100, (int) round(($totalReceived / max(1, $planned)) * 100)) : 0;
+
+    $shipmentStatusMap = [
+        \App\Models\Shipment::STATUS_DELIVERED => ['label' => 'Delivered', 'badge' => 'shipment-badge--success'],
+        \App\Models\Shipment::STATUS_PARTIAL => ['label' => 'Partial', 'badge' => 'shipment-badge--warning'],
+        \App\Models\Shipment::STATUS_IN_TRANSIT => ['label' => 'In Transit', 'badge' => 'shipment-badge--warning'],
+        \App\Models\Shipment::STATUS_SCHEDULED => ['label' => 'Scheduled', 'badge' => 'shipment-badge--neutral'],
+    ];
+
+    $statusMeta = $shipmentStatusMap[$shipment->status] ?? [
+        'label' => ucfirst(str_replace('_', ' ', $shipment->status)),
+        'badge' => 'shipment-badge--neutral',
+    ];
+
+    $quota = optional($shipment->purchaseOrder)->quota;
+    $quotaBadge = match ($quota?->status) {
+        'available' => 'shipment-badge--success',
+        'limited' => 'shipment-badge--warning',
+        'depleted' => 'shipment-badge--danger',
+        default => 'shipment-badge--neutral',
+    };
+
+    $statusTimeline = $shipment->statusLogs
+        ->sortByDesc('recorded_at')
+        ->map(function ($log) {
+            $received = $log->quantity_received_snapshot;
+            $planned = $log->quantity_planned_snapshot;
+            $progressBadge = null;
+
+            if (!is_null($received) || !is_null($planned)) {
+                $progressBadge = sprintf(
+                    '%s / %s unit',
+                    number_format($received ?? 0),
+                    number_format($planned ?? 0)
+                );
+            }
+
+            $badgeVariant = match ($log->status) {
+                \App\Models\Shipment::STATUS_DELIVERED => 'success',
+                \App\Models\Shipment::STATUS_PARTIAL => 'info',
+                \App\Models\Shipment::STATUS_IN_TRANSIT => 'warning',
+                default => 'neutral',
+            };
+
+            return [
+                'title' => ucfirst(str_replace('_', ' ', $log->status)),
+                'subtitle' => $log->description,
+                'date' => optional($log->recorded_at)->format('d M Y H:i'),
+                'badge' => $progressBadge,
+                'variant' => $badgeVariant,
+            ];
+        })
+        ->values()
+        ->all();
 @endphp
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4>Detail Shipment #{{ $shipment->id }}</h4>
-  <a href="{{ route('admin.shipments.receipts.create', $shipment->id) }}" class="btn btn-success">
-    Catat Penerimaan
-  </a>
-</div>
-
-@if(session('success'))
-  <div class="alert alert-success">{{ session('success') }}</div>
-@endif
-
-<div class="card mb-4">
-  <div class="card-body">
-    <div class="row g-3 align-items-center">
-      <div class="col-md-3">
-        <div class="fw-semibold text-muted text-uppercase small">PO</div>
-        <div>{{ optional($shipment->purchaseOrder)->id ?? '-' }}</div>
-      </div>
-      <div class="col-md-3">
-        <div class="fw-semibold text-muted text-uppercase small">Quota</div>
+<div class="page-shell">
+    <div class="page-header">
         <div>
-          {{ $quota?->id ?? '-' }}
-          @if($quota)
-            <span class="badge {{ $statusClass }} ms-2 text-uppercase">{{ $quotaStatus }}</span>
-          @endif
+            <h1 class="page-header__title">{{ $shipment->shipment_number ?? "Shipment #{$shipment->id}" }}</h1>
+            <p class="page-header__subtitle">
+                Ringkasan status, jadwal, dan penerimaan untuk shipment ini.
+            </p>
         </div>
-      </div>
-      <div class="col-md-3">
-        <div class="fw-semibold text-muted text-uppercase small">Planned</div>
-        <div>{{ $planned }}</div>
-      </div>
-      <div class="col-md-3">
-        <div class="fw-semibold text-muted text-uppercase small d-flex justify-content-between">
-          <span>Received</span>
-          <span>{{ $totalReceived }} / {{ $planned }}</span>
+        <div class="page-header__actions">
+            <a href="{{ route('admin.shipments.index') }}" class="page-header__button page-header__button--outline">
+                <i class="fas fa-arrow-left"></i>
+                Kembali ke Daftar
+            </a>
+            <a href="{{ route('admin.shipments.receipts.create', $shipment->id) }}" class="page-header__button page-header__button--primary">
+                <i class="fas fa-clipboard-check"></i>
+                Catat Penerimaan
+            </a>
         </div>
-        <div class="progress" style="height: 8px;">
-          <div
-            class="progress-bar {{ $percentage >= 100 ? 'bg-success' : 'bg-primary' }}"
-            role="progressbar"
-            style="width: {{ $percentage }}%;"
-            aria-valuenow="{{ $percentage }}"
-            aria-valuemin="0"
-            aria-valuemax="100">
-          </div>
-        </div>
-        <small class="text-muted">{{ $percentage }}% terpenuhi</small>
-      </div>
     </div>
-  </div>
-</div>
 
-<div class="card">
-  <div class="card-header">Penerimaan (Receipts)</div>
-  <div class="card-body p-0">
-    <table class="table mb-0">
-      <thead>
-        <tr>
-          <th>Tanggal</th>
-          <th>Qty</th>
-          <th>No. Dokumen</th>
-          <th>Catatan</th>
-        </tr>
-      </thead>
-      <tbody>
-        @forelse($shipment->receipts->sortByDesc('receipt_date') as $r)
-          <tr>
-            <td>{{ \Illuminate\Support\Carbon::parse($r->receipt_date)->toDateString() }}</td>
-            <td>{{ (int)$r->quantity_received }}</td>
-            <td>{{ $r->document_number ?? '-' }}</td>
-            <td>{{ $r->notes ?? '-' }}</td>
-          </tr>
-        @empty
-          <tr><td colspan="4" class="text-center text-muted">Belum ada penerimaan.</td></tr>
-        @endforelse
-      </tbody>
-    </table>
-  </div>
+    @if(session('success'))
+        <div class="shipment-alert shipment-alert--info">
+            <i class="fas fa-check-circle mt-1"></i>
+            <div>{{ session('success') }}</div>
+        </div>
+    @endif
+
+    <div class="shipment-card shipment-card--padded">
+        <div class="shipment-summary">
+            <div class="shipment-summary__card">
+                <span class="shipment-summary__label">Status Shipment</span>
+                <span class="shipment-summary__value">{{ $statusMeta['label'] }}</span>
+                <span class="shipment-summary__meta">
+                    <span class="shipment-badge {{ $statusMeta['badge'] }}">{{ $statusMeta['label'] }}</span>
+                </span>
+            </div>
+            <div class="shipment-summary__card">
+                <span class="shipment-summary__label">Progress</span>
+                <span class="shipment-summary__value">{{ number_format($totalReceived) }} / {{ number_format($planned) }}</span>
+                <div class="shipment-progress">
+                    <div class="shipment-progress__bar" style="width: {{ $percentage }}%;"></div>
+                </div>
+                <span class="shipment-summary__meta">{{ $percentage }}% terpenuhi</span>
+            </div>
+            <div class="shipment-summary__card">
+                <span class="shipment-summary__label">Jadwal</span>
+                <span class="shipment-summary__value">{{ optional($shipment->ship_date)->format('d M Y') ?? '-' }}</span>
+                <span class="shipment-summary__meta">
+                    ETA: {{ optional($shipment->eta_date)->format('d M Y') ?? 'Belum ditentukan' }}
+                </span>
+            </div>
+        </div>
+
+        <div class="shipment-meta-grid">
+            <div class="shipment-meta">
+                <span class="shipment-meta__label">Purchase Order</span>
+                <span class="shipment-meta__value">{{ optional($shipment->purchaseOrder)->po_number ?? '-' }}</span>
+                <span class="shipment-summary__meta">
+                    Qty PO: {{ optional($shipment->purchaseOrder) ? number_format($shipment->purchaseOrder->quantity) : '-' }} unit
+                </span>
+            </div>
+
+            <div class="shipment-meta">
+                <span class="shipment-meta__label">Produk</span>
+                <span class="shipment-meta__value">
+                    {{ optional(optional($shipment->purchaseOrder)->product)->code ?? '-' }}
+                </span>
+                <span class="shipment-summary__meta">
+                    {{ optional(optional($shipment->purchaseOrder)->product)->name ?? 'Tidak ada informasi produk' }}
+                </span>
+            </div>
+
+            <div class="shipment-meta">
+                <span class="shipment-meta__label">Nomor Shipment</span>
+                <span class="shipment-meta__value">{{ $shipment->shipment_number ?? 'Belum ditetapkan' }}</span>
+                <span class="shipment-summary__meta">
+                    Dibuat: {{ optional($shipment->created_at)->format('d M Y H:i') ?? '-' }}
+                </span>
+            </div>
+
+            <div class="shipment-meta">
+                <span class="shipment-meta__label">Quota</span>
+                <span class="shipment-meta__value">{{ $quota?->id ?? '-' }}</span>
+                <span class="shipment-summary__meta">
+                    <span class="shipment-badge {{ $quotaBadge }}">{{ ucfirst($quota?->status ?? 'Unknown') }}</span>
+                </span>
+            </div>
+        </div>
+
+        @if($shipment->detail)
+            <div class="shipment-message mt-4">
+                <strong>Catatan Pengiriman:</strong>
+                <div class="mt-2">{{ $shipment->detail }}</div>
+            </div>
+        @endif
+    </div>
+
+    <div class="shipment-card">
+        <h2 class="shipment-section-title">Riwayat Status</h2>
+        @if(!empty($statusTimeline))
+            <x-timeline :items="$statusTimeline" />
+        @else
+            <div class="shipment-empty">Belum ada riwayat status untuk shipment ini.</div>
+        @endif
+    </div>
+
+    <div class="shipment-card">
+        <div class="shipment-section-title d-flex justify-content-between align-items-center">
+            <span>Riwayat Penerimaan</span>
+            <span class="shipment-summary__meta">Total {{ $shipment->receipts->count() }} catatan</span>
+        </div>
+
+        @if($shipment->receipts->isEmpty())
+            <div class="shipment-empty">Belum ada penerimaan.</div>
+        @else
+            <div class="shipment-table-shell">
+                <table class="shipment-table">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Qty</th>
+                            <th>No. Dokumen</th>
+                            <th>Catatan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($shipment->receipts as $receipt)
+                            <tr>
+                                <td>{{ optional($receipt->receipt_date)->format('d M Y') ?? '-' }}</td>
+                                <td>{{ number_format((int) $receipt->quantity_received) }}</td>
+                                <td>{{ $receipt->document_number ?? '-' }}</td>
+                                <td>{{ $receipt->notes ?? '-' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </div>
 </div>
 @endsection

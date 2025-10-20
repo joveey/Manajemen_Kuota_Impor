@@ -10,15 +10,17 @@
 @push('styles')
 <style>
     .dashboard-shell {
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
-        margin-top: -16px;
+        width: 100%;
+    }
+
+    .dashboard-shell > *:not(:last-child) {
+        margin-bottom: 24px;
     }
 
     
     @media (max-width: 640px) {
-        .dashboard-shell { gap: 16px; padding-bottom: 60px; }
+        .dashboard-shell { padding-bottom: 60px; }
+        .dashboard-shell > *:not(:last-child) { margin-bottom: 16px; }
         .summary-grid { grid-template-columns: 1fr; }
         .summary-card { padding: 14px 14px; border-radius:14px; }
         .summary-card__icon { width:42px; height:42px; }
@@ -32,11 +34,10 @@
         .po-table tbody td { display:flex; justify-content:space-between; align-items:flex-start; padding:8px 0; border:none; }
         .po-table tbody td::before { content: attr(data-label); font-weight:600; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.08em; margin-right:12px; }
         .po-table tbody td:last-child { justify-content:flex-start; }
+        .timeline-sm { gap: 12px; }
+        .timeline-sm li { padding: 12px 14px; gap: 12px; }
+        .timeline-icon { width: 26px; height: 26px; }
     }
-@media (max-width: 768px) {
-        .dashboard-shell { margin-top: 0; }
-    }
-
     /* Stat Cards */
     .stat-card {
         background: white;
@@ -255,6 +256,8 @@
         display: flex;
         flex-direction: column;
         height: 100%;
+        position: relative;
+        z-index: 0;
     }
 
     .panel-modern__header {
@@ -280,6 +283,43 @@
         flex: 1;
         display: flex;
         flex-direction: column;
+    }
+
+    .panel-modern__body--empty {
+        justify-content: center;
+        align-items: center;
+    }
+
+    .empty-state {
+        width: 100%;
+        padding: 32px 16px;
+        border: 1px dashed #e2e8f0;
+        border-radius: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        align-items: center;
+        text-align: center;
+        color: #64748b;
+        background: #f8fafc;
+    }
+
+    .empty-state__icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        background: rgba(37, 99, 235, 0.08);
+        color: #2563eb;
+    }
+
+    .empty-state__text {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 500;
     }
 
     .panel-modern__link {
@@ -581,49 +621,40 @@
         list-style: none;
         margin: 0;
         padding: 0;
-        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
     }
 
     .timeline-sm li {
-        position: relative;
-        padding-left: 40px;
-        margin-bottom: 20px;
-    }
-
-    .timeline-sm li:last-child {
-        margin-bottom: 0;
-    }
-
-    .timeline-sm li::before {
-        content: '';
-        position: absolute;
-        left: 20px;
-        top: 4px;
-        bottom: -20px;
-        width: 2px;
-        background: #e2e8f0;
-    }
-
-    .timeline-sm li:last-child::before {
-        bottom: 10px;
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        padding: 14px 18px;
     }
 
     .timeline-icon {
-        position: absolute;
-        left: 8px;
-        top: 0;
-        width: 24px;
-        height: 24px;
-        border-radius: 8px;
+        flex: 0 0 30px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
         display: grid;
         place-items: center;
         color: #ffffff;
-        box-shadow: 0 6px 16px -10px rgba(37, 99, 235, 0.6);
+        box-shadow: 0 8px 18px -16px rgba(37, 99, 235, 0.55);
+        margin-top: 2px;
     }
 
     .timeline-icon i {
-        font-size: 11px;
+        font-size: 13px;
         line-height: 1;
+    }
+
+    .timeline-content {
+        flex: 1;
     }
 
     /* Role & Summary Tables */
@@ -747,9 +778,8 @@
 
 <!-- Statistics Cards -->
 <div class="row g-3 mb-4">
-    
     @if(Auth::user()->hasPermission('read users'))
-    <div class="col-xl-3 col-md-6">
+    <div class="col-12 col-md-6 col-xl-3">
         <div class="stat-card">
             <div class="stat-icon primary">
                 <i class="fas fa-users"></i>
@@ -767,7 +797,7 @@
     @endif
 
     @if(Auth::user()->isAdmin())
-    <div class="col-xl-3 col-md-6">
+    <div class="col-12 col-md-6 col-xl-3">
         <div class="stat-card">
             <div class="stat-icon success">
                 <i class="fas fa-user-shield"></i>
@@ -785,7 +815,7 @@
     @endif
 
     @if(Auth::user()->hasPermission('read roles'))
-    <div class="col-xl-3 col-md-6">
+    <div class="col-12 col-md-6 col-xl-3">
         <div class="stat-card">
             <div class="stat-icon info">
                 <i class="fas fa-bookmark"></i>
@@ -803,7 +833,7 @@
     @endif
 
     @if(Auth::user()->hasPermission('read permissions'))
-    <div class="col-xl-3 col-md-6">
+    <div class="col-12 col-md-6 col-xl-3">
         <div class="stat-card">
             <div class="stat-icon danger">
                 <i class="fas fa-key"></i>
@@ -816,12 +846,11 @@
         </div>
     </div>
     @endif
-
 </div>
 
 <!-- Supply Chain Metrics -->
 <div class="row g-3 mb-4">
-    <div class="col-xl-3 col-md-6">
+    <div class="col-12 col-md-6 col-xl-3">
         <div class="stat-card">
             <div class="stat-icon primary">
                 <i class="fas fa-warehouse"></i>
@@ -831,7 +860,7 @@
             <p class="text-muted small mb-0">Available: {{ number_format($quotaStats['available']) }} | Limited: {{ number_format($quotaStats['limited']) }} | Depleted: {{ number_format($quotaStats['depleted']) }}</p>
         </div>
     </div>
-    <div class="col-xl-3 col-md-6">
+    <div class="col-12 col-md-6 col-xl-3">
         <div class="stat-card">
             <div class="stat-icon info">
                 <i class="fas fa-tachometer-alt"></i>
@@ -841,7 +870,7 @@
             <p class="text-muted small mb-0">Actual Remaining: {{ number_format($quotaStats['actual_remaining']) }}</p>
         </div>
     </div>
-    <div class="col-xl-3 col-md-6">
+    <div class="col-12 col-md-6 col-xl-3">
         <div class="stat-card">
             <div class="stat-icon success">
                 <i class="fas fa-file-invoice"></i>
@@ -851,7 +880,7 @@
             <p class="text-muted small mb-0">Need Shipment: {{ number_format($poStats['need_shipment']) }} | In Transit: {{ number_format($poStats['in_transit']) }}</p>
         </div>
     </div>
-    <div class="col-xl-3 col-md-6">
+    <div class="col-12 col-md-6 col-xl-3">
         <div class="stat-card">
             <div class="stat-icon danger">
                 <i class="fas fa-truck-loading"></i>
@@ -862,11 +891,11 @@
         </div>
     </div>
 </div>
+
 <!-- Welcome & Role Cards -->
 <div class="row g-3 mb-4">
-    
     <!-- Welcome Card -->
-    <div class="col-lg-{{ (Auth::user()->hasPermission('read users') || Auth::user()->hasPermission('read roles')) ? '8' : '12' }}">
+    <div class="col-12 col-lg-{{ (Auth::user()->hasPermission('read users') || Auth::user()->hasPermission('read roles')) ? '8' : '12' }}">
         <div class="card welcome-card">
             <div class="card-body">
                 <div class="welcome-card__header">
@@ -924,7 +953,7 @@
 
     <!-- Users by Role -->
     @if(Auth::user()->hasPermission('read users') || Auth::user()->hasPermission('read roles'))
-    <div class="col-lg-4">
+    <div class="col">
         <div class="role-panel">
             <div class="role-panel__header">
                 <i class="fas fa-chart-pie"></i>
@@ -947,9 +976,11 @@
         </div>
     </div>
     @endif
+</div>
+
 <!-- Operational Overview -->
 <div class="row g-3 mb-4">
-    <div class="col-lg-4">
+    <div class="col-12 col-lg-4">
         <div class="panel-modern h-100">
             <div class="panel-modern__header">
                 <h3 class="panel-modern__title">
@@ -962,9 +993,13 @@
                     <a href="{{ route('admin.quotas.index') }}" class="panel-modern__link">Lihat semua</a>
                 @endif
             </div>
-            <div class="panel-modern__body">
-                @if($quotaAlerts->isEmpty())
-                    <div class="panel-modern__empty">Belum ada alert.</div>
+            @php $quotaAlertsEmpty = $quotaAlerts->isEmpty(); @endphp
+            <div class="panel-modern__body {{ $quotaAlertsEmpty ? 'panel-modern__body--empty' : '' }}">
+                @if($quotaAlertsEmpty)
+                    <div class="empty-state">
+                        <span class="empty-state__icon"><i class="fas fa-clipboard-list"></i></span>
+                        <p class="empty-state__text">Belum ada alert kuota terkini.</p>
+                    </div>
                 @else
                     <div class="quota-alerts">
                         @foreach($quotaAlerts as $alert)
@@ -1016,7 +1051,8 @@
             </div>
         </div>
     </div>
-    <div class="col-lg-4">
+    
+    <div class="col-12 col-lg-4">
         <div class="panel-modern h-100">
             <div class="panel-modern__header">
                 <h3 class="panel-modern__title">
@@ -1029,9 +1065,13 @@
                     <a href="{{ route('admin.purchase-orders.index') }}" class="panel-modern__link">Lihat semua</a>
                 @endif
             </div>
-            <div class="panel-modern__body">
-                @if($recentPurchaseOrders->isEmpty())
-                    <div class="panel-modern__empty">Belum ada data.</div>
+            @php $recentPurchaseOrdersEmpty = $recentPurchaseOrders->isEmpty(); @endphp
+            <div class="panel-modern__body {{ $recentPurchaseOrdersEmpty ? 'panel-modern__body--empty' : '' }}">
+                @if($recentPurchaseOrdersEmpty)
+                    <div class="empty-state">
+                        <span class="empty-state__icon"><i class="fas fa-file-invoice"></i></span>
+                        <p class="empty-state__text">Belum ada purchase order terbaru.</p>
+                    </div>
                 @else
                     <div class="data-list">
                         @foreach($recentPurchaseOrders as $po)
@@ -1076,22 +1116,27 @@
             </div>
         </div>
     </div>
-    <div class="col-lg-4">
+    
+    <div class="col-12 col-lg-4">
         <div class="panel-modern h-100">
             <div class="panel-modern__header">
                 <h3 class="panel-modern__title">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h11v7h7l-3-5h-4V7H3zM5 18a2 2 0 104 0 2 2 0 10-4 0zm10 0a2 2 0 104 0 2 2 0 10-4 0z" />
                     </svg>
-                    Recent Shipments
+                    Pengiriman Terbaru
                 </h3>
                 @if(\Illuminate\Support\Facades\Route::has('admin.shipments.index'))
                     <a href="{{ route('admin.shipments.index') }}" class="panel-modern__link">Lihat semua</a>
                 @endif
             </div>
-            <div class="panel-modern__body">
-                @if($recentShipments->isEmpty())
-                    <div class="panel-modern__empty">Belum ada data.</div>
+            @php $recentShipmentsEmpty = $recentShipments->isEmpty(); @endphp
+            <div class="panel-modern__body {{ $recentShipmentsEmpty ? 'panel-modern__body--empty' : '' }}">
+                @if($recentShipmentsEmpty)
+                    <div class="empty-state">
+                        <span class="empty-state__icon"><i class="fas fa-shipping-fast"></i></span>
+                        <p class="empty-state__text">Belum ada pengiriman terbaru.</p>
+                    </div>
                 @else
                     <div class="data-list">
                         @foreach($recentShipments as $shipment)
@@ -1137,15 +1182,22 @@
     </div>
 </div>
 
+<!-- Riwayat Kuota -->
 <div class="row g-3 mb-4">
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-            <h3 class="card-title mb-0"><i class="fas fa-history me-2"></i>Riwayat Kuota Terbaru</h3>
+                <h3 class="card-title mb-0"><i class="fas fa-history me-2"></i>Riwayat Kuota Terbaru</h3>
             </div>
             <div class="card-body">
-                <ul class="timeline-sm mb-0">
-                    @forelse($recentQuotaHistories as $history)
+                @if($recentQuotaHistories->isEmpty())
+                    <div class="empty-state">
+                        <span class="empty-state__icon"><i class="fas fa-history"></i></span>
+                        <p class="empty-state__text">Belum ada riwayat kuota terbaru.</p>
+                    </div>
+                @else
+                    <ul class="timeline-sm mb-0">
+                        @foreach($recentQuotaHistories as $history)
                         <li>
                             <span class="timeline-icon bg-primary"><i class="fas fa-sync"></i></span>
                             <div class="timeline-content">
@@ -1154,14 +1206,14 @@
                                 <small class="text-muted">{{ $history->occurred_on?->format('d M Y') ?? $history->created_at->format('d M Y H:i') }} | {{ $history->description ?? 'Tidak ada catatan' }}</small>
                             </div>
                         </li>
-                    @empty
-                        <li class="text-muted">Belum ada riwayat.</li>
-                    @endforelse
-                </ul>
+                        @endforeach
+                    </ul>
+                @endif
             </div>
         </div>
     </div>
 </div>
+
 <!-- Recent Users -->
 @if(Auth::user()->hasPermission('read users'))
 <div class="row">
@@ -1193,7 +1245,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($recentUsers as $user)
+                            @forelse($recentUsers as $user)
                             <tr>
                                 <td>
                                     <div class="user-cell">
@@ -1238,7 +1290,13 @@
                                     @endif
                                 </td>
                             </tr>
-                            @endforeach
+                            @empty
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">
+                                    Belum ada pengguna terbaru yang tercatat.
+                                </td>
+                            </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -1247,7 +1305,6 @@
     </div>
 </div>
 @endif
-
 
 </div>
 @endsection
