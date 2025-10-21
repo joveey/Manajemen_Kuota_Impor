@@ -699,6 +699,7 @@
                     $operationalActive = (
                         request()->routeIs('admin.imports.hs_pk.*') ||
                         request()->routeIs('admin.imports.quotas.*') ||
+                        request()->routeIs('admin.openpo.*') ||
                         request()->routeIs('admin.mapping.unmapped') ||
                         request()->routeIs('admin.mapping.unmapped.*') ||
                         ($canQuota && (request()->is('admin/quotas*') || request()->is('admin/kuota*'))) ||
@@ -761,19 +762,23 @@
                             @endif
 
                             @php
-                                $canImportMenu = auth()->user()?->hasRole('admin') || auth()->user()?->hasRole('editor');
-                            @endphp
-                            @if($canImportMenu)
-                            {{-- Import menus (kept outside permission blocks to ensure visibility) --}}
-                            <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}">
-                                <span class="nav-icon"><i class="fas fa-file-import"></i></span>
-                                <span>Import HS -> PK</span>
-                            </a>
-                            <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
-                                <span class="nav-icon"><i class="fas fa-file-import"></i></span>
-                                <span>Import Kuota</span>
-                            </a>
-                            @endif
+                                $canImportMenu = auth()->user()?->hasRole('admin') || auth()->user()?->hasRole('editor') || auth()->user()?->hasRole('manager');
+                    @endphp
+                    @if($canImportMenu)
+                    {{-- Import menus (kept outside permission blocks to ensure visibility) --}}
+                    <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}">
+                        <span class="nav-icon"><i class="fas fa-file-import"></i></span>
+                        <span>Import HS -> PK</span>
+                    </a>
+                    <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
+                        <span class="nav-icon"><i class="fas fa-file-import"></i></span>
+                        <span>Import Kuota</span>
+                    </a>
+                    <a href="{{ route('admin.openpo.form') }}" class="nav-link {{ request()->routeIs('admin.openpo.*') ? 'active' : '' }}">
+                        <span class="nav-icon"><i class="fas fa-upload"></i></span>
+                        <span>Upload Open PO</span>
+                    </a>
+                    @endif
                             <a href="{{ route('admin.mapping.unmapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.unmapped') || request()->routeIs('admin.mapping.unmapped.*') ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-puzzle-piece"></i></span>
                                 <span>Produk Unmapped</span>

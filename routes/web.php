@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\MappingController;
 use App\Http\Controllers\Admin\HsPkImportPageController;
 use App\Http\Controllers\Admin\QuotaImportPageController;
 use App\Http\Controllers\Admin\MappingPageController;
+use App\Http\Controllers\Admin\OpenPoImportController;
 use Illuminate\Support\Facades\Auth;
 
 /*
@@ -165,6 +166,15 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('imports/quotas/upload', [QuotaImportPageController::class, 'uploadForm'])->name('imports.quotas.upload.form');
         Route::get('imports/quotas/{import}', [QuotaImportPageController::class, 'preview'])->name('imports.quotas.preview');
         Route::post('imports/quotas/{import}/publish', [QuotaImportPageController::class, 'publishForm'])->name('imports.quotas.publish.form');
+    });
+
+    // =====================
+    // Open PO Import
+    // =====================
+    Route::middleware(['role:admin,manager,editor'])->prefix('open-po')->name('openpo.')->group(function () {
+        Route::get('/import', [OpenPoImportController::class, 'form'])->name('form');
+        Route::post('/preview', [OpenPoImportController::class, 'preview'])->name('preview');
+        Route::post('/publish', [OpenPoImportController::class, 'publish'])->name('publish');
     });
 
     // Mapping diagnostics
