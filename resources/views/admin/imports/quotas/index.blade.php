@@ -9,6 +9,75 @@
     <li class="breadcrumb-item active">Import Kuota</li>
 @endsection
 
+@push('scripts')
+<script>
+(function(){
+  const form = document.getElementById('quota-upload-form');
+  const period = document.getElementById('period_key');
+  const periodHelp = document.getElementById('period_key_help');
+  const file = document.getElementById('file');
+  const fileHelp = document.getElementById('file_help');
+  const backendDismiss = document.getElementById('dismiss-backend-error');
+
+  backendDismiss?.addEventListener('click', function(){
+    period?.focus();
+  });
+
+  function validate() {
+    let ok = true;
+    period.classList.remove('is-invalid');
+    file.classList.remove('is-invalid');
+    periodHelp.textContent='';
+    fileHelp.textContent='';
+
+    const periodVal = (period.value||'').trim();
+    const re = /^\d{4}(-\d{2}(-\d{2})?)?$/;
+    if (!re.test(periodVal)) {
+      period.classList.add('is-invalid');
+      periodHelp.textContent = 'Gunakan format YYYY, YYYY-MM, atau YYYY-MM-DD.';
+      ok = false;
+    }
+    if (!file.files || file.files.length === 0) {
+      file.classList.add('is-invalid');
+      fileHelp.textContent = 'File wajib diunggah (.xlsx atau .xls).';
+      ok = false;
+    } else {
+      const name = file.files[0].name.toLowerCase();
+      if (!name.endsWith('.xlsx') && !name.endsWith('.xls')) {
+        file.classList.add('is-invalid');
+        fileHelp.textContent = 'Tipe file harus .xlsx atau .xls.';
+        ok = false;
+      }
+    }
+    return ok;
+  }
+
+  form?.addEventListener('submit', function(e){
+    if (!validate()) {
+      e.preventDefault();
+      e.stopPropagation();
+      period.focus();
+    }
+  });
+
+  // Download Contoh (CSV) + modal-less
+  document.getElementById('btn-template-quota')?.addEventListener('click', function(){
+    const csv = [
+      'LETTER_NO,CATEGORY_LABEL,ALLOCATION,PERIOD_START,PERIOD_END',
+      'S-001,8-10,1200,2025-01-01,2025-12-31',
+      'S-002,<8,500,2025-01-01,2025-06-30',
+      'S-003,>10,750,2025-07-01,2025-12-31'
+    ].join('\n');
+    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'contoh_quota.csv'; a.click();
+    URL.revokeObjectURL(url);
+  });
+})();
+</script>
+@endpush
+
 @section('content')
 <div class="page-shell">
     <div class="page-header">
@@ -22,36 +91,70 @@
         <div class="row gy-3">
             <div class="col-md-6">
                 <div class="card shadow-sm">
-                    <div class="card-header fw-semibold">Upload Kuota</div>
+                    <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                        <span>Upload Kuota</span>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-template-quota">Download Contoh</button>
+                        </div>
+                    </div>
                     <div class="card-body">
                         @if ($errors->any())
-                            <div class="alert alert-danger">
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
                                 <ul class="mb-0">
                                     @foreach ($errors->all() as $error)
                                         <li>{{ $error }}</li>
                                     @endforeach
                                 </ul>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" id="dismiss-backend-error"></button>
                             </div>
                         @endif
 
                         @if (session('status'))
-                            <div class="alert alert-success">{{ session('status') }}</div>
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                {{ session('status') }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
                         @endif
 
-                        <form action="{{ route('admin.imports.quotas.upload.form') }}" method="POST" enctype="multipart/form-data">
+                        <form action="{{ route('admin.imports.quotas.upload.form') }}" method="POST" enctype="multipart/form-data" id="quota-upload-form" novalidate>
                             @csrf
                             <div class="mb-3">
-                                <label class="form-label">Periode</label>
-                                <input type="text" name="period_key" class="form-control" placeholder="YYYY atau YYYY-MM" value="{{ old('period_key') }}" required>
+                                <label class="form-label" for="period_key">Periode</label>
+                                <input type="text" name="period_key" id="period_key" class="form-control" placeholder="YYYY atau YYYY-MM" value="{{ old('period_key') }}" required pattern="^\d{4}(-\d{2}(-\d{2})?)?$">
+                                <div class="invalid-feedback" id="period_key_help" aria-live="polite"></div>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">File Excel (sheet: Quota master)</label>
-                                <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
+                                <label class="form-label" for="file">File Excel (sheet: Quota master)</label>
+                                <input type="file" name="file" id="file" class="form-control" accept=".xlsx,.xls" required>
+                                <div class="invalid-feedback" id="file_help" aria-live="polite"></div>
                             </div>
                             <button class="btn btn-primary" type="submit">
                                 <i class="fas fa-upload me-2"></i>Upload
                             </button>
                         </form>
+
+                        <hr>
+                        <div class="accordion" id="quotaFormatAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingFormat">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFormat" aria-expanded="false" aria-controls="collapseFormat">
+                                        Format yang dibutuhkan
+                                    </button>
+                                </h2>
+                                <div id="collapseFormat" class="accordion-collapse collapse" aria-labelledby="headingFormat" data-bs-parent="#quotaFormatAccordion">
+                                    <div class="accordion-body">
+                                        <ul class="mb-2">
+                                            <li>Sheet harus bernama <code>Quota master</code>.</li>
+                                            <li>Header wajib: <code>LETTER_NO</code>, <code>CATEGORY_LABEL</code>, <code>ALLOCATION</code>. Opsional: <code>PERIOD_START</code>, <code>PERIOD_END</code>.</li>
+                                            <li><strong>CATEGORY_LABEL</strong>: gunakan salah satu pola <code>8-10</code>, <code>&lt;8</code>, <code>&gt;10</code>, atau angka tunggal. Teks <em>PK</em> diabaikan. Tidak mendukung simbol ≤, ≥, atau "s/d".</li>
+                                            <li><strong>ALLOCATION</strong> harus bilangan bulat &gt; 0 (pemisah ribuan boleh, desimal tidak).</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        
                     </div>
                 </div>
             </div>
