@@ -15,6 +15,7 @@ class Product extends Model
         'name',
         'sap_model',
         'category',
+        'hs_code',
         'pk_capacity',
         'description',
         'is_active',
