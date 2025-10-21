@@ -49,7 +49,8 @@ class ImportController extends Controller
             'created_by' => Auth::id(),
         ]);
 
-        $fullPath = storage_path('app/'.$storedPath);
+        // Build absolute path using the configured default disk ("local" may point to app/private)
+        $fullPath = \Illuminate\Support\Facades\Storage::path($storedPath);
 
         try {
             $spreadsheet = IOFactory::load($fullPath);
@@ -78,7 +79,8 @@ class ImportController extends Controller
 
         $headers = [];
         for ($col = 1; $col <= $highestColIndex; $col++) {
-            $val = (string) $sheet->getCellByColumnAndRow($col, 1)->getValue();
+            // PhpSpreadsheet 5.x: use getCell([$col,$row]) instead of removed getCellByColumnAndRow
+            $val = (string) $sheet->getCell([$col, 1])->getValue();
             $key = strtoupper(trim($val));
             if ($key !== '') { $headers[$key] = $col; }
         }
@@ -96,8 +98,8 @@ class ImportController extends Controller
         try {
             for ($row = 2; $row <= $highestRow; $row++) {
                 // Prefer formatted value to preserve numbers/text
-                $hsRaw = $sheet->getCellByColumnAndRow($colHs, $row)->getFormattedValue();
-                $descRaw = $sheet->getCellByColumnAndRow($colDesc, $row)->getFormattedValue();
+                $hsRaw = $sheet->getCell([$colHs, $row])->getFormattedValue();
+                $descRaw = $sheet->getCell([$colDesc, $row])->getFormattedValue();
 
                 $hs = trim((string) $hsRaw);
                 $desc = is_null($descRaw) ? '' : trim((string) $descRaw);
@@ -258,7 +260,8 @@ class ImportController extends Controller
             'created_by' => Auth::id(),
         ]);
 
-        $fullPath = storage_path('app/'.$storedPath);
+        // Build absolute path using the configured default disk ("local" may point to app/private)
+        $fullPath = \Illuminate\Support\Facades\Storage::path($storedPath);
 
         try {
             $spreadsheet = IOFactory::load($fullPath);
@@ -289,7 +292,7 @@ class ImportController extends Controller
         $headers = [];
         $headerOrder = [];
         for ($col = 1; $col <= $highestColIndex; $col++) {
-            $val = (string) $sheet->getCellByColumnAndRow($col, 1)->getValue();
+            $val = (string) $sheet->getCell([$col, 1])->getValue();
             $key = strtoupper(trim($val));
             if ($key !== '') { $headers[$key] = $col; $headerOrder[] = $key; }
         }
@@ -355,7 +358,7 @@ class ImportController extends Controller
                 for ($col = 1; $col <= $highestColIndex; $col++) {
                     $h = $headerOrder[$col-1] ?? null;
                     if (!$h) { continue; }
-                    $raw[$h] = $sheet->getCellByColumnAndRow($col, $row)->getFormattedValue();
+                    $raw[$h] = $sheet->getCell([$col, $row])->getFormattedValue();
                 }
 
                 $letterNo = trim((string)($raw['LETTER_NO'] ?? ''));
@@ -391,8 +394,8 @@ class ImportController extends Controller
                 }
 
                 // Periods
-                $startVal = $colStart ? $sheet->getCellByColumnAndRow($colStart, $row)->getValue() : null;
-                $endVal = $colEnd ? $sheet->getCellByColumnAndRow($colEnd, $row)->getValue() : null;
+                $startVal = $colStart ? $sheet->getCell([$colStart, $row])->getValue() : null;
+                $endVal = $colEnd ? $sheet->getCell([$colEnd, $row])->getValue() : null;
                 $pStart = $parseDate($startVal);
                 $pEnd = $parseDate($endVal);
                 if (!$pStart || !$pEnd) {
