@@ -22,10 +22,20 @@
     .filter-button { display:inline-flex; align-items:center; justify-content:center; gap:6px; border-radius:12px; padding:10px 16px; font-weight:600; font-size:13px; border:1px solid transparent; width:100%; }
     .filter-button--apply { background:#2563eb; color:#fff; }
     .filter-button--reset { background:rgba(148,163,184,.12); color:#1f2937; border-color:rgba(148,163,184,.32); }
-    .table-shell { background:#fff; border:1px solid #e6ebf5; border-radius:22px; overflow:hidden; box-shadow:0 32px 64px -48px rgba(15,23,42,.45); }
-    .po-table { width:100%; border-collapse:separate; border-spacing:0; }
-    .po-table thead th { background:#f8faff; padding:15px 18px; font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:.08em; border-bottom:1px solid #e6ebf5; }
-    .po-table tbody td { padding:16px 18px; border-bottom:1px solid #eef2fb; font-size:13px; color:#1f2937; vertical-align:top; }
+    .table-shell { background:#fff; border:1px solid #e6ebf5; border-radius:22px; overflow:visible; box-shadow:0 32px 64px -48px rgba(15,23,42,.45); }
+    /* Global horizontal scroll for entire PO content (except sidebar) */
+    .po-scroll { overflow-x: auto !important; width: 100%; -webkit-overflow-scrolling: touch; cursor: grab; }
+    .po-scroll.is-grabbing { cursor: grabbing; }
+    .po-inner { min-width: 2400px; }
+    /* When outer scroll is present, inner table wrapper should not create nested scrollbars */
+    .po-scroll .table-scroll { overflow: visible !important; }
+    .table-scroll { overflow-x:auto !important; overflow-y:hidden; width:100%; -webkit-overflow-scrolling: touch; cursor: grab; }
+    .table-scroll.is-grabbing { cursor: grabbing; }
+    .table-scroll::-webkit-scrollbar { height: 10px; }
+    .table-scroll::-webkit-scrollbar-thumb { background: rgba(15,23,42,.25); border-radius: 8px; }
+    .po-table { width:100%; border-collapse:separate; border-spacing:0; min-width: 2400px; }
+    .po-table thead th { position: sticky; top: 0; z-index: 2; background:#f8faff; padding:15px 18px; font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:.08em; border-bottom:1px solid #e6ebf5; white-space:nowrap; }
+    .po-table tbody td { padding:16px 18px; border-bottom:1px solid #eef2fb; font-size:13px; color:#1f2937; vertical-align:top; white-space:nowrap; }
     .po-table tbody tr:hover { background:rgba(37,99,235,.04); }
     .status-badge { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px; font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
     .status-badge--ordered { background:rgba(59,130,246,.16); color:#1d4ed8; }
@@ -47,6 +57,8 @@
 
 @section('content')
 <div class="page-shell">
+  <div class="po-scroll" id="poScroll">
+  <div class="po-inner">
     <div class="page-header">
         <div>
             <h1 class="page-header__title">Daftar Purchase Order</h1>
@@ -121,6 +133,7 @@
     </form>
 
     <div class="table-shell">
+        <div class="table-scroll" id="poTableScroll">
         <table class="po-table">
             <thead>
                 <tr>
@@ -152,7 +165,13 @@
                     <tr>
                         <td>{{ $purchaseOrders->firstItem() + $loop->index }}</td>
                         <td><strong>{{ $po->po_number }}</strong></td>
-                        <td>{{ optional($po->order_date)->format('d M Y') ?? '-' }}</td>
+                        <td>
+                            @php
+                                $dt = $po->order_date ?? null;
+                                try { $val = $dt ? \Illuminate\Support\Carbon::parse($dt)->format('d M Y') : null; } catch (\Throwable $e) { $val = (string) $dt; }
+                            @endphp
+                            {{ $val ?: '-' }}
+                        </td>
                         <td>{{ $po->vendor_number ?? '-' }}</td>
                         <td>{{ $po->vendor_name ?? '-' }}</td>
                         <td>{{ $po->line_number ?? '-' }}</td>
@@ -200,10 +219,46 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 
     <div class="pagination-modern">
         {{ $purchaseOrders->links() }}
     </div>
+  </div>
+  </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+  (function(){
+    const scroller = document.getElementById('poScroll');
+    if (!scroller) return;
+
+    // Shift + wheel to scroll horizontally
+    scroller.addEventListener('wheel', function(e){
+      if (e.shiftKey) {
+        e.preventDefault();
+        scroller.scrollLeft += e.deltaY;
+      }
+    }, { passive: false });
+
+    // Click-drag to scroll (for mouse users)
+    let isDown = false, startX = 0, startLeft = 0;
+    scroller.addEventListener('mousedown', function(e){
+      isDown = true; scroller.classList.add('is-grabbing');
+      startX = e.pageX; startLeft = scroller.scrollLeft;
+    });
+    ['mouseleave','mouseup'].forEach(evt=>{
+      scroller.addEventListener(evt, function(){ isDown = false; scroller.classList.remove('is-grabbing'); });
+    });
+    scroller.addEventListener('mousemove', function(e){
+      if (!isDown) return;
+      e.preventDefault();
+      const dx = e.pageX - startX;
+      scroller.scrollLeft = startLeft - dx;
+    });
+  })();
+</script>
+@endpush
