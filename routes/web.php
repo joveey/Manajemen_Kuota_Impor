@@ -129,6 +129,17 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('reports/final/export/csv', [FinalReportController::class, 'exportCsv'])->name('reports.final.export.csv');
     });
 
+    // Constrain route model binding for PurchaseOrder to numeric IDs to avoid clashes
+    Route::pattern('purchase_order', '[0-9]+');
+
+    // Quick Product -> HS (manual)
+    Route::middleware(['permission:product.create'])->group(function () {
+        Route::get('master-data/create-hs', [\App\Http\Controllers\Admin\ProductQuickController::class, 'create'])
+            ->name('master.quick_hs.create');
+        Route::post('master-data/store-hs', [\App\Http\Controllers\Admin\ProductQuickController::class, 'store'])
+            ->name('master.quick_hs.store');
+    });
+
     Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'show', 'destroy']);
     Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
 
@@ -174,6 +185,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::middleware(['role:admin,manager,editor'])->prefix('open-po')->name('openpo.')->group(function () {
         Route::get('/import', [OpenPoImportController::class, 'form'])->name('form');
         Route::post('/preview', [OpenPoImportController::class, 'preview'])->name('preview');
+        // Allow reloading preview via GET (reads session)
+        Route::get('/preview', [OpenPoImportController::class, 'previewPage'])->name('preview.page');
         Route::post('/publish', [OpenPoImportController::class, 'publish'])->name('publish');
     });
 
@@ -181,6 +194,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('mapping/unmapped', [MappingController::class, 'unmapped'])->name('mapping.unmapped');
     // Mapping UI page (uses JSON endpoint above via XHR)
     Route::get('mapping/unmapped/view', [MappingPageController::class, 'unmapped'])->name('mapping.unmapped.page');
+    // Mapped Model -> HS UI page
+    Route::get('mapping/mapped', [MappingPageController::class, 'mapped'])->name('mapping.mapped.page');
 
 
 });

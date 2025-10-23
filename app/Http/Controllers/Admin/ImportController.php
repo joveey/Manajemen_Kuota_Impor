@@ -125,7 +125,12 @@ class ImportController extends Controller
 
                 $anchor = null;
                 if ($min === null && $max === null) {
-                    $errors[] = 'DESC cannot be parsed';
+                    // Allow non-numeric HS codes such as 'ACC' (Accessories) by assigning anchor 0
+                    if (preg_match('/[A-Za-z]/', $hs)) {
+                        $anchor = 0.0;
+                    } else {
+                        $errors[] = 'DESC cannot be parsed';
+                    }
                 } else {
                     if ($min === null && $max !== null) {
                         $anchor = (float) $max - 0.01;
@@ -613,39 +618,56 @@ class ImportController extends Controller
         }
 
         $applied = 0; $skipped = 0;
+        $skippedExisting = 0; $duplicatesList = [];
         $ranAutomap = false; $automapSummary = null;
         $now = now();
 
-        DB::transaction(function () use ($import, &$applied, &$skipped, $now) {
+        DB::transaction(function () use ($import, &$applied, &$skipped, &$skippedExisting, &$duplicatesList, $now) {
             // Process items in chunks for large files
             ImportItem::query()
                 ->where('import_id', $import->id)
                 ->where('status', 'normalized')
                 ->orderBy('id')
-                ->chunk(1000, function ($rows) use (&$applied, &$skipped, $now) {
-                    $batch = [];
+                ->chunk(1000, function ($rows) use (&$applied, &$skipped, &$skippedExisting, &$duplicatesList, $now) {
+                    $incoming = [];
                     foreach ($rows as $item) {
                         $raw = $item->raw_json ?? [];
                         $norm = $item->normalized_json ?? [];
                         $hs = trim((string)($raw['HS_CODE'] ?? ''));
                         $anchor = $norm['pk_anchor'] ?? null;
 
-                        if ($hs === '' || $anchor === null || !is_numeric($anchor)) {
-                            $skipped++;
+                        if ($hs === '') { $skipped++; continue; }
+                        if ($anchor === null || !is_numeric($anchor)) {
+                            if (preg_match('/[A-Za-z]/', $hs)) { $anchor = 0.0; }
+                            else { $skipped++; continue; }
+                        }
+                        $incoming[$hs] = round((float)$anchor, 2);
+                    }
+
+                    if (empty($incoming)) { return; }
+
+                    $codes = array_keys($incoming);
+                    $existing = DB::table('hs_code_pk_mappings')->whereIn('hs_code', $codes)->pluck('hs_code')->all();
+                    $existSet = array_flip(array_map('strval', $existing));
+
+                    $toInsert = [];
+                    foreach ($incoming as $code => $anchor) {
+                        if (isset($existSet[$code])) {
+                            $skippedExisting++;
+                            $duplicatesList[$code] = true;
                             continue;
                         }
-                        $anchor = round((float)$anchor, 2);
-
-                        $batch[] = [
-                            'hs_code' => $hs,
+                        $toInsert[] = [
+                            'hs_code' => $code,
                             'pk_capacity' => $anchor,
                             'created_at' => $now,
                             'updated_at' => $now,
                         ];
-                        $applied++;
                     }
-                    if (!empty($batch)) {
-                        DB::table('hs_code_pk_mappings')->upsert($batch, ['hs_code'], ['pk_capacity', 'updated_at']);
+
+                    if (!empty($toInsert)) {
+                        DB::table('hs_code_pk_mappings')->insert($toInsert);
+                        $applied += count($toInsert);
                     }
                 });
 
@@ -659,7 +681,12 @@ class ImportController extends Controller
                 'type' => 'hs_pk',
                 'period_key' => (string)$import->period_key,
                 'version' => $nextVersion,
-                'notes' => json_encode(['applied' => $applied, 'skipped' => $skipped, 'import_id' => $import->id]),
+                'notes' => json_encode([
+                    'applied' => $applied,
+                    'skipped' => $skipped,
+                    'skipped_existing' => $skippedExisting,
+                    'import_id' => $import->id,
+                ]),
             ]);
 
             $import->markAs(Import::STATUS_PUBLISHED, sprintf('applied=%d, skipped=%d', $applied, $skipped));
@@ -676,6 +703,8 @@ class ImportController extends Controller
             'period_key' => (string) $import->period_key,
             'applied' => $applied,
             'skipped' => $skipped,
+            'skipped_existing' => $skippedExisting,
+            'duplicates' => array_keys($duplicatesList),
             'version' => (int) ((int) (\App\Models\MappingVersion::where('type','hs_pk')->where('period_key',$import->period_key)->max('version'))),
             'ran_automap' => $ranAutomap,
         ];

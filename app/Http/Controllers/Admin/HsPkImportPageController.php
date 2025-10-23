@@ -66,9 +66,17 @@ class HsPkImportPageController extends Controller
             return back()->withErrors(['publish' => $msg]);
         }
 
-        return redirect()
-            ->route('admin.imports.hs_pk.preview', $import)
-            ->with('status', 'Publish berhasil'.(!empty($payload['ran_automap']) ? ' + automap' : '').'.');
+        $status = 'Publish berhasil'.(!empty($payload['ran_automap']) ? ' + automap' : '').'.';
+        $warn = null;
+        if (!empty($payload['skipped_existing'])) {
+            $count = (int) $payload['skipped_existing'];
+            $dups = $payload['duplicates'] ?? [];
+            $sample = implode(', ', array_slice($dups, 0, 10));
+            $warn = $count.' HS sudah ada di master dan dilewati'.($sample ? ': '.$sample.((count($dups) > 10) ? ' …' : '') : '');
+        }
+
+        $redir = redirect()->route('admin.imports.hs_pk.preview', $import)->with('status', $status);
+        if ($warn) { $redir->with('warning', $warn); }
+        return $redir;
     }
 }
-

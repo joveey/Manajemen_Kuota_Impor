@@ -45,12 +45,17 @@ class RolePermissionSeeder extends Seeder
                 'create purchase_orders' => 'Create new purchase orders.',
                 'update purchase_orders' => 'Edit purchase orders.',
                 'delete purchase_orders' => 'Delete purchase orders.',
+                // Manual PO specific permissions (UI + routes use these)
+                'po.create' => 'Create purchase orders manually via form.',
+                'po.update' => 'Update purchase orders (manual corrections).',
             ],
             'Master Data' => [
                 'read master_data' => 'View master data.',
                 'create master_data' => 'Create new master data.',
                 'update master_data' => 'Edit master data.',
                 'delete master_data' => 'Delete master data.',
+                // Specific product creation (Quick HS mapping)
+                'product.create' => 'Create or update product + HS mapping (quick form).',
             ],
             'Reports' => [
                 'read reports' => 'View reports.',
@@ -165,7 +170,9 @@ class RolePermissionSeeder extends Seeder
             // Operational & overview: full manage
             'read quota', 'create quota', 'update quota', 'delete quota',
             'read purchase_orders', 'create purchase_orders', 'update purchase_orders', 'delete purchase_orders',
-            'read master_data', 'create master_data', 'update master_data', 'delete master_data',
+            // Manual PO specific explicit permissions
+            'po.create', 'po.update',
+            'read master_data', 'create master_data', 'update master_data', 'delete master_data', 'product.create',
             'read reports', 'create reports', 'update reports', 'delete reports',
             // Administration read-only
             'read users', 'update users', 'read roles', 'read permissions',

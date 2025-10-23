@@ -27,10 +27,20 @@
           @if (($summary['error_count'] ?? 0) > 0)
             <div class="alert alert-warning">Ada error pada data. Perbaiki sebelum publish.</div>
           @endif
-          <form method="POST" action="{{ route('admin.openpo.publish') }}">
+          <form method="POST" action="{{ route('admin.openpo.publish') }}" class="row g-3 align-items-end">
             @csrf
-            <button class="btn btn-primary" type="submit" {{ (($summary['error_count'] ?? 0) > 0) ? 'disabled' : '' }} title="{{ (($summary['error_count'] ?? 0) > 0) ? 'Perbaiki error sebelum publish' : '' }}">Publish</button>
-            <a href="{{ route('admin.openpo.form') }}" class="btn btn-outline-secondary">Kembali</a>
+            <div class="col-md-4">
+              <label class="form-label">Mode Publish</label>
+              <select name="publish_mode" class="form-select">
+                <option value="insert" {{ old('publish_mode')==='insert' ? 'selected' : '' }}>Insert add</option>
+                <option value="replace" {{ old('publish_mode')==='replace' ? 'selected' : '' }}>Replace</option>
+              </select>
+              <small class="text-muted">Insert add: hanya menambah baris baru. Replace: hapus baris lama untuk PO di file, lalu tulis ulang sesuai file.</small>
+            </div>
+            <div class="col-md-8 d-flex gap-2">
+              <button class="btn btn-primary" type="submit" {{ (($summary['error_count'] ?? 0) > 0) ? 'disabled' : '' }} title="{{ (($summary['error_count'] ?? 0) > 0) ? 'Perbaiki error sebelum publish' : '' }}">Publish</button>
+              <a href="{{ route('admin.openpo.form') }}" class="btn btn-outline-secondary">Kembali</a>
+            </div>
           </form>
         </div>
       </div>
@@ -57,6 +67,9 @@
                 <thead>
                   <tr>
                     <th>#</th><th>LINE_NO</th><th>ITEM_CODE</th><th>ITEM_DESC</th><th>HS_CODE</th><th>QTY</th><th>UOM</th><th>ETA_DATE</th>
+                    <th>WH_CODE</th><th>WH_NAME</th><th>WH_SOURCE</th>
+                    <th>SUBINV_CODE</th><th>SUBINV_NAME</th><th>SUBINV_SOURCE</th>
+                    <th>AMOUNT</th><th>CAT_PO</th><th>CAT_DESC</th><th>MAT_GRP</th><th>SAP_STATUS</th>
                     <th>Status</th>
                     <th>Notes</th>
                   </tr>
@@ -72,10 +85,38 @@
                       <td>{{ $ln['qty_ordered'] }}</td>
                       <td>{{ $ln['uom'] }}</td>
                       <td>{{ $ln['eta_date'] }}</td>
+                      <td>{{ $ln['wh_code'] ?? '' }}</td>
+                      <td>{{ $ln['wh_name'] ?? '' }}</td>
+                      <td>{{ $ln['wh_source'] ?? '' }}</td>
+                      <td>{{ $ln['subinv_code'] ?? '' }}</td>
+                      <td>{{ $ln['subinv_name'] ?? '' }}</td>
+                      <td>{{ $ln['subinv_source'] ?? '' }}</td>
+                      <td>{{ isset($ln['amount']) ? (is_numeric($ln['amount']) ? number_format($ln['amount'], 2) : $ln['amount']) : '' }}</td>
+                      <td>{{ $ln['cat_code'] ?? '' }}</td>
+                      <td>{{ $ln['cat_desc'] ?? '' }}</td>
+                      <td>{{ $ln['mat_grp'] ?? '' }}</td>
+                      <td>{{ $ln['sap_status'] ?? '' }}</td>
                       <td>
                         <span class="badge {{ $ln['validation_status']==='ok' ? 'bg-success' : 'bg-danger' }}">{{ strtoupper($ln['validation_status']) }}</span>
                       </td>
-                      <td>{{ $ln['validation_notes'] }}</td>
+                      <td>
+                        {{ $ln['validation_notes'] }}
+                        @php
+                          $notes = strtolower((string)($ln['validation_notes'] ?? ''));
+                          $needsModel = str_contains($notes, 'model_code belum punya hs mapping') || str_contains($notes, 'hs mapping');
+                        @endphp
+                        @if(($ln['validation_status'] ?? '') !== 'ok' && $needsModel && auth()->user()?->can('product.create'))
+                          <div class="mt-2">
+                            <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.master.quick_hs.create', [
+                                'model' => $ln['model_code'],
+                                'period_key' => request()->query('period_key') ?? '',
+                                'return' => request()->fullUrl(),
+                              ]) }}">
+                              Tambah Model -> HS
+                            </a>
+                          </div>
+                        @endif
+                      </td>
                     </tr>
                   @endforeach
                 </tbody>
@@ -88,5 +129,4 @@
   </div>
 </div>
 @endsection
-
 
