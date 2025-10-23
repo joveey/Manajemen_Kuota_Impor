@@ -697,17 +697,13 @@
                     $canReports = $currentUser?->can('read reports');
                     $canProductCreate = $currentUser?->can('product.create');
 
-                    // Include imports and unmapped pages so Operasional opens on those routes
+                    // Active flags per group
                     $operationalActive = (
-                        request()->routeIs('admin.imports.hs_pk.*') ||
-                        request()->routeIs('admin.imports.quotas.*') ||
                         request()->routeIs('admin.openpo.*') ||
-                        request()->routeIs('admin.mapping.unmapped') ||
-                        request()->routeIs('admin.mapping.unmapped.*') ||
-                        ($canQuota && (request()->is('admin/quotas*') || request()->is('admin/kuota*'))) ||
-                        ($canPORead && (request()->is('admin/purchase-orders*') ||
-                            request()->is('admin/shipments*')))
+                        ($canPORead && (request()->is('admin/purchase-orders*') || request()->is('admin/shipments*')))
                     );
+
+                    $quotaActive = $canQuota && (request()->is('admin/quotas*') || request()->is('admin/kuota*'));
 
                     $reportsActive = $canReports && (request()->is('admin/reports*') || request()->is('analytics*'));
 
@@ -745,7 +741,39 @@
                     </div>
                 </div>
 
-                @if($canQuota || $canPORead)
+                {{-- Persiapan Data (baru) --}}
+                <div class="nav-group {{ (request()->routeIs('admin.imports.hs_pk.*') || request()->routeIs('admin.imports.quotas.*') || request()->routeIs('admin.mapping.unmapped') || request()->routeIs('admin.mapping.unmapped.*')) ? 'is-open is-current' : '' }}" data-nav-group>
+                    <button type="button"
+                            class="nav-group__toggle"
+                            data-nav-toggle
+                            aria-expanded="{{ (request()->routeIs('admin.imports.hs_pk.*') || request()->routeIs('admin.imports.quotas.*') || request()->routeIs('admin.mapping.unmapped*')) ? 'true' : 'false' }}"
+                            aria-controls="nav-group-prep">
+                        <span class="nav-title">Persiapan Data</span>
+                        <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
+                    </button>
+                    <div class="nav-group__body" id="nav-group-prep">
+                        <!-- Preferred label version -->
+                        <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}">
+                            <span class="nav-icon"><i class="fas fa-file-import"></i></span>
+                            <span>Import HS → PK</span>
+                        </a>
+                        <!-- Hide legacy duplicate below to avoid double rendering -->
+                        <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}" style="display:none;">
+                            <span class="nav-icon"><i class="fas fa-file-import"></i></span>
+                            <span>Import HS → PK</span>
+                        </a>
+                        <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
+                            <span class="nav-icon"><i class="fas fa-file-import"></i></span>
+                            <span>Import Kuota</span>
+                        </a>
+                        <a href="{{ route('admin.mapping.unmapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.unmapped') || request()->routeIs('admin.mapping.unmapped.*') ? 'active' : '' }}">
+                            <span class="nav-icon"><i class="fas fa-puzzle-piece"></i></span>
+                            <span>Produk Unmapped</span>
+                        </a>
+                    </div>
+                </div>
+
+                @if($canPORead)
                     <div class="nav-group {{ $operationalActive ? 'is-open is-current' : '' }}" data-nav-group>
                         <button type="button"
                                 class="nav-group__toggle"
@@ -756,39 +784,16 @@
                             <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
                         </button>
                         <div class="nav-group__body" id="nav-group-operational">
-                            @if($canQuota)
-                                <a href="{{ route('admin.quotas.index') }}" class="nav-link {{ request()->is('admin/quotas*') || request()->is('admin/kuota*') ? 'active' : '' }}">
-                                    <span class="nav-icon"><i class="fas fa-percentage"></i></span>
-                                    <span>Manajemen Kuota</span>
-                                </a>
-                            @endif
-
-                            @php
-                                $canImportMenu = auth()->user()?->hasRole('admin') || auth()->user()?->hasRole('editor') || auth()->user()?->hasRole('manager');
-                    @endphp
-                    @if($canImportMenu)
-                    {{-- Import menus (kept outside permission blocks to ensure visibility) --}}
-                    <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}">
-                        <span class="nav-icon"><i class="fas fa-file-import"></i></span>
-                        <span>Import HS -> PK</span>
-                    </a>
-                    <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
-                        <span class="nav-icon"><i class="fas fa-file-import"></i></span>
-                        <span>Import Kuota</span>
-                    </a>
-                    <a href="{{ route('admin.openpo.form') }}" class="nav-link {{ request()->routeIs('admin.openpo.*') ? 'active' : '' }}">
-                        <span class="nav-icon"><i class="fas fa-upload"></i></span>
-                        <span>Upload Open PO</span>
-                    </a>
-                    @endif
-                            <a href="{{ route('admin.mapping.unmapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.unmapped') || request()->routeIs('admin.mapping.unmapped.*') ? 'active' : '' }}">
-                                <span class="nav-icon"><i class="fas fa-puzzle-piece"></i></span>
-                                <span>Produk Unmapped</span>
+                            <a href="{{ route('admin.openpo.form') }}" class="nav-link {{ request()->routeIs('admin.openpo.*') ? 'active' : '' }}">
+                                <span class="nav-icon"><i class="fas fa-upload"></i></span>
+                                <span>Upload Open PO</span>
                             </a>
+                            @if(false)
                             <a href="{{ route('admin.mapping.mapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.mapped.page') ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-link"></i></span>
                                 <span>Model → HS (Mapped)</span>
                             </a>
+                            @endif
                             @if($canPORead)
                                 <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
@@ -797,6 +802,10 @@
                                 <a href="{{ route('admin.shipments.index') }}" class="nav-link {{ request()->routeIs('admin.shipments.index') || request()->is('admin/shipments*') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-truck"></i></span>
                                     <span>Pengiriman & Receipt</span>
+                                </a>
+                                <a href="{{ route('admin.mapping.mapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.mapped.page') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-link"></i></span>
+                                    <span>Model → HS (Mapped)</span>
                                 </a>
                             @endif
                             @if($canProductCreate)
@@ -809,6 +818,25 @@
                     </div>
                 @endif
 
+                @if($canQuota)
+                    <div class="nav-group {{ ($quotaActive ?? false) ? 'is-open is-current' : '' }}" data-nav-group>
+                        <button type="button"
+                                class="nav-group__toggle"
+                                data-nav-toggle
+                                aria-expanded="{{ ($quotaActive ?? false) ? 'true' : 'false' }}"
+                                aria-controls="nav-group-quota">
+                            <span class="nav-title">Kuota</span>
+                            <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
+                        </button>
+                        <div class="nav-group__body" id="nav-group-quota">
+                            <a href="{{ route('admin.quotas.index') }}" class="nav-link {{ request()->is('admin/quotas*') || request()->is('admin/kuota*') ? 'active' : '' }}">
+                                <span class="nav-icon"><i class="fas fa-percentage"></i></span>
+                                <span>Manajemen Kuota</span>
+                            </a>
+                        </div>
+                    </div>
+                @endif
+
                 @if($canReports)
                     <div class="nav-group {{ $reportsActive ? 'is-open is-current' : '' }}" data-nav-group>
                         <button type="button"
@@ -816,7 +844,7 @@
                                 data-nav-toggle
                                 aria-expanded="{{ $reportsActive ? 'true' : 'false' }}"
                                 aria-controls="nav-group-reports">
-                            <span class="nav-title">Reports</span>
+                            <span class="nav-title">Laporan</span>
                             <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
                         </button>
                         <div class="nav-group__body" id="nav-group-reports">

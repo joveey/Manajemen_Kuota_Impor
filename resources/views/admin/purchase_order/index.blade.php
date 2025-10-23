@@ -29,8 +29,20 @@
     .po-inner { min-width: 2400px; }
     /* When outer scroll is present, inner table wrapper should not create nested scrollbars */
     .po-scroll .table-scroll { overflow: visible !important; }
-    .table-scroll { overflow-x:auto !important; overflow-y:hidden; width:100%; -webkit-overflow-scrolling: touch; cursor: grab; }
-    .table-scroll.is-grabbing { cursor: grabbing; }
+    /* Horizontal scroll wrapper for the PO table */
+    .po-table-wrap{ overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; border-radius:.5rem; }
+    .po-table-wrap table{ min-width:2000px; border-collapse:separate; }
+    .po-table-wrap th, .po-table-wrap td{ white-space:nowrap; }
+    .po-table-wrap thead th{ position:sticky; top:0; z-index:3; background:#fff; }
+    /* Optional sticky first/second columns (enable by adding class to th/td) */
+    .po-table-wrap td.sticky-col, .po-table-wrap th.sticky-col{ position:sticky; left:0; z-index:4; background:#fff; box-shadow:2px 0 0 rgba(0,0,0,.03); }
+    .po-table-wrap td.sticky-col-2, .po-table-wrap th.sticky-col-2{ position:sticky; left:8rem; z-index:4; background:#fff; box-shadow:2px 0 0 rgba(0,0,0,.02); }
+    /* Comfortable sizing when zooming */
+    .po-table-wrap td, .po-table-wrap th{ padding:.5rem .75rem; font-size:.92rem; }
+    /* Visible scrollbar */
+    .po-table-wrap::-webkit-scrollbar{ height:10px; }
+    .po-table-wrap::-webkit-scrollbar-thumb{ background:#cbd5e1; border-radius:8px; }
+    .po-table-wrap::-webkit-scrollbar-track{ background:transparent; }
     .table-scroll::-webkit-scrollbar { height: 10px; }
     .table-scroll::-webkit-scrollbar-thumb { background: rgba(15,23,42,.25); border-radius: 8px; }
     .po-table { width:100%; border-collapse:separate; border-spacing:0; min-width: 2400px; }
@@ -133,7 +145,7 @@
     </form>
 
     <div class="table-shell">
-        <div class="table-scroll" id="poTableScroll">
+        <div class="po-table-wrap">
         <table class="po-table">
             <thead>
                 <tr>
@@ -230,35 +242,4 @@
 </div>
 @endsection
 
-@push('scripts')
-<script>
-  (function(){
-    const scroller = document.getElementById('poScroll');
-    if (!scroller) return;
-
-    // Shift + wheel to scroll horizontally
-    scroller.addEventListener('wheel', function(e){
-      if (e.shiftKey) {
-        e.preventDefault();
-        scroller.scrollLeft += e.deltaY;
-      }
-    }, { passive: false });
-
-    // Click-drag to scroll (for mouse users)
-    let isDown = false, startX = 0, startLeft = 0;
-    scroller.addEventListener('mousedown', function(e){
-      isDown = true; scroller.classList.add('is-grabbing');
-      startX = e.pageX; startLeft = scroller.scrollLeft;
-    });
-    ['mouseleave','mouseup'].forEach(evt=>{
-      scroller.addEventListener(evt, function(){ isDown = false; scroller.classList.remove('is-grabbing'); });
-    });
-    scroller.addEventListener('mousemove', function(e){
-      if (!isDown) return;
-      e.preventDefault();
-      const dx = e.pageX - startX;
-      scroller.scrollLeft = startLeft - dx;
-    });
-  })();
-</script>
-@endpush
+{{-- No JS required; native horizontal scroll via .po-table-wrap --}}
