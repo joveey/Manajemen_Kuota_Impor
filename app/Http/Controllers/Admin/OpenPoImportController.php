@@ -78,7 +78,8 @@ class OpenPoImportController extends Controller
 
         $groups = $result['groups'] ?? [];
         $modelMap = session('openpo.model_map', []);
-        $mode = $request->string('publish_mode', 'insert'); // 'insert' | 'replace'
+        // Read publish mode as plain string (avoid Stringable so strict comparisons work)
+        $mode = (string) $request->input('publish_mode', 'insert'); // 'insert' | 'replace'
         $inserted = 0; $skippedExisting = 0; $replaced = 0;
 
         try {

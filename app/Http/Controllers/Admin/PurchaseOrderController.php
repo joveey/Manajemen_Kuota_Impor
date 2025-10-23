@@ -42,7 +42,7 @@ class PurchaseOrderController extends Controller
             ->select(array_filter([
                 DB::raw('ph.po_number as po_number'),
                 DB::raw('ph.po_date as order_date'),
-                DB::raw($hasVendorNumber ? 'ph.vendor_number as vendor_number' : 'NULL as vendor_number'),
+                DB::raw($hasVendorNumber ? "COALESCE(NULLIF(ph.vendor_number,''), split_part(ph.supplier, ' - ', 1)) as vendor_number" : 'NULL as vendor_number'),
                 DB::raw('ph.supplier as vendor_name'),
                 DB::raw("COALESCE(pl.line_no,'') as line_number"),
                 DB::raw('pl.model_code as item_code'),
@@ -119,7 +119,7 @@ class PurchaseOrderController extends Controller
             ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
             ->select(array_filter([
                 DB::raw('ph.po_number'), DB::raw('ph.po_date as order_date'),
-                DB::raw($hasVendorNumber ? 'ph.vendor_number as vendor_number' : 'NULL as vendor_number'), DB::raw('ph.supplier as vendor_name'),
+                DB::raw($hasVendorNumber ? "COALESCE(NULLIF(ph.vendor_number,''), split_part(ph.supplier, ' - ', 1)) as vendor_number" : 'NULL as vendor_number'), DB::raw('ph.supplier as vendor_name'),
                 DB::raw("COALESCE(pl.line_no,'') as line_number"),
                 DB::raw('pl.model_code as item_code'), DB::raw('pl.item_desc as item_description'),
                 DB::raw($hasWhCode ? 'pl.warehouse_code' : 'NULL as warehouse_code'),

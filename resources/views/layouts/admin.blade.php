@@ -482,7 +482,7 @@
         .app-content {
             padding: 20px 36px 36px;
             width: 100%;
-            overflow-x: hidden;
+            overflow-x: auto; /* allow horizontal scroll for wide content */
         }
 
         .page-shell {
@@ -670,7 +670,7 @@
             .page-header__actions {
                 justify-content: flex-start;
             }
-            .app-content { padding: 16px 18px 28px; width: 100%; overflow-x: hidden; }
+            .app-content { padding: 16px 18px 28px; width: 100%; overflow-x: auto; }
             .sidebar.is-open { transform: translateX(0); }
         }
     </style>
