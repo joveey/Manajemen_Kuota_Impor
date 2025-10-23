@@ -15,7 +15,8 @@ class PermissionMiddleware
             abort(401, 'Unauthorized - Please login first');
         }
 
-        if (!Auth::user()->hasPermission($permission)) {
+        // Use Gate so that Admin bypass (Gate::before) also applies
+        if (!Auth::user()->can($permission)) {
             abort(403, 'Forbidden - You do not have permission to access this resource');
         }
 

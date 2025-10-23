@@ -53,6 +53,12 @@
             <p class="page-header__subtitle">Pantau status purchase order, progres pengiriman, dan detail pelanggan dalam satu tampilan ringkas.</p>
         </div>
         <div class="page-header__actions">
+            @if(auth()->user()?->can('product.create'))
+            <a href="{{ route('admin.master.quick_hs.create') }}" class="page-header__button">
+                <i class="fas fa-plus"></i>
+                Tambah Model → HS
+            </a>
+            @endif
             <a href="{{ route('admin.purchase-orders.export', request()->query()) }}" class="page-header__button page-header__button--outline">
                 <i class="fas fa-file-export"></i>
                 Export CSV
@@ -150,8 +156,8 @@
                         <td>{{ $po->vendor_number ?? '-' }}</td>
                         <td>{{ $po->vendor_name ?? '-' }}</td>
                         <td>{{ $po->line_number ?? '-' }}</td>
-                        <td>{{ $po->item_code ?? $po->product->code }}</td>
-                        <td class="text-nowrap">{{ \Illuminate\Support\Str::limit($po->item_description ?? $po->product->name, 36) }}</td>
+                        <td>{{ $po->item_code ?? '-' }}</td>
+                        <td class="text-nowrap">{{ \Illuminate\Support\Str::limit($po->item_description ?? '-', 36) }}</td>
                         <td>{{ $po->warehouse_code ?? '-' }}</td>
                         <td>{{ $po->warehouse_name ?? '-' }}</td>
                         <td>{{ $po->warehouse_source ?? '-' }}</td>
@@ -170,17 +176,19 @@
                         <td>{{ $po->sap_order_status ?? '-' }}</td>
                         <td class="text-end">
                             <div class="table-actions">
-                                <a href="{{ route('admin.purchase-orders.show', $po) }}" class="action-icon action-icon--view" title="Detail">
-                                    <i class="fas fa-eye"></i>
-                                </a>
+                                        <span class="action-icon action-icon--view" title="Detail tidak tersedia untuk data Open PO">
+                                            <i class="fas fa-eye"></i>
+                                        </span>
                                 @can('delete purchase_orders')
-                                    <form action="{{ route('admin.purchase-orders.destroy', $po) }}" method="POST" onsubmit="return confirm('Hapus PO ini?');">
+                                    @if(isset($po->id))
+                                    <form action="{{ route('admin.purchase-orders.destroy', $po->id) }}" method="POST" onsubmit="return confirm('Hapus PO ini?');">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="action-icon action-icon--delete" title="Hapus">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
+                                    @endif
                                 @endcan
                             </div>
                         </td>

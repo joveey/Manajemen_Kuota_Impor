@@ -693,7 +693,9 @@
 
                     $canQuota = $currentUser?->can('read quota');
                     $canPORead = $currentUser?->can('read purchase_orders');
+                    $canPOCreate = $currentUser?->can('po.create');
                     $canReports = $currentUser?->can('read reports');
+                    $canProductCreate = $currentUser?->can('product.create');
 
                     // Include imports and unmapped pages so Operasional opens on those routes
                     $operationalActive = (
@@ -783,6 +785,10 @@
                                 <span class="nav-icon"><i class="fas fa-puzzle-piece"></i></span>
                                 <span>Produk Unmapped</span>
                             </a>
+                            <a href="{{ route('admin.mapping.mapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.mapped.page') ? 'active' : '' }}">
+                                <span class="nav-icon"><i class="fas fa-link"></i></span>
+                                <span>Model → HS (Mapped)</span>
+                            </a>
                             @if($canPORead)
                                 <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
@@ -791,6 +797,12 @@
                                 <a href="{{ route('admin.shipments.index') }}" class="nav-link {{ request()->routeIs('admin.shipments.index') || request()->is('admin/shipments*') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-truck"></i></span>
                                     <span>Pengiriman & Receipt</span>
+                                </a>
+                            @endif
+                            @if($canProductCreate)
+                                <a href="{{ route('admin.master.quick_hs.create') }}" class="nav-link {{ request()->routeIs('admin.master.quick_hs.*') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-circle-plus"></i></span>
+                                    <span>Tambah Model → HS</span>
                                 </a>
                             @endif
                         </div>

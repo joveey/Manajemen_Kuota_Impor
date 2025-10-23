@@ -37,6 +37,23 @@ class OpenPoValidator
             $qtyRaw = $r['QTY'] ?? null;
             $eta = trim((string) ($r['ETA_DATE'] ?? '')); // source doesn't have ETA, keep for future
             $uom = trim((string) ($r['UOM'] ?? '')) ?: null;
+            // optional operational columns
+            $whCode = trim((string) ($r['WH_CODE'] ?? '')) ?: null;
+            $whName = trim((string) ($r['WH_NAME'] ?? '')) ?: null;
+            $whSource = trim((string) ($r['WH_SOURCE'] ?? '')) ?: null;
+            $subinvCode = trim((string) ($r['SUBINV_CODE'] ?? '')) ?: null;
+            $subinvName = trim((string) ($r['SUBINV_NAME'] ?? '')) ?: null;
+            $subinvSource = trim((string) ($r['SUBINV_SOURCE'] ?? '')) ?: null;
+            $amountRaw = $r['AMOUNT'] ?? null;
+            $amount = null;
+            if ($amountRaw !== null && $amountRaw !== '') {
+                $num = preg_replace('/[^0-9.\-]/', '', (string)$amountRaw);
+                if ($num !== '' && is_numeric($num)) { $amount = (float)$num; }
+            }
+            $catCode = trim((string) ($r['CAT_PO'] ?? '')) ?: null;
+            $catDesc = trim((string) ($r['CAT_DESC'] ?? '')) ?: null;
+            $matGrp = trim((string) ($r['MAT_GRP'] ?? '')) ?: null;
+            $sapStatus = trim((string) ($r['SAP_STATUS'] ?? '')) ?: null;
             $currency = trim((string) ($r['CURRENCY'] ?? '')) ?: null;
             $note = null; // could embed other fields if needed
             $hsInput = trim((string) ($r['HS_CODE'] ?? ''));
@@ -67,9 +84,14 @@ class OpenPoValidator
             if ($hsInput !== '') {
                 $hsCode = $hsInput;
                 if ($hsTable) {
-                    $exists = DB::table($hsTable)->when($hsTable === 'hs_codes', function($q){ $q->select('id'); }, function($q){ $q->select('id'); })
-                        ->where(($hsTable === 'hs_codes') ? 'code' : 'hs_code', $hsCode)->exists();
-                    if (!$exists) { $errors[] = 'HS_CODE tidak ada di HS master'; }
+                    $exists = DB::table($hsTable)
+                        ->select('id')
+                        ->where(($hsTable === 'hs_codes') ? 'code' : 'hs_code', $hsCode)
+                        ->exists();
+                    // Allow alphabetic codes (e.g., ACC) even if not yet in master
+                    if (!$exists && !preg_match('/[A-Za-z]/', (string)$hsCode)) {
+                        $errors[] = 'HS_CODE tidak ada di HS master';
+                    }
                 }
                 // If there is a model->HS mapping table (not present in this repo), you could check consistency here.
             } else {
@@ -100,7 +122,8 @@ class OpenPoValidator
                 $poSeen[$po] = true;
                 $groups[$po] = [
                     'po_date' => $poDateNorm,
-                    'supplier' => trim($vendorNo !== '' ? ($vendorNo.' - '.$supplier) : $supplier),
+                    'supplier' => $supplier,
+                    'vendor_number' => $vendorNo,
                     'currency' => $currency,
                     'note' => $note,
                     'lines' => [],
@@ -116,6 +139,17 @@ class OpenPoValidator
                 'qty_ordered' => $qty,
                 'uom' => $uom,
                 'eta_date' => $etaNorm,
+                'wh_code' => $whCode,
+                'wh_name' => $whName,
+                'wh_source' => $whSource,
+                'subinv_code' => $subinvCode,
+                'subinv_name' => $subinvName,
+                'subinv_source' => $subinvSource,
+                'amount' => $amount,
+                'cat_code' => $catCode,
+                'cat_desc' => $catDesc,
+                'mat_grp' => $matGrp,
+                'sap_status' => $sapStatus,
                 'validation_status' => $status,
                 'validation_notes' => implode('; ', $errors),
             ];
