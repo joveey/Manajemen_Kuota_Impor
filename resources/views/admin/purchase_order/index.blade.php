@@ -360,7 +360,7 @@
             @if(auth()->user()?->can('product.create'))
             <a href="{{ route('admin.master.quick_hs.create') }}" class="page-header__button">
                 <i class="fas fa-plus"></i>
-                Tambah Model → HS
+                Tambah Model -> HS
             </a>
             @endif
             <a href="{{ route('admin.purchase-orders.export', request()->query()) }}" class="page-header__button page-header__button--outline">

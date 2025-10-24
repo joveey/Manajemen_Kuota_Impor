@@ -267,33 +267,28 @@
                 </li>
                 @endif
 
-                <!-- Reports -->
+                <!-- Laporan -->
                 @can('read reports')
-                <li class="nav-item {{ request()->is('reports*') ? 'menu-open' : '' }}">
-                    <a href="#" class="nav-link {{ request()->is('reports*') ? 'active' : '' }}">
+                @php $repOpen = request()->routeIs('analytics.*') || request()->routeIs('admin.reports.final'); @endphp
+                <li class="nav-item {{ $repOpen ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ $repOpen ? 'active' : '' }}">
                         <i class="nav-icon fas fa-chart-bar"></i>
                         <p>
-                            Reports
+                            Laporan
                             <i class="right fas fa-angle-left"></i>
                         </p>
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            <a href="#" class="nav-link">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Quota Reports</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#" class="nav-link">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>PO Reports</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#" class="nav-link">
+                            <a href="{{ route('analytics.index') }}" class="nav-link {{ request()->routeIs('analytics.*') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Analytics</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.reports.final') }}" class="nav-link {{ request()->routeIs('admin.reports.final') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Laporan Gabungan</p>
                             </a>
                         </li>
                     </ul>
@@ -357,34 +352,12 @@
                 </li>
                 @endif
 
-                <!-- System -->
-                @php
-                    $systemMenuOpen = request()->routeIs('profile.edit') || request()->is('system/*');
-                @endphp
-                <li class="nav-item {{ $systemMenuOpen ? 'menu-open' : '' }}">
-                    <a href="#" class="nav-link {{ $systemMenuOpen ? 'active' : '' }}">
-                        <i class="nav-icon fas fa-cogs"></i>
-                        <p>
-                            System
-                            <i class="right fas fa-angle-left"></i>
-                        </p>
+                <!-- Administrasi: Pengaturan Akun -->
+                <li class="nav-item">
+                    <a href="{{ route('profile.edit') }}" class="nav-link {{ request()->routeIs('profile.edit') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-user-cog"></i>
+                        <p>Pengaturan Akun</p>
                     </a>
-                    <ul class="nav nav-treeview">
-                        @if(Auth::user()->isAdmin())
-                        <li class="nav-item">
-                            <a href="#" class="nav-link">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Activity Log</p>
-                            </a>
-                        </li>
-                        @endif
-                        <li class="nav-item">
-                            <a href="{{ route('profile.edit') }}" class="nav-link {{ request()->routeIs('profile.edit') ? 'active' : '' }}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Settings</p>
-                            </a>
-                        </li>
-                    </ul>
                 </li>
 
             </ul>
