@@ -173,6 +173,7 @@
         display: inline-flex;
         gap: 10px;
     }
+    .d-none { display: none !important; }
 
     .action-icon {
         width: 32px;
@@ -282,15 +283,23 @@
                 @endforeach
             </div>
         </div>
-        <table class="quota-table">
+        <div class="p-3">
+            <div class="btn-group" role="group" aria-label="Mode">
+                <button type="button" class="btn btn-sm btn-primary" id="mode-forecast">Forecast</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="mode-actual">Actual</button>
+            </div>
+        </div>
+        <table class="quota-table" id="quotaTable">
             <thead>
                 <tr>
                     <th>#</th>
                     <th>No. Kuota</th>
                     <th>Nama Kuota</th>
-                    <th class="text-end">Qty Pemerintah</th>
-                    <th class="text-end">Qty Forecast</th>
-                    <th class="text-end">Qty Actual</th>
+                    <th class="text-end">Allocation</th>
+                    <th class="text-end col-forecast">Consumed</th>
+                    <th class="text-end col-forecast">Remaining</th>
+                    <th class="text-end col-actual d-none">Consumed</th>
+                    <th class="text-end col-actual d-none">Remaining</th>
                     <th>Periode</th>
                     <th>Status</th>
                     <th class="text-end">Aksi</th>
@@ -323,8 +332,10 @@
                         <td><strong>{{ $quota->quota_number }}</strong></td>
                         <td>{{ $quota->name }}</td>
                         <td class="text-end">{{ number_format($quota->total_allocation ?? 0) }}</td>
-                        <td class="text-end">{{ number_format($quota->forecast_remaining ?? 0) }}</td>
-                        <td class="text-end">{{ number_format($quota->actual_remaining ?? 0) }}</td>
+                        <td class="text-end col-forecast">{{ number_format(max(($quota->forecast_consumed ?? 0),0)) }}</td>
+                        <td class="text-end col-forecast">{{ number_format(max(($quota->forecast_remaining ?? 0),0)) }}</td>
+                        <td class="text-end col-actual d-none">{{ number_format(max(($quota->actual_consumed ?? 0),0)) }}</td>
+                        <td class="text-end col-actual d-none">{{ number_format(max(($quota->actual_remaining ?? 0),0)) }}</td>
                         <td>{{ optional($quota->period_start)->format('M Y') ?? '-' }} - {{ optional($quota->period_end)->format('M Y') ?? '-' }}</td>
                         <td>
                             {{-- New colored badge based on forecast ratio --}}
@@ -409,5 +420,30 @@
       });
     });
   });
+</script>
+@endpush
+@push('scripts')
+<script>
+(function(){
+  const btnF = document.getElementById('mode-forecast');
+  const btnA = document.getElementById('mode-actual');
+  const showForecast = () => {
+    document.querySelectorAll('.col-forecast').forEach(el=>el.classList.remove('d-none'));
+    document.querySelectorAll('.col-actual').forEach(el=>el.classList.add('d-none'));
+    btnF.classList.add('btn-primary'); btnF.classList.remove('btn-outline-primary');
+    btnA.classList.add('btn-outline-primary'); btnA.classList.remove('btn-primary');
+  };
+  const showActual = () => {
+    document.querySelectorAll('.col-forecast').forEach(el=>el.classList.add('d-none'));
+    document.querySelectorAll('.col-actual').forEach(el=>el.classList.remove('d-none'));
+    btnA.classList.add('btn-primary'); btnA.classList.remove('btn-outline-primary');
+    btnF.classList.add('btn-outline-primary'); btnF.classList.remove('btn-primary');
+  };
+  if(btnF && btnA){
+    btnF.addEventListener('click', showForecast);
+    btnA.addEventListener('click', showActual);
+    showForecast();
+  }
+})();
 </script>
 @endpush

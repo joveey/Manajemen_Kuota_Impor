@@ -357,11 +357,16 @@
             <p class="page-header__subtitle">Pantau status purchase order, progres pengiriman, dan detail pelanggan dalam satu tampilan ringkas.</p>
         </div>
         <div class="page-header__actions">
-            @if(auth()->user()?->can('product.create'))
-            <a href="{{ route('admin.master.quick_hs.create') }}" class="page-header__button">
-                <i class="fas fa-plus"></i>
-                Tambah Model -> HS
-            </a>
+            @if(Route::has('admin.master.quick_hs.create') && auth()->user()?->can('product.create'))
+                <a href="{{ route('admin.master.quick_hs.create') }}" class="page-header__button">
+                    <i class="fas fa-plus"></i>
+                    Tambah Model -> HS
+                </a>
+            @else
+                <a href="{{ route('admin.imports.hs_pk.index') }}" class="page-header__button page-header__button--outline">
+                    <i class="fas fa-link"></i>
+                    HS -> PK Import
+                </a>
             @endif
             <a href="{{ route('admin.purchase-orders.export', request()->query()) }}" class="page-header__button page-header__button--outline">
                 <i class="fas fa-file-export"></i>
