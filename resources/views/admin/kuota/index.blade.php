@@ -1,4 +1,4 @@
-﻿{{-- resources/views/admin/kuota/index.blade.php --}}
+{{-- resources/views/admin/kuota/index.blade.php --}}
 @extends('layouts.admin')
 
 @section('title', 'Manajemen Kuota')
@@ -240,11 +240,10 @@
                 Export CSV
             </a>
             @can('create quota')
-                <a href="{{ route('admin.quotas.create') }}" class="action-pill action-pill--primary">
-                    <i class="fas fa-plus"></i>
-                    Tambah Kuota
-                </a>
-            @endcan
+<a href="{{ route('admin.imports.quotas.index') }}" class="action-pill action-pill--primary">
+    <i class="fas fa-file-import"></i>
+    Import Kuota
+</a>
         </div>
     </div>
 

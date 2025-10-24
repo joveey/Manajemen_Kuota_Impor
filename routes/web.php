@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\QuotaImportPageController;
 use App\Http\Controllers\Admin\MappingPageController;
 use App\Http\Controllers\Admin\OpenPoImportController;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Admin\ProductQuickController;
 
 /*
 |--------------------------------------------------------------------------
@@ -114,11 +115,21 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Removed master-data UI per request
     // Route::resource('master-data', ProductController::class)->except(['show']);
 
-    Route::resource('quotas', QuotaController::class);
+    // Disable manual create form; use Import Kuota page instead
+    Route::resource('quotas', QuotaController::class)->except(['create','store']);
     Route::get('quotas/export/csv', [QuotaController::class, 'export'])->name('quotas.export');
     Route::get('kuota', [QuotaController::class, 'index'])->name('kuota.index');
-    Route::get('kuota/create', [QuotaController::class, 'create'])->name('kuota.create');
-    Route::post('kuota', [QuotaController::class, 'store'])->name('kuota.store');
+    // Redirect legacy create routes to Import Kuota
+    Route::get('quotas/create', function(){
+        return redirect()->route('admin.imports.quotas.index')->with('warning','Form kuota manual dinonaktifkan. Gunakan Import Kuota.');
+    })->name('quotas.create');
+    Route::get('kuota/create', function(){
+        return redirect()->route('admin.imports.quotas.index')->with('warning','Form kuota manual dinonaktifkan. Gunakan Import Kuota.');
+    })->name('kuota.create');
+    // block legacy store endpoint
+    Route::post('kuota', function(){
+        return redirect()->route('admin.imports.quotas.index')->with('warning','Form kuota manual dinonaktifkan. Gunakan Import Kuota.');
+    })->name('kuota.store');
     Route::get('kuota/{quota}/edit', [QuotaController::class, 'edit'])->name('kuota.edit');
     Route::post('quotas/{quota}/attach-product', [QuotaController::class, 'attachProduct'])
         ->name('quotas.attach-product');
@@ -133,13 +144,11 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Constrain route model binding for PurchaseOrder to numeric IDs to avoid clashes
     Route::pattern('purchase_order', '[0-9]+');
 
-    // Quick Product -> HS (manual) removed per request
-    // Route::middleware(['permission:product.create'])->group(function () {
-    //     Route::get('master-data/create-hs', [\App\Http\Controllers\Admin\ProductQuickController::class, 'create'])
-    //         ->name('master.quick_hs.create');
-    //     Route::post('master-data/store-hs', [\App\Http\Controllers\Admin\ProductQuickController::class, 'store'])
-    //         ->name('master.quick_hs.store');
-    // });
+    // Quick Product -> HS (aksi cepat)
+    Route::middleware(['permission:product.create'])->group(function () {
+        Route::get('master-data/create-hs', [ProductQuickController::class, 'create'])->name('master.quick_hs.create');
+        Route::post('master-data/store-hs', [ProductQuickController::class, 'store'])->name('master.quick_hs.store');
+    });
 
     Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'show', 'destroy']);
     Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
@@ -226,4 +235,5 @@ Route::middleware(['auth', 'verified'])->prefix('analytics')->name('analytics.')
     Route::get('/export/xlsx', [AnalyticsController::class, 'exportXlsx'])->name('export.xlsx');
     Route::get('/export/pdf', [AnalyticsController::class, 'exportPdf'])->name('export.pdf');
 });
+
 
