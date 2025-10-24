@@ -11,8 +11,9 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolePermissionSeeder::class,
             UserSeeder::class,
-            SampleQuotaDataSeeder::class,
-            PurchaseOrderSapSeeder::class,
+            // QuotaSystemSeeder::class, // aktifkan jika ini master sistem (bukan dummy)
+            // SampleQuotaDataSeeder::class,   // DISABLED (dummy)
+            // PurchaseOrderSapSeeder::class,  // DISABLED (dummy)
         ]);
     }
 }

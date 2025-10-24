@@ -202,6 +202,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('mapping/mapped', [MappingPageController::class, 'mapped'])->name('mapping.mapped.page');
 
 
+    // Read-only PO progress (based on po_headers/po_lines + Invoice as Shipment + GR)
+    Route::get('po-progress', [\App\Http\Controllers\Admin\PoProgressController::class, 'index'])
+        ->name('po_progress.index');
 });
 
 // Rute Otentikasi (dari Laravel Breeze atau UI)
@@ -218,3 +221,4 @@ Route::middleware(['auth', 'verified'])->prefix('analytics')->name('analytics.')
     Route::get('/export/xlsx', [AnalyticsController::class, 'exportXlsx'])->name('export.xlsx');
     Route::get('/export/pdf', [AnalyticsController::class, 'exportPdf'])->name('export.pdf');
 });
+
