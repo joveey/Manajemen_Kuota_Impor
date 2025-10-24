@@ -11,6 +11,8 @@ class Import extends Model
 
     public const TYPE_HS_PK = 'hs_pk';
     public const TYPE_QUOTA = 'quota';
+    public const TYPE_INVOICE = 'invoice';
+    public const TYPE_GR = 'gr';
 
     public const STATUS_UPLOADED = 'uploaded';
     public const STATUS_VALIDATING = 'validating';

@@ -21,6 +21,449 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ImportController extends Controller
 {
+    /**
+     * ===================== INVOICE IMPORT =====================
+     */
+    public function uploadInvoices(Request $request)
+    {
+        $data = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
+        ]);
+
+        if (!class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
+            return response()->json([
+                'error' => 'Missing dependency phpoffice/phpspreadsheet. Install with: composer require phpoffice/phpspreadsheet',
+            ], 500);
+        }
+
+        $uploaded = $request->file('file');
+        $original = $uploaded->getClientOriginalName();
+        $safeOriginal = preg_replace('/[^A-Za-z0-9_.-]+/', '_', $original);
+        $unique = now()->format('Ymd_His').'_'.\Illuminate\Support\Str::random(6).'_'.$safeOriginal;
+        $storedPath = $uploaded->storeAs('imports', $unique);
+
+        $import = \App\Models\Import::create([
+            'type' => \App\Models\Import::TYPE_INVOICE,
+            'period_key' => '',
+            'source_filename' => $original,
+            'stored_path' => $storedPath,
+            'status' => \App\Models\Import::STATUS_VALIDATING,
+            'created_by' => \Illuminate\Support\Facades\Auth::id(),
+        ]);
+
+        $fullPath = \Illuminate\Support\Facades\Storage::path($storedPath);
+        try {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($fullPath);
+        } catch (\Throwable $e) {
+            $import->markAs(\App\Models\Import::STATUS_FAILED, 'Failed to load workbook: '.$e->getMessage());
+            return response()->json(['error' => 'Failed to load workbook'], 422);
+        }
+
+        $sheet = $spreadsheet->getSheet(0);
+        $highestRow = (int) $sheet->getHighestRow();
+        $highestColIndex = (int) \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($sheet->getHighestColumn());
+
+        $headers = [];
+        for ($col = 1; $col <= $highestColIndex; $col++) {
+            $val = (string) $sheet->getCell([$col, 1])->getValue();
+            $key = strtoupper(trim($val));
+            if ($key !== '') { $headers[$key] = $col; }
+        }
+        foreach (['PO_NO','LINE_NO','INVOICE_NO','INVOICE_DATE','QTY'] as $req) {
+            if (!isset($headers[$req])) {
+                $import->markAs(\App\Models\Import::STATUS_FAILED, 'Required columns not found: PO_NO, LINE_NO, INVOICE_NO, INVOICE_DATE, QTY');
+                return response()->json(['error' => 'Required columns not found: PO_NO, LINE_NO, INVOICE_NO, INVOICE_DATE, QTY'], 422);
+            }
+        }
+
+        $colP = $headers['PO_NO'];
+        $colL = $headers['LINE_NO'];
+        $colI = $headers['INVOICE_NO'];
+        $colD = $headers['INVOICE_DATE'];
+        $colQ = $headers['QTY'];
+
+        $total=0; $valid=0; $error=0;
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            for ($row=2; $row<=$highestRow; $row++) {
+                $po = trim((string) $sheet->getCell([$colP,$row])->getFormattedValue());
+                $ln = trim((string) $sheet->getCell([$colL,$row])->getFormattedValue());
+                $inv = trim((string) $sheet->getCell([$colI,$row])->getFormattedValue());
+                $dateRaw = $sheet->getCell([$colD,$row])->getValue();
+                $qtyRaw = $sheet->getCell([$colQ,$row])->getValue();
+
+                if ($po==='' && $ln==='' && $inv==='') { continue; }
+                $total++;
+
+                $date = null;
+                if (is_numeric($dateRaw)) {
+                    try { $date = \Illuminate\Support\Carbon::instance(\PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($dateRaw))->toDateString(); } catch (\Throwable $e) { $date = null; }
+                } else {
+                    try { $date = \Illuminate\Support\Carbon::parse((string)$dateRaw)->toDateString(); } catch (\Throwable $e) { $date = null; }
+                }
+
+                $qty = (float) $qtyRaw;
+                $errors=[];
+                if ($po==='') $errors[]='PO_NO required';
+                if ($ln==='') $errors[]='LINE_NO required';
+                if ($inv==='') $errors[]='INVOICE_NO required';
+                if ($qty<=0) $errors[]='QTY must be > 0';
+
+                if ($errors) {
+                    \App\Models\ImportItem::create([
+                        'import_id'=>$import->id,
+                        'row_index'=>$row,
+                        'raw_json'=>compact('po','ln','inv','date','qty'),
+                        'errors_json'=>$errors,
+                        'status'=>'error',
+                    ]);
+                    $error++;
+                    continue;
+                }
+
+                \App\Models\ImportItem::create([
+                    'import_id'=>$import->id,
+                    'row_index'=>$row,
+                    'raw_json'=>compact('po','ln','inv','date','qty'),
+                    'normalized_json'=>compact('po','ln','inv','date','qty'),
+                    'status'=>'normalized',
+                ]);
+                $valid++;
+            }
+
+            $import->fill(['total_rows'=>$total,'valid_rows'=>$valid,'error_rows'=>$error]);
+            $import->markAs(\App\Models\Import::STATUS_READY, sprintf('valid=%d, error=%d',$valid,$error));
+            \Illuminate\Support\Facades\DB::commit();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            $import->markAs(\App\Models\Import::STATUS_FAILED, 'Exception: '.$e->getMessage());
+            return response()->json(['error'=>'Import failed'], 500);
+        }
+
+        return response()->json(['import_id'=>$import->id,'status'=>$import->status,'total_rows'=>$total,'valid_rows'=>$valid,'error_rows'=>$error]);
+    }
+
+    public function publishInvoices(Request $request, \App\Models\Import $import)
+    {
+        abort_unless($import->type === \App\Models\Import::TYPE_INVOICE, 404);
+        if ($import->status !== \App\Models\Import::STATUS_READY) {
+            return response()->json(['error'=>'Import not ready'], 422);
+        }
+
+        $items = $import->items()->where('status','normalized')->get(['normalized_json']);
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            $now = now();
+            $rows = [];
+            foreach ($items as $it) {
+                $j = $it->normalized_json ?? [];
+                $rows[] = [
+                    'po_no' => (string)($j['po'] ?? ''),
+                    'line_no' => (string)($j['ln'] ?? ''),
+                    'invoice_no' => (string)($j['inv'] ?? ''),
+                    'invoice_date' => $j['date'] ?? null,
+                    'qty' => (float)($j['qty'] ?? 0),
+                    'created_at'=>$now,
+                    'updated_at'=>$now,
+                ];
+            }
+            if (!empty($rows)) {
+                \Illuminate\Support\Facades\DB::table('invoices')->upsert($rows, ['po_no','line_no','invoice_no','qty'], ['invoice_date','updated_at']);
+            }
+            $import->markAs(\App\Models\Import::STATUS_PUBLISHED, 'Published '.count($rows).' rows');
+            \Illuminate\Support\Facades\DB::commit();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            $import->markAs(\App\Models\Import::STATUS_FAILED, 'Publish failed: '.$e->getMessage());
+            return response()->json(['error'=>'Publish failed'], 500);
+        }
+        return response()->json(['ok'=>true]);
+    }
+
+    /**
+     * ===================== GR IMPORT =====================
+     */
+    public function uploadGr(Request $request)
+    {
+        $data = $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
+        ]);
+
+        if (!class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
+            return response()->json([
+                'error' => 'Missing dependency phpoffice/phpspreadsheet. Install with: composer require phpoffice/phpspreadsheet',
+            ], 500);
+        }
+
+        $uploaded = $request->file('file');
+        $original = $uploaded->getClientOriginalName();
+        $safeOriginal = preg_replace('/[^A-Za-z0-9_.-]+/', '_', $original);
+        $unique = now()->format('Ymd_His').'_'.\Illuminate\Support\Str::random(6).'_'.$safeOriginal;
+        $storedPath = $uploaded->storeAs('imports', $unique);
+
+        $import = \App\Models\Import::create([
+            'type' => \App\Models\Import::TYPE_GR,
+            'period_key' => '',
+            'source_filename' => $original,
+            'stored_path' => $storedPath,
+            'status' => \App\Models\Import::STATUS_VALIDATING,
+            'created_by' => \Illuminate\Support\Facades\Auth::id(),
+        ]);
+
+        $fullPath = \Illuminate\Support\Facades\Storage::path($storedPath);
+        try { $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($fullPath); } catch (\Throwable $e) {
+            $import->markAs(\App\Models\Import::STATUS_FAILED, 'Failed to load workbook: '.$e->getMessage());
+            return response()->json(['error' => 'Failed to load workbook'], 422);
+        }
+
+        // Resolve the correct sheet (prefer sheets named like "PO GR") and flexible headers
+        $normalize = function ($s) {
+            $u = strtoupper(trim((string)$s));
+            // Remove spaces, underscores, hyphens and non-alnum
+            return preg_replace('/[^A-Z0-9]/', '', $u);
+        };
+
+        /** @var Worksheet|null $sheet */
+        $sheet = null; $chosen = null;
+        $preferredNames = ['PO GR','PO_GR','PO GR (GOOD RECEIPT)','GOOD RECEIPT','GR','PO GOOD RECEIPT'];
+        $titles = [];
+        foreach ($spreadsheet->getWorksheetIterator() as $ws) {
+            $titles[] = $ws->getTitle();
+            $tNorm = $normalize($ws->getTitle());
+            foreach ($preferredNames as $nm) {
+                if ($tNorm === $normalize($nm)) { $sheet = $ws; break 2; }
+            }
+        }
+        // If no preferred sheet, pick the first sheet that contains required headers (flex synonyms)
+        $reqSyn = [
+            'PO_NO' => ['PO_NO','PO NO','PO','PO DOC','PODOC','PO NUMBER','PONUMBER'],
+            'LINE_NO' => ['LINE_NO','LINE NO','LINE','ITEM','PO_ITEM','PO ITEM','POITEM'],
+            'RECEIVE_DATE' => ['RECEIVE_DATE','RECEIVE DATE','RECEIPT DATE','GR DATE','POSTING DATE','DATE'],
+            'QTY' => ['QTY','QUANTITY','RECEIVE QTY','QTY RECEIVED','GR QTY'],
+            'CAT_PO' => ['CAT_PO','CAT PO','CATPO','CATEGORY'],
+        ];
+        $optSyn = [
+            'INVOICE_NO' => ['INVOICE_NO','INVOICE NO','INVOICE','INV','INV NO'],
+            'ITEM_NAME' => ['ITEM_NAME','ITEM NAME','ITEM','DESC','DESCRIPTION'],
+            'VENDOR_CODE' => ['VENDOR_CODE','VENDOR CODE','VENDOR NO','VENDOR'],
+            'VENDOR_NAME' => ['VENDOR_NAME','VENDOR NAME'],
+            'WH_CODE' => ['WH_CODE','WH CODE','WAREHOUSE CODE'],
+            'WH_NAME' => ['WH_NAME','WH NAME','WAREHOUSE NAME'],
+            'SLOC_CODE' => ['SLOC_CODE','SLOC CODE','SUBINV CODE'],
+            'SLOC_NAME' => ['SLOC_NAME','SLOC NAME','SUBINV NAME'],
+            'CURRENCY' => ['CURRENCY','CURR'],
+            'AMOUNT' => ['AMOUNT','AMT'],
+            'DELIV_AMOUNT' => ['DELIV_AMOUNT','DELIVERY AMOUNT','DELIV AMOUNT'],
+        ];
+
+        $colP = $colL = $colD = $colQ = $colCat = null; $colInv = null; $optCols = [];
+
+        $findColsOnSheet = function(Worksheet $ws) use ($normalize, $reqSyn, $optSyn) {
+            $highestColIndex = (int) \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($ws->getHighestColumn());
+            $colsByNorm = [];
+            for ($col=1; $col <= $highestColIndex; $col++) {
+                $val = (string) $ws->getCell([$col,1])->getValue();
+                $norm = $normalize($val);
+                if ($norm !== '') { $colsByNorm[$norm] = $col; }
+            }
+            $get = function(array $alts) use ($colsByNorm, $normalize) {
+                foreach ($alts as $a) { $n = $normalize($a); if (isset($colsByNorm[$n])) return $colsByNorm[$n]; }
+                return null;
+            };
+            $required = [];
+            foreach ($reqSyn as $k=>$alts) { $required[$k] = $get($alts); }
+            $optional = [];
+            foreach ($optSyn as $k=>$alts) { $optional[$k] = $get($alts); }
+            return [$required, $optional];
+        };
+
+        if (!$sheet) {
+            foreach ($spreadsheet->getWorksheetIterator() as $ws) {
+                [$reqMap, $optMap] = $findColsOnSheet($ws);
+                if ($reqMap['PO_NO'] && $reqMap['LINE_NO'] && $reqMap['RECEIVE_DATE'] && $reqMap['QTY'] && $reqMap['CAT_PO']) {
+                    $sheet = $ws; $chosen = [$reqMap,$optMap]; break;
+                }
+            }
+        }
+        if (!$sheet) {
+            $import->markAs(\App\Models\Import::STATUS_FAILED, 'Sheet PO GR with required headers not found. Sheets available: '.implode(', ', $titles));
+            return response()->json(['error' => 'Required columns not found on any sheet: PO_NO, LINE_NO, RECEIVE_DATE, QTY, CAT_PO'], 422);
+        }
+
+        if (!$chosen) { [$reqMap, $optMap] = $findColsOnSheet($sheet); }
+        else { [$reqMap, $optMap] = $chosen; }
+        // Validate columns on the chosen sheet
+        if (!$reqMap['PO_NO'] || !$reqMap['LINE_NO'] || !$reqMap['RECEIVE_DATE'] || !$reqMap['QTY'] || !$reqMap['CAT_PO']) {
+            $import->markAs(\App\Models\Import::STATUS_FAILED, 'Required columns not found in sheet '.$sheet->getTitle().': PO_NO, LINE_NO, RECEIVE_DATE, QTY, CAT_PO');
+            return response()->json(['error' => 'Required columns not found in sheet '.$sheet->getTitle().': PO_NO, LINE_NO, RECEIVE_DATE, QTY, CAT_PO'], 422);
+        }
+
+        $colP = $reqMap['PO_NO'];
+        $colL = $reqMap['LINE_NO'];
+        $colD = $reqMap['RECEIVE_DATE'];
+        $colQ = $reqMap['QTY'];
+        $colCat = $reqMap['CAT_PO'];
+        $colInv = $optMap['INVOICE_NO'] ?? null;
+        $optCols = [
+            'ITEM_NAME'   => $optMap['ITEM_NAME'] ?? null,
+            'VENDOR_CODE' => $optMap['VENDOR_CODE'] ?? null,
+            'VENDOR_NAME' => $optMap['VENDOR_NAME'] ?? null,
+            'WH_CODE'     => $optMap['WH_CODE'] ?? null,
+            'WH_NAME'     => $optMap['WH_NAME'] ?? null,
+            'SLOC_CODE'   => $optMap['SLOC_CODE'] ?? null,
+            'SLOC_NAME'   => $optMap['SLOC_NAME'] ?? null,
+            'CURRENCY'    => $optMap['CURRENCY'] ?? null,
+            'AMOUNT'      => $optMap['AMOUNT'] ?? null,
+            'DELIV_AMOUNT'=> $optMap['DELIV_AMOUNT'] ?? null,
+        ];
+
+        $highestRow = (int) $sheet->getHighestRow();
+
+        $total=0; $valid=0; $error=0;
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            for ($row=2; $row<=$highestRow; $row++) {
+                $po = trim((string) $sheet->getCell([$colP,$row])->getFormattedValue());
+                $ln = trim((string) $sheet->getCell([$colL,$row])->getFormattedValue());
+                $dateRaw = $sheet->getCell([$colD,$row])->getValue();
+                $inv = $colInv ? trim((string) $sheet->getCell([$colInv,$row])->getFormattedValue()) : null;
+                $qtyRaw = $sheet->getCell([$colQ,$row])->getValue();
+                $cat = trim((string) $sheet->getCell([$colCat,$row])->getFormattedValue());
+                $opt = [];
+                foreach ($optCols as $k=>$cIndex){
+                    $opt[$k] = $cIndex ? trim((string) $sheet->getCell([$cIndex,$row])->getFormattedValue()) : null;
+                }
+
+                if ($po==='' && $ln==='') { continue; }
+                $total++;
+
+                $date = null;
+                if (is_numeric($dateRaw)) {
+                    try { $date = \Illuminate\Support\Carbon::instance(\PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($dateRaw))->toDateString(); } catch (\Throwable $e) { $date = null; }
+                } else {
+                    try { $date = \Illuminate\Support\Carbon::parse((string)$dateRaw)->toDateString(); } catch (\Throwable $e) { $date = null; }
+                }
+
+                $qty = (float) $qtyRaw;
+                $errors=[];
+                if ($po==='') $errors[]='PO_NO required';
+                if ($ln==='') $errors[]='LINE_NO required';
+                if (!$date) $errors[]='RECEIVE_DATE required';
+                if ($qty<=0) $errors[]='QTY must be > 0';
+                if ($cat==='') $errors[]='CAT_PO required';
+
+                // Check PO line existence and mapping
+                if (!$errors) {
+                    $pl = \Illuminate\Support\Facades\DB::table('po_lines as pl')
+                        ->join('po_headers as ph','pl.po_header_id','=','ph.id')
+                        ->leftJoin('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
+                        ->where('ph.po_number',$po)->where('pl.line_no',$ln)
+                        ->select('pl.id','pl.hs_code_id','hs.pk_capacity')->first();
+                    if (!$pl) { $errors[]='PO/Line tidak ditemukan'; }
+                    elseif (is_null($pl->pk_capacity)) { $errors[]='Unmapped: HS/PK belum tersedia'; }
+                }
+
+                if ($errors) {
+                    \App\Models\ImportItem::create([
+                        'import_id'=>$import->id,
+                        'row_index'=>$row,
+                        'raw_json'=>compact('po','ln','inv','date','qty'),
+                        'errors_json'=>$errors,
+                        'status'=>'error',
+                    ]);
+                    $error++;
+                    continue;
+                }
+                \App\Models\ImportItem::create([
+                    'import_id'=>$import->id,
+                    'row_index'=>$row,
+                    'raw_json'=>array_merge(compact('po','ln','inv','date','qty','cat'), $opt),
+                    'normalized_json'=>array_merge(compact('po','ln','inv','date','qty','cat'), $opt),
+                    'status'=>'normalized',
+                ]);
+                $valid++;
+            }
+            $import->fill(['total_rows'=>$total,'valid_rows'=>$valid,'error_rows'=>$error]);
+            $import->markAs(\App\Models\Import::STATUS_READY, sprintf('valid=%d, error=%d',$valid,$error));
+            \Illuminate\Support\Facades\DB::commit();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            $import->markAs(\App\Models\Import::STATUS_FAILED, 'Exception: '.$e->getMessage());
+            return response()->json(['error'=>'Import failed'], 500);
+        }
+
+        return response()->json(['import_id'=>$import->id,'status'=>$import->status,'total_rows'=>$total,'valid_rows'=>$valid,'error_rows'=>$error]);
+    }
+
+    public function publishGr(Request $request, \App\Models\Import $import)
+    {
+        abort_unless($import->type === \App\Models\Import::TYPE_GR, 404);
+        if ($import->status !== \App\Models\Import::STATUS_READY) {
+            return response()->json(['error'=>'Import not ready'], 422);
+        }
+        $items = $import->items()->where('status','normalized')->get(['normalized_json']);
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            $now = now();
+            $published = 0; $skipped = 0;
+            foreach ($items as $it) {
+                $j = $it->normalized_json ?? [];
+                $po = (string)($j['po'] ?? '');
+                $ln = (string)($j['ln'] ?? '');
+                $date = $j['date'] ?? null;
+                $qty = (float)($j['qty'] ?? 0);
+                $cat = (string)($j['cat'] ?? '');
+                $inv = $j['inv'] ?? null;
+                $uk = sha1($po.$ln.$date.$qty);
+
+                // Idempotent: skip if exists (prefer gr_unique if column exists; fallback to composite key)
+                $useUniq = \Illuminate\Support\Facades\Schema::hasColumn('gr_receipts','gr_unique');
+                $existsQ = \Illuminate\Support\Facades\DB::table('gr_receipts');
+                if ($useUniq) { $existsQ->where('gr_unique',$uk); }
+                else { $existsQ->where(['po_no'=>$po,'line_no'=>$ln,'receive_date'=>$date,'qty'=>$qty]); }
+                $exists = $existsQ->exists();
+                if ($exists) { $skipped++; continue; }
+
+                // Lock the PO line to update received qty atomically
+                $pl = \Illuminate\Support\Facades\DB::table('po_lines as pl')
+                    ->join('po_headers as ph','pl.po_header_id','=','ph.id')
+                    ->where('ph.po_number',$po)->where('pl.line_no',$ln)
+                    ->select('pl.id','pl.qty_received')->lockForUpdate()->first();
+                if (!$pl) { $skipped++; continue; }
+
+                // Insert journal row
+                \Illuminate\Support\Facades\DB::table('gr_receipts')->insert([
+                    'po_no'=>$po,
+                    'line_no'=>$ln,
+                    'invoice_no'=>$inv,
+                    'receive_date'=>$date,
+                    'qty'=>$qty,
+                    // include gr_unique if the column exists
+                    ...($useUniq ? ['gr_unique'=>$uk] : []),
+                    'cat_po'=>$cat,
+                    'created_at'=>$now,
+                    'updated_at'=>$now,
+                ]);
+
+                // Update per-line actual cache
+                $newReceived = (float)($pl->qty_received ?? 0) + $qty;
+                \Illuminate\Support\Facades\DB::table('po_lines')->where('id',$pl->id)->update([
+                    'qty_received' => $newReceived,
+                    'updated_at' => $now,
+                ]);
+
+                $published++;
+            }
+            $import->markAs(\App\Models\Import::STATUS_PUBLISHED, 'Published '.$published.' rows; skipped='.$skipped);
+            \Illuminate\Support\Facades\DB::commit();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            $import->markAs(\App\Models\Import::STATUS_FAILED, 'Publish failed: '.$e->getMessage());
+            return response()->json(['error'=>'Publish failed'], 500);
+        }
+        return response()->json(['ok'=>true]);
+    }
     public function uploadHsPk(Request $request)
     {
         $data = $request->validate([

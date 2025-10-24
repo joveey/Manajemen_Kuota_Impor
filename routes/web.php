@@ -178,6 +178,17 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('imports/quotas/upload', [QuotaImportPageController::class, 'uploadForm'])->name('imports.quotas.upload.form');
         Route::get('imports/quotas/{import}', [QuotaImportPageController::class, 'preview'])->name('imports.quotas.preview');
         Route::post('imports/quotas/{import}/publish', [QuotaImportPageController::class, 'publishForm'])->name('imports.quotas.publish.form');
+
+        // ===== New: Invoice & GR imports =====
+        Route::get('imports/invoices', [\App\Http\Controllers\Admin\InvoiceImportPageController::class, 'index'])->name('imports.invoices.index');
+        Route::post('imports/invoices/upload', [\App\Http\Controllers\Admin\InvoiceImportPageController::class, 'uploadForm'])->name('imports.invoices.upload');
+        Route::get('imports/invoices/{import}/preview', [\App\Http\Controllers\Admin\InvoiceImportPageController::class, 'preview'])->name('imports.invoices.preview');
+        Route::post('imports/invoices/{import}/publish', [\App\Http\Controllers\Admin\InvoiceImportPageController::class, 'publishForm'])->name('imports.invoices.publish');
+
+        Route::get('imports/gr', [\App\Http\Controllers\Admin\GrImportPageController::class, 'index'])->name('imports.gr.index');
+        Route::post('imports/gr/upload', [\App\Http\Controllers\Admin\GrImportPageController::class, 'uploadForm'])->name('imports.gr.upload');
+        Route::get('imports/gr/{import}/preview', [\App\Http\Controllers\Admin\GrImportPageController::class, 'preview'])->name('imports.gr.preview');
+        Route::post('imports/gr/{import}/publish', [\App\Http\Controllers\Admin\GrImportPageController::class, 'publishForm'])->name('imports.gr.publish');
     });
 
     // =====================
@@ -216,4 +227,3 @@ Route::middleware(['auth', 'verified'])->prefix('analytics')->name('analytics.')
     Route::get('/export/pdf', [AnalyticsController::class, 'exportPdf'])->name('export.pdf');
 });
 
-// (Product Mapping custom module removed — restoring original routes)

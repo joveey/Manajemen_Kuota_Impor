@@ -758,6 +758,14 @@
                             <span class="nav-icon"><i class="fas fa-puzzle-piece"></i></span>
                             <span>Produk Unmapped</span>
                         </a>
+                        <a href="{{ route('admin.imports.invoices.index') }}" class="nav-link {{ request()->routeIs('admin.imports.invoices.*') ? 'active' : '' }}">
+                            <span class="nav-icon"><i class="fas fa-file-invoice"></i></span>
+                            <span>Import Invoice (opsional)</span>
+                        </a>
+                        <a href="{{ route('admin.imports.gr.index') }}" class="nav-link {{ request()->routeIs('admin.imports.gr.*') ? 'active' : '' }}">
+                            <span class="nav-icon"><i class="fas fa-receipt"></i></span>
+                            <span>Import GR</span>
+                        </a>
                     </div>
                 </div>
 
@@ -796,12 +804,7 @@
                                     <span>Model → HS (Mapped)</span>
                                 </a>
                             @endif
-                            @if($canProductCreate)
-                                <a href="{{ route('admin.master.quick_hs.create') }}" class="nav-link {{ request()->routeIs('admin.master.quick_hs.*') ? 'active' : '' }}">
-                                    <span class="nav-icon"><i class="fas fa-circle-plus"></i></span>
-                                    <span>Tambah Model → HS</span>
-                                </a>
-                            @endif
+                            {{-- Quick HS creation removed along with Product system --}}
                         </div>
                     </div>
                 @endif
