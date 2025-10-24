@@ -46,7 +46,7 @@
           <button type="submit" class="btn btn-primary">Search</button>
         </div>
         <div class="col-md-2 align-self-end text-end">
-          <a class="btn btn-outline-secondary" href="{{ route('admin.imports.hs_pk.index') }}">Go to HS→PK Import</a>
+          <a class="btn btn-outline-secondary" href="{{ route('admin.imports.hs_pk.index') }}">Go to HS -> PK Import</a>
         </div>
       </form>
     </div>
@@ -167,22 +167,20 @@ document.addEventListener('DOMContentLoaded', () => {
     data.forEach(row => {
       const tr = document.createElement('tr');
       const model = row.model ?? '';
-      const editUrl = `{{ route('admin.master-data.edit', ':id') }}`.replace(':id', row.product_id);
       tr.innerHTML = `
         <td>${row.product_id}</td>
         <td>${model}</td>
         <td>${row.hs_code ?? ''}</td>
         <td>${row.resolved_pk ?? ''}</td>
-        <td><span class="badge bg-secondary">${row.reason}</span></td>
+        <td><span class=\"badge bg-secondary\">${row.reason}</span></td>
         <td>
-          <a href="${editUrl}" class="btn btn-sm btn-outline-primary">Edit Product</a>
-          <a href="{{ route('admin.imports.hs_pk.index') }}" class="btn btn-sm btn-outline-secondary">HS→PK Import</a>
+          <a href=\"{{ route('admin.imports.hs_pk.index') }}\" class=\"btn btn-sm btn-outline-primary\">HS -> PK Import</a>
         </td>
       `;
       rows.appendChild(tr);
     });
 
-    pagerTop.textContent = `Page ${j.current_page} / ${j.last_page} • Total ${j.total}`;
+    pagerTop.textContent = `Page ${j.current_page} / ${j.last_page} â€¢ Total ${j.total}`;
     pagerBottom.textContent = pagerTop.textContent;
 
     prevBtn.disabled = j.current_page <= 1;
@@ -198,3 +196,4 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 @endsection
+

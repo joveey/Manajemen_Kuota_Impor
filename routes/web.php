@@ -111,7 +111,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // MANAJEMEN KUOTA IMPOR
     // ============================================
 
-    Route::resource('master-data', ProductController::class)->except(['show']);
+    // Removed master-data UI per request
+    // Route::resource('master-data', ProductController::class)->except(['show']);
 
     Route::resource('quotas', QuotaController::class);
     Route::get('quotas/export/csv', [QuotaController::class, 'export'])->name('quotas.export');
@@ -132,13 +133,13 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Constrain route model binding for PurchaseOrder to numeric IDs to avoid clashes
     Route::pattern('purchase_order', '[0-9]+');
 
-    // Quick Product -> HS (manual)
-    Route::middleware(['permission:product.create'])->group(function () {
-        Route::get('master-data/create-hs', [\App\Http\Controllers\Admin\ProductQuickController::class, 'create'])
-            ->name('master.quick_hs.create');
-        Route::post('master-data/store-hs', [\App\Http\Controllers\Admin\ProductQuickController::class, 'store'])
-            ->name('master.quick_hs.store');
-    });
+    // Quick Product -> HS (manual) removed per request
+    // Route::middleware(['permission:product.create'])->group(function () {
+    //     Route::get('master-data/create-hs', [\App\Http\Controllers\Admin\ProductQuickController::class, 'create'])
+    //         ->name('master.quick_hs.create');
+    //     Route::post('master-data/store-hs', [\App\Http\Controllers\Admin\ProductQuickController::class, 'store'])
+    //         ->name('master.quick_hs.store');
+    // });
 
     Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'show', 'destroy']);
     Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
