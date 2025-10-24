@@ -1001,6 +1001,10 @@
                                 ->filter()
                                 ->values()
                             : collect();
+                        // Normalize encoded entities in page title (avoid showing &amp; etc.)
+                        if (is_string($pageTitle)) {
+                            $pageTitle = html_entity_decode($pageTitle, ENT_QUOTES, 'UTF-8');
+                        }
                     @endphp
                     <h1>{!! $pageTitle !!}</h1>
                     <div class="bar-meta">
