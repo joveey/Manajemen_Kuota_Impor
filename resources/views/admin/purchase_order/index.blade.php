@@ -80,7 +80,7 @@
             @if(auth()->user()?->can('product.create'))
             <a href="{{ route('admin.master.quick_hs.create') }}" class="page-header__button">
                 <i class="fas fa-plus"></i>
-                Tambah Model → HS
+                Tambah Model -> HS
             </a>
             @endif
             <a href="{{ route('admin.purchase-orders.export', request()->query()) }}" class="page-header__button page-header__button--outline">
@@ -212,7 +212,7 @@
                                         </span>
                                 @can('delete purchase_orders')
                                     @if(isset($po->id))
-                                    <form action="{{ route('admin.purchase-orders.destroy', $po->id) }}" method="POST" onsubmit="return confirm('Hapus PO ini?');">
+                                    <form action="{{ route('admin.purchase-orders.destroy', $po->id) }}" method="POST" onsubmit="return confirm('Hapus PO ini?');" style="display: inline;">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="action-icon action-icon--delete" title="Hapus">
@@ -226,7 +226,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="13" class="text-center text-muted">Belum ada purchase order.</td>
+                        <td colspan="21" class="text-center text-muted py-4">Belum ada purchase order.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -237,9 +237,10 @@
     <div class="pagination-modern">
         {{ $purchaseOrders->links() }}
     </div>
-  </div>
-  </div>
+  
 </div>
 @endsection
 
 {{-- No JS required; native horizontal scroll via .po-table-wrap --}}
+
+
