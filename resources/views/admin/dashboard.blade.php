@@ -1120,10 +1120,10 @@
                                 </div>
                                 <div class="data-cell data-cell--status">
                                     <span class="badge-chip {{ $poStatus['class'] }}">{{ $poStatus['label'] }}</span>
-                                    <span class="data-sub">Received {{ number_format($po->received_qty, 2) }} / {{ number_format($po->total_qty, 2) }}</span>
+                                    <span class="data-sub">Received {{ fmt_qty($po->received_qty) }} / {{ fmt_qty($po->total_qty) }}</span>
                                 </div>
                                 <div class="data-cell data-cell--qty">
-                                    <span class="data-qty">{{ number_format($po->total_qty, 2) }}</span>
+                                    <span class="data-qty">{{ fmt_qty($po->total_qty) }}</span>
                                     <span class="data-sub">Total unit</span>
                                 </div>
                             </div>
@@ -1179,7 +1179,7 @@
                                     @endif
                                 </div>
                                 <div class="data-cell data-cell--qty">
-                                    <span class="data-qty">{{ number_format($shipment->quantity, 2) }}</span>
+                                    <span class="data-qty">{{ fmt_qty($shipment->quantity) }}</span>
                                     <span class="data-sub">Unit diterima</span>
                                 </div>
                             </div>

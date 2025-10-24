@@ -759,6 +759,7 @@
                     
                     $operationalActive = (
                         request()->routeIs('admin.openpo.*') ||
+                        request()->routeIs('admin.po_progress.index') ||
                         ($canPORead && (request()->is('admin/purchase-orders*') || request()->routeIs('admin.mapping.mapped.page') || request()->routeIs('admin.master.quick_hs.*')))
                     );
 
@@ -854,6 +855,10 @@
                                 <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
                                     <span>Daftar Purchase Order</span>
+                                </a>
+                                <a href="{{ route('admin.po_progress.index') }}" class="nav-link {{ request()->routeIs('admin.po_progress.index') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-truck"></i></span>
+                                    <span>Pengiriman &amp; Receipt</span>
                                 </a>
                                 <a href="{{ route('admin.mapping.mapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.mapped.page') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-link"></i></span>
