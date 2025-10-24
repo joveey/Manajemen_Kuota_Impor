@@ -39,7 +39,7 @@
             </div>
             <div class="col-md-8 d-flex gap-2">
               <button class="btn btn-primary" type="submit" {{ (($summary['error_count'] ?? 0) > 0) ? 'disabled' : '' }} title="{{ (($summary['error_count'] ?? 0) > 0) ? 'Perbaiki error sebelum publish' : '' }}">Publish</button>
-              <a href="{{ rote('admin.openpo.form') }}" class="btn btn-outline-secondary">Kembali</a>
+              <a href="{{ route('admin.openpo.form') }}" class="btn btn-outline-secondary">Kembali</a>
             </div>
           </form>
         </div>
@@ -133,4 +133,3 @@
   </div>
 </div>
 @endsection
-
