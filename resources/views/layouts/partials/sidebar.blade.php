@@ -110,14 +110,12 @@
                                 <p>Quota List</p>
                             </a>
                         </li>
-                        @can('create quota')
                         <li class="nav-item">
-                            <a href="{{ route('admin.quotas.create') }}" class="nav-link {{ request()->routeIs('admin.quotas.create') ? 'active' : '' }}">
+                            <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Create Quota</p>
+                                <p>Import Kuota</p>
                             </a>
                         </li>
-                        @endcan
                     </ul>
                 </li>
                 @endcan

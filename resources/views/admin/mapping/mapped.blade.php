@@ -21,9 +21,14 @@
           <input class="form-check-input" type="checkbox" id="only_active" name="only_active" value="1" {{ !empty($onlyActive) ? 'checked' : '' }}>
           <label class="form-check-label" for="only_active">Hanya yang Aktif</label>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-5 d-flex gap-2">
           <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Tampilkan</button>
           <a href="{{ route('admin.mapping.mapped.page') }}" class="btn btn-outline-secondary">Reset</a>
+          @if(Route::has('admin.master.quick_hs.create') && auth()->user()?->can('product.create'))
+            <a href="{{ route('admin.master.quick_hs.create', ['return' => request()->fullUrl()]) }}" class="btn btn-success">
+              <i class="fas fa-circle-plus"></i> Tambah Model → HS
+            </a>
+          @endif
         </div>
       </form>
     </div>
@@ -85,4 +90,3 @@
   </div>
 </div>
 @endsection
-
