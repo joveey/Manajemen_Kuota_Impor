@@ -22,7 +22,10 @@
 
     <style>
         /* Global base font sizing similar to GitHub */
-        html { font-size: 14px; }
+        html { 
+            font-size: 14px;
+        }
+        
         :root {
             --sidebar-width: 260px;
             --surface: #f5f7fb;
@@ -32,9 +35,8 @@
             --primary-soft: rgba(37, 99, 235, 0.12);
             --text: #0f172a;
             --muted: #6b7280;
-            /* Global font scale */
-            --font-scale: 0.875; /* ~14px base from 16px */
-            /* Bootstrap base font override */
+            --font-scale: 0.875;
+            --app-bar-height: 124px;
             --bs-body-font-size: calc(1rem * var(--font-scale));
         }
 
@@ -55,6 +57,7 @@
         .app-shell {
             display: flex;
             min-height: 100vh;
+            width: 100%;
         }
 
         .sidebar-backdrop {
@@ -74,16 +77,26 @@
 
         .sidebar {
             width: var(--sidebar-width);
+            min-width: var(--sidebar-width);
+            max-width: var(--sidebar-width);
             background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
             border-right: 1px solid var(--stroke);
-            padding: 28px 20px;
+            padding: 28px 24px;
             display: flex;
             flex-direction: column;
             gap: 28px;
-            position: fixed;
-            inset: 0 auto 0 0;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            bottom: 0 !important;
             z-index: 1030;
             transition: transform 0.3s ease;
+        }
+
+        @media screen and (min-width: 1025px) {
+            .sidebar {
+                transform: translateX(0) !important;
+            }
         }
 
         .brand {
@@ -96,8 +109,15 @@
         .brand-symbol {
             display: flex;
             align-items: center;
-            width: 150px;
+            width: 160px;
             margin: 0 auto;
+            cursor: pointer;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .brand-symbol:hover {
+            transform: scale(1.02);
+            opacity: 0.85;
         }
 
         .brand-symbol img {
@@ -109,7 +129,7 @@
         .nav-groups {
             flex: 1;
             overflow-y: auto;
-            padding: 0 8px 28px 8px;
+            padding: 0 10px 28px 10px;
         }
 
         .nav-groups::-webkit-scrollbar {
@@ -124,7 +144,7 @@
         .nav-group {
             margin-bottom: 18px;
             border-radius: 18px;
-            padding: 12px 16px;
+            padding: 14px 18px;
             background: rgba(148, 163, 184, 0.06);
             transition: background-color 0.2s ease, box-shadow 0.2s ease;
         }
@@ -205,8 +225,8 @@
         .nav-link {
             display: flex;
             align-items: center;
-            gap: 16px;
-            padding: 14px 20px;
+            gap: 14px;
+            padding: 14px 18px;
             border-radius: 14px;
             font-size: 13px;
             font-weight: 600;
@@ -324,8 +344,10 @@
         .app-main {
             flex: 1;
             margin-left: var(--sidebar-width);
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
+            min-width: 0;
         }
 
         .app-bar {
@@ -337,8 +359,10 @@
             align-items: stretch;
             gap: 18px;
             padding: 20px 32px;
-            position: sticky;
+            position: fixed;
             top: 0;
+            left: var(--sidebar-width);
+            right: 0;
             z-index: 1020;
             backdrop-filter: blur(14px);
             box-shadow: 0 18px 36px -30px rgba(15, 23, 42, 0.4);
@@ -390,6 +414,12 @@
             color: #475569;
             background: rgba(148, 163, 184, 0.1);
             border-color: rgba(148, 163, 184, 0.2);
+        }
+
+        .meta-pill.role {
+            color: #1d4ed8;
+            background: rgba(37, 99, 235, 0.1);
+            border-color: rgba(37, 99, 235, 0.2);
         }
 
         .breadcrumb {
@@ -469,20 +499,19 @@
             box-shadow: 0 20px 44px -28px rgba(37, 99, 235, 0.85);
         }
 
-        /* Scale down common form/control text sizes */
         .btn { --bs-btn-font-size: calc(1rem * var(--font-scale)); }
         .form-control, .form-select, .form-label, .form-check-label, .input-group-text {
             font-size: calc(0.95rem * var(--font-scale));
         }
 
-        /* Plugin UIs */
         .dataTable, .table, .select2-container, .select2-selection__rendered,
         .select2-dropdown, .flatpickr-input, .pagination { font-size: 0.875rem; }
 
         .app-content {
             padding: 20px 36px 36px;
+            padding-top: calc(var(--app-bar-height-computed, var(--app-bar-height)) + 20px);
             width: 100%;
-            overflow-x: auto; /* allow horizontal scroll for wide content */
+            overflow-x: auto;
         }
 
         .page-shell {
@@ -565,7 +594,11 @@
             box-shadow: 0 12px 24px -18px rgba(15, 23, 42, 0.25);
         }
 
-        .card-header { background: transparent !important; border-bottom: 1px solid var(--stroke) !important; border-radius: 16px 16px 0 0 !important; }
+        .card-header { 
+            background: transparent !important; 
+            border-bottom: 1px solid var(--stroke) !important; 
+            border-radius: 16px 16px 0 0 !important; 
+        }
 
         .btn { border-radius: 10px !important; font-weight: 600; }
 
@@ -573,19 +606,28 @@
         .table thead { background: rgba(15, 23, 42, 0.04); }
 
         @media (max-width: 1024px) {
-            :root { --sidebar-width: 220px; }
+            :root {
+                --app-bar-height: 140px;
+            }
             .sidebar {
-                width: min(300px, 82vw);
+                width: 300px;
+                max-width: 82vw;
+                min-width: auto;
                 transform: translateX(-100%);
             }
             .sidebar.is-open {
                 transform: translateX(0);
                 box-shadow: 0 16px 36px -20px rgba(15, 23, 42, 0.42);
             }
-            .app-main { margin-left: 0; }
+            .app-main { 
+                margin-left: 0 !important; 
+                width: 100% !important;
+            }
             .app-bar {
                 padding: 18px 24px;
                 gap: 16px;
+                left: 0 !important;
+                right: 0 !important;
             }
             .app-bar__masthead {
                 display: grid;
@@ -607,9 +649,14 @@
                 gap: 10px;
             }
             .quick-action { display: none; }
+            .app-content {
+                padding: 16px 18px 28px;
+                padding-top: calc(var(--app-bar-height-computed, var(--app-bar-height)) + 16px);
+            }
         }
 
         @media (max-width: 640px) {
+            :root { --app-bar-height: 148px; }
             html { font-size: 13px; }
             body { padding: 0; }
             .app-shell { flex-direction: column; min-height: 100vh; }
@@ -618,7 +665,9 @@
                 top: 0;
                 left: 0;
                 height: 100vh;
-                width: min(84vw, 320px);
+                width: 320px;
+                max-width: 84vw;
+                min-width: auto;
                 padding: calc(env(safe-area-inset-top, 0) + 24px) 20px calc(env(safe-area-inset-bottom, 0) + 32px);
                 display: flex;
                 flex-direction: column;
@@ -635,10 +684,15 @@
             }
             .sidebar .brand-symbol { width: 132px; }
             .nav-groups { padding: 0; }
-            .app-main { margin: 0; width: 100%; }
+            .app-main { 
+                margin: 0 !important; 
+                width: 100% !important;
+            }
             .app-bar {
                 gap: 12px;
                 padding: 16px 18px;
+                left: 0 !important;
+                right: 0 !important;
             }
             .app-bar__masthead {
                 grid-template-columns: auto 1fr;
@@ -670,37 +724,41 @@
             .page-header__actions {
                 justify-content: flex-start;
             }
-            .app-content { padding: 16px 18px 28px; width: 100%; overflow-x: auto; }
+            .app-content {
+                padding: 16px 18px 28px;
+                padding-top: calc(var(--app-bar-height-computed, var(--app-bar-height)) + 16px);
+                width: 100%;
+                overflow-x: auto;
+            }
             .sidebar.is-open { transform: translateX(0); }
         }
     </style>
     @stack('styles')
 </head>
 <body>
-    @php $currentUser = Auth::user(); @endphp
+    @php $currentUser = Auth::user()?->loadMissing('roles'); @endphp
     <div class="app-shell">
         <aside class="sidebar" id="sidebar">
             <div class="brand">
-                <span class="brand-symbol">
+                <a href="{{ route('dashboard') }}" class="brand-symbol" style="text-decoration: none;">
                     <img src="{{ asset('images/panasonic-logo.svg') }}" alt="Panasonic logo">
-                </span>
+                </a>
             </div>
 
             <nav class="nav-groups">
                 @php
                     $overviewActive = request()->routeIs('dashboard') || request()->is('admin/master-data*');
-                    $overviewExpand = request()->is('admin/master-data*');
+                    $overviewExpand = request()->routeIs('dashboard') || request()->is('admin/master-data*');
 
                     $canQuota = $currentUser?->can('read quota');
                     $canPORead = $currentUser?->can('read purchase_orders');
                     $canPOCreate = $currentUser?->can('po.create');
                     $canReports = $currentUser?->can('read reports');
                     $canProductCreate = $currentUser?->can('product.create');
-
-                    // Active flags per group
+                    
                     $operationalActive = (
                         request()->routeIs('admin.openpo.*') ||
-                        ($canPORead && (request()->is('admin/purchase-orders*') || request()->is('admin/shipments*')))
+                        ($canPORead && (request()->is('admin/purchase-orders*') || request()->is('admin/shipments*') || request()->routeIs('admin.mapping.mapped.page') || request()->routeIs('admin.master.quick_hs.*')))
                     );
 
                     $quotaActive = $canQuota && (request()->is('admin/quotas*') || request()->is('admin/kuota*'));
@@ -709,6 +767,8 @@
 
                     $adminActive = request()->is('admin/users*') || request()->is('admin/roles*') ||
                         request()->is('admin/permissions*') || request()->is('admin/admins*');
+                    
+                    $prepActive = request()->routeIs('admin.imports.hs_pk.*') || request()->routeIs('admin.imports.quotas.*') || request()->routeIs('admin.mapping.unmapped') || request()->routeIs('admin.mapping.unmapped.*');
                 @endphp
 
                 <div class="nav-group {{ $overviewActive ? 'is-current' : '' }} {{ $overviewExpand ? 'is-open' : '' }}" data-nav-group>
@@ -736,29 +796,21 @@
                                     <span>Tambah Produk</span>
                                 </a>
                             @endcan
-                            
                         @endif
                     </div>
                 </div>
 
-                {{-- Persiapan Data (baru) --}}
-                <div class="nav-group {{ (request()->routeIs('admin.imports.hs_pk.*') || request()->routeIs('admin.imports.quotas.*') || request()->routeIs('admin.mapping.unmapped') || request()->routeIs('admin.mapping.unmapped.*')) ? 'is-open is-current' : '' }}" data-nav-group>
+                <div class="nav-group {{ $prepActive ? 'is-open is-current' : '' }}" data-nav-group>
                     <button type="button"
                             class="nav-group__toggle"
                             data-nav-toggle
-                            aria-expanded="{{ (request()->routeIs('admin.imports.hs_pk.*') || request()->routeIs('admin.imports.quotas.*') || request()->routeIs('admin.mapping.unmapped*')) ? 'true' : 'false' }}"
+                            aria-expanded="{{ $prepActive ? 'true' : 'false' }}"
                             aria-controls="nav-group-prep">
                         <span class="nav-title">Persiapan Data</span>
                         <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
                     </button>
                     <div class="nav-group__body" id="nav-group-prep">
-                        <!-- Preferred label version -->
                         <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}">
-                            <span class="nav-icon"><i class="fas fa-file-import"></i></span>
-                            <span>Import HS → PK</span>
-                        </a>
-                        <!-- Hide legacy duplicate below to avoid double rendering -->
-                        <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}" style="display:none;">
                             <span class="nav-icon"><i class="fas fa-file-import"></i></span>
                             <span>Import HS → PK</span>
                         </a>
@@ -788,12 +840,6 @@
                                 <span class="nav-icon"><i class="fas fa-upload"></i></span>
                                 <span>Upload Open PO</span>
                             </a>
-                            @if(false)
-                            <a href="{{ route('admin.mapping.mapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.mapped.page') ? 'active' : '' }}">
-                                <span class="nav-icon"><i class="fas fa-link"></i></span>
-                                <span>Model → HS (Mapped)</span>
-                            </a>
-                            @endif
                             @if($canPORead)
                                 <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
@@ -940,6 +986,15 @@
                     @php
                         $pageTitle = trim($__env->yieldContent('page-title', trim($__env->yieldContent('title', 'Dashboard'))));
                         $displayDate = now()->format('l, d F Y');
+                        $roleLabels = $currentUser?->roles
+                            ? $currentUser->roles
+                                ->map(function ($role) {
+                                    $name = $role->display_name ?? $role->name;
+                                    return ucwords(str_replace(['-', '_'], ' ', $name));
+                                })
+                                ->filter()
+                                ->values()
+                            : collect();
                     @endphp
                     <h1>{!! $pageTitle !!}</h1>
                     <div class="bar-meta">
@@ -949,6 +1004,15 @@
                             </svg>
                             {{ $displayDate }}
                         </span>
+                        @if($roleLabels instanceof \Illuminate\Support\Collection && $roleLabels->isNotEmpty())
+                            <span class="meta-pill role" title="Role aktif">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6a6 6 0 016 6v3a3 3 0 01-3 3h-6a3 3 0 01-3-3v-3a6 6 0 016-6z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 9v-.75a3 3 0 016 0V9" />
+                                </svg>
+                                {{ $roleLabels->implode(', ') }}
+                            </span>
+                        @endif
                         @if(!empty($currentUser?->name))
                             <span class="meta-pill">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -995,6 +1059,18 @@
         const navToggle = document.getElementById('navToggle');
         const sidebar = document.getElementById('sidebar');
         const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+        const appBar = document.querySelector('.app-bar');
+
+        const updateAppBarHeight = () => {
+            if (!appBar) {
+                return;
+            }
+            document.documentElement.style.setProperty('--app-bar-height-computed', `${appBar.offsetHeight}px`);
+        };
+
+        updateAppBarHeight();
+        window.addEventListener('load', updateAppBarHeight);
+        window.addEventListener('resize', () => window.requestAnimationFrame(updateAppBarHeight));
 
         const openSidebar = () => {
             if (!sidebar) return;
@@ -1006,6 +1082,7 @@
             if (sidebarBackdrop) {
                 sidebarBackdrop.classList.add('is-visible');
             }
+            window.requestAnimationFrame(updateAppBarHeight);
         };
 
         const closeSidebar = () => {
@@ -1018,6 +1095,7 @@
             if (sidebarBackdrop) {
                 sidebarBackdrop.classList.remove('is-visible');
             }
+            window.requestAnimationFrame(updateAppBarHeight);
         };
 
         if (navToggle) {
@@ -1032,6 +1110,7 @@
                 } else {
                     openSidebar();
                 }
+                window.requestAnimationFrame(updateAppBarHeight);
             });
         }
 
@@ -1045,6 +1124,7 @@
                     if (window.innerWidth <= 1024) {
                         closeSidebar();
                     }
+                    window.requestAnimationFrame(updateAppBarHeight);
                 });
             });
         }
@@ -1080,11 +1160,22 @@
                 return;
             }
 
-            button.setAttribute('aria-expanded', group.classList.contains('is-open') ? 'true' : 'false');
+            const isCurrentlyOpen = group.classList.contains('is-open');
+            button.setAttribute('aria-expanded', isCurrentlyOpen ? 'true' : 'false');
 
             button.addEventListener('click', () => {
                 const nowOpen = group.classList.toggle('is-open');
                 button.setAttribute('aria-expanded', nowOpen ? 'true' : 'false');
+                
+                // Save state to localStorage
+                const groupId = button.getAttribute('aria-controls');
+                if (groupId) {
+                    if (nowOpen) {
+                        localStorage.setItem('nav-group-' + groupId, 'open');
+                    } else {
+                        localStorage.removeItem('nav-group-' + groupId);
+                    }
+                }
             });
         });
 
