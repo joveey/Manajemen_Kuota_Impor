@@ -8,7 +8,7 @@
     $mode = $mode ?? 'actual';
     $isForecast = $mode === 'forecast';
     $modeLabel = $isForecast ? 'Forecast' : 'Actual';
-    $primaryLabel = $isForecast ? 'Forecast (Purchase Orders)' : 'Actual (Good Receipt)';
+    $primaryLabel = $isForecast ? 'Forecast (Consumption)' : 'Actual (Good Receipt)';
     $secondaryLabel = $isForecast ? 'Sisa Forecast' : 'Sisa Kuota';
     $percentageLabel = $isForecast ? 'Penggunaan Forecast %' : 'Pemakaian Actual %';
     $query = request()->query();

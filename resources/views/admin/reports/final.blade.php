@@ -9,67 +9,107 @@
     <li class="breadcrumb-item active">Laporan Gabungan</li>
 @endsection
 
+@php
+    $formatInt = function ($value) {
+        return number_format((float) ($value ?? 0), 0);
+    };
+    $formatQty = function ($value) {
+        return number_format((float) ($value ?? 0), 2);
+    };
+    $filters = $filters ?? ['start_date' => now()->startOfYear()->toDateString(), 'end_date' => now()->toDateString()];
+    $poStatusLabels = $charts['po_status']['labels'] ?? [];
+    $poStatusSeries = $charts['po_status']['series'] ?? [];
+@endphp
+
 @push('styles')
 <style>
     .report-shell { display:flex; flex-direction:column; gap:24px; }
     .report-card {
-        border:1px solid #e3e9f5;
-        border-radius:16px;
+        border:1px solid #e2e8f0;
+        border-radius:18px;
         background:#ffffff;
-        box-shadow:0 18px 42px -36px rgba(15,23,42,0.35);
-        padding:20px 24px;
+        box-shadow:0 24px 46px -38px rgba(15,23,42,0.35);
+        padding:22px 24px;
+        display:flex;
+        flex-direction:column;
+        gap:18px;
     }
-    .report-card__title { font-size:16px; font-weight:600; margin:0 0 12px; color:#0f172a; }
-    .report-filters .form-label { font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#94a3b8; }
-    .report-filters .btn { font-weight:600; }
+    .report-card--flat { gap:12px; }
+    .report-card__title { font-size:18px; font-weight:600; color:#0f172a; margin:0; }
+    .report-card__subtitle { font-size:13px; color:#64748b; margin:0; }
+    .report-card__meta { font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.08em; }
+
+    .report-filters {
+        display:flex;
+        flex-wrap:wrap;
+        gap:16px;
+        align-items:flex-end;
+    }
+    .report-filters__group {
+        flex:1 1 200px;
+        display:flex;
+        flex-direction:column;
+        gap:6px;
+    }
+    .report-filters__label {
+        font-size:12px;
+        color:#94a3b8;
+        text-transform:uppercase;
+        letter-spacing:0.08em;
+    }
+    .report-filters__input {
+        border-radius:12px;
+        border:1px solid #cbd5f5;
+        padding:10px 14px;
+        font-size:13px;
+    }
+    .report-filters__actions {
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+    }
 
     .report-summary {
         display:grid;
-        grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+        grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
         gap:16px;
     }
     .report-summary__item {
         border:1px solid #e5e9f7;
-        border-radius:14px;
+        border-radius:16px;
         background:linear-gradient(135deg,#ffffff 0%,#f8fbff 100%);
         padding:16px 18px;
-        box-shadow:0 14px 32px -28px rgba(15,23,42,0.28);
         display:flex;
         flex-direction:column;
         gap:6px;
     }
-    .report-summary__label { font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:#94a3b8; }
-    .report-summary__value { font-size:22px; font-weight:700; color:#0f172a; }
-    .report-summary__meta { font-size:12px; color:#64748b; }
-
-    .report-highlight-grid {
-        display:grid;
-        grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-        gap:16px;
+    .report-summary__label {
+        font-size:12px;
+        color:#94a3b8;
+        text-transform:uppercase;
+        letter-spacing:0.08em;
     }
-    .report-highlight {
-        border:1px solid rgba(37,99,235,0.18);
-        border-radius:14px;
-        padding:16px 18px;
-        background:linear-gradient(135deg,rgba(37,99,235,0.08) 0%, #ffffff 100%);
-        display:flex;
-        flex-direction:column;
-        gap:6px;
+    .report-summary__value {
+        font-size:24px;
+        font-weight:700;
+        color:#0f172a;
     }
-    .report-highlight__title { font-weight:600; color:#1d4ed8; margin:0; }
-    .report-highlight__meta { font-size:12px; color:#475569; }
+    .report-summary__meta {
+        font-size:12px;
+        color:#64748b;
+    }
 
     .report-grid {
         display:grid;
         grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
-        gap:20px;
+        gap:18px;
     }
-    .chart-container { min-height:300px; margin-top:12px; }
+    .chart-container { min-height:300px; }
 
     .status-list {
         list-style:none;
-        margin:0;
         padding:0;
+        margin:0;
         display:flex;
         flex-direction:column;
         gap:10px;
@@ -78,274 +118,271 @@
         display:flex;
         justify-content:space-between;
         align-items:center;
-        border:1px solid #e5eaf5;
+        border:1px solid #e2e8f0;
         border-radius:12px;
         padding:10px 14px;
         font-size:13px;
         color:#475569;
     }
-    .status-list__badge { font-weight:600; color:#2563eb; }
+    .status-list__badge {
+        font-weight:600;
+        color:#2563eb;
+    }
 
     .report-table-wrapper {
-        border:1px solid #e3e9f5;
-        border-radius:16px;
+        border:1px solid #e2e8f0;
+        border-radius:18px;
         overflow:hidden;
-        background:#ffffff;
+    }
+    .report-table {
+        width:100%;
+        border-collapse:separate;
+        border-spacing:0;
     }
     .report-table thead th {
         background:#f8fbff;
-        color:#64748b;
+        padding:12px 14px;
         font-size:12px;
         text-transform:uppercase;
         letter-spacing:0.08em;
-        padding:12px 14px;
+        color:#64748b;
+        border-bottom:1px solid #e2e8f0;
     }
     .report-table tbody td {
         padding:14px;
         font-size:13px;
         color:#1f2937;
-        border-top:1px solid #e5eaf5;
+        border-bottom:1px solid #f1f5f9;
     }
+    .report-table tbody tr:last-child td { border-bottom:none; }
     .report-table tbody tr:hover { background:rgba(37,99,235,0.04); }
 
-    .shipments-list {
+    .outstanding-list {
         list-style:none;
-        margin:0;
         padding:0;
+        margin:0;
         display:flex;
         flex-direction:column;
         gap:12px;
     }
-    .shipments-item {
-        border:1px solid rgba(148,163,184,0.18);
+    .outstanding-item {
+        border:1px solid rgba(148,163,184,0.16);
         border-radius:12px;
         padding:12px 14px;
         background:linear-gradient(135deg,#f8fbff 0%, #ffffff 100%);
         display:flex;
         flex-direction:column;
         gap:8px;
-        font-size:13px;
-        color:#475569;
     }
-    .shipments-badge {
-        align-self:flex-start;
-        border-radius:999px;
-        background:rgba(248,113,113,0.16);
+    .outstanding-item__header {
+        display:flex;
+        justify-content:space-between;
+        flex-wrap:wrap;
+        gap:8px;
+        font-size:13px;
+        color:#1f2937;
+    }
+    .outstanding-item__badge {
+        background:rgba(248,113,113,0.15);
         color:#b91c1c;
-        font-weight:600;
+        border-radius:999px;
         padding:4px 10px;
+        font-weight:600;
         font-size:12px;
+    }
+    .outstanding-item__meta {
+        display:flex;
+        flex-wrap:wrap;
+        gap:12px;
+        font-size:12px;
+        color:#64748b;
     }
 
     @media (max-width: 640px) {
         .report-card { padding:18px; }
-        .report-grid { grid-template-columns:1fr; }
     }
 </style>
 @endpush
 
-@php
-    $filters = $filters ?? [];
-    $summary = $summary ?? [];
-    $rows = $rows ?? [];
-    $highlights = $highlights ?? [];
-    $poStatus = $po_status ?? [];
-    $shipmentStatus = $shipment_status ?? [];
-    $charts = $charts ?? ['quota_bar' => ['categories' => [], 'series' => []], 'monthly_line' => ['categories' => [], 'series' => []], 'shipment_donut' => ['labels' => [], 'series' => []]];
-    $topShipments = $topShipments ?? [];
-
-    $summaryCards = [
-        ['label' => 'Total PO', 'value' => number_format($summary['po_count'] ?? 0), 'meta' => 'dokumen'],
-        ['label' => 'PO Outstanding', 'value' => number_format($summary['po_outstanding'] ?? 0), 'meta' => 'unit'],
-        ['label' => 'Shipment Received', 'value' => number_format($summary['shipment_received'] ?? 0), 'meta' => 'unit diterima'],
-        ['label' => 'Shipment Outstanding', 'value' => number_format($summary['shipment_outstanding'] ?? 0), 'meta' => 'unit'],
-        ['label' => 'Total Allocation', 'value' => number_format($summary['total_allocation'] ?? 0), 'meta' => 'unit kuota'],
-        ['label' => 'Actual Remaining', 'value' => number_format($summary['total_actual_remaining'] ?? 0), 'meta' => 'unit tersedia'],
-    ];
-@endphp
-
 @section('content')
-<div class="page-shell report-shell">
-    <div class="page-header">
-        <div>
-            <h1 class="page-header__title">Laporan Gabungan</h1>
-            <p class="page-header__subtitle">Ringkasan performa kuota, purchase order, dan shipment pada periode yang dipilih.</p>
-        </div>
-        <div class="page-header__actions">
-            <a href="{{ route('admin.reports.final.export.csv', request()->query()) }}" class="page-header__button page-header__button--outline">
-                <i class="fas fa-file-csv me-2"></i>Export CSV
-            </a>
-        </div>
-    </div>
-
-    <div class="report-card report-filters">
-        <h2 class="report-card__title">Filter Periode</h2>
-        <form method="GET" action="{{ route('admin.reports.final') }}" class="row gy-3 gx-3 align-items-end">
-            <div class="col-12 col-md-5">
-                <label for="start_date" class="form-label">Start Date</label>
-                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ $filters['start_date'] ?? '' }}">
+<div class="report-shell">
+    <div class="report-card report-card--flat">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+                <h1 class="report-card__title mb-1">Laporan Gabungan</h1>
+                <p class="report-card__subtitle mb-0">
+                    Ikhtisar PO dan realisasi Good Receipt dari pipeline PO header/line dan GR terbaru.
+                </p>
             </div>
-            <div class="col-12 col-md-5">
-                <label for="end_date" class="form-label">End Date</label>
-                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ $filters['end_date'] ?? '' }}">
+            <div class="report-filters__actions">
+                <a href="{{ route('admin.reports.final.export.csv', request()->query()) }}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-file-csv me-2"></i>Export CSV
+                </a>
             </div>
-            <div class="col-12 col-md-2 d-flex gap-2">
-                <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-2"></i>Terapkan</button>
-                <a href="{{ route('admin.reports.final') }}" class="btn btn-outline-secondary w-100">Reset</a>
+        </div>
+        <form method="GET" action="{{ route('admin.reports.final') }}" class="report-filters">
+            <div class="report-filters__group">
+                <label for="start_date" class="report-filters__label">Start Date</label>
+                <input type="date" id="start_date" name="start_date" value="{{ $filters['start_date'] ?? '' }}" class="report-filters__input">
+            </div>
+            <div class="report-filters__group">
+                <label for="end_date" class="report-filters__label">End Date</label>
+                <input type="date" id="end_date" name="end_date" value="{{ $filters['end_date'] ?? '' }}" class="report-filters__input">
+            </div>
+            <div class="report-filters__actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-2"></i>Terapkan
+                </button>
+                <a href="{{ route('admin.reports.final') }}" class="btn btn-outline-secondary">Reset</a>
             </div>
         </form>
     </div>
 
-    <div class="report-card">
-        <h2 class="report-card__title">Ringkasan</h2>
-        <div class="report-summary">
-            @foreach($summaryCards as $card)
-                <div class="report-summary__item">
-                    <span class="report-summary__label">{{ $card['label'] }}</span>
-                    <span class="report-summary__value">{{ $card['value'] }}</span>
-                    <span class="report-summary__meta">{{ $card['meta'] }}</span>
-                </div>
-            @endforeach
+    <div class="report-summary">
+        <div class="report-summary__item">
+            <span class="report-summary__label">Total PO</span>
+            <span class="report-summary__value">{{ $formatInt($summary['po_total'] ?? 0) }}</span>
+            <span class="report-summary__meta">Qty dipesan {{ $formatQty($summary['po_ordered_total'] ?? 0) }}</span>
         </div>
-    </div>
-
-    <div class="report-card">
-        <h2 class="report-card__title">Kuota dengan Realisasi Tertinggi</h2>
-        @if(empty($highlights))
-            <p class="text-muted mb-0">Belum ada kuota yang menonjol pada periode ini.</p>
-        @else
-            <div class="report-highlight-grid">
-                @foreach($highlights as $item)
-                    <div class="report-highlight">
-                        <span class="report-highlight__meta">{{ $item['quota_number'] }} — {{ $item['range_pk'] }}</span>
-                        <span class="report-highlight__title">{{ $item['quota_name'] }}</span>
-                        <span class="report-highlight__meta">Realisasi: {{ number_format($item['shipment_received']) }} unit</span>
-                        <span class="report-highlight__meta">Outstanding: {{ number_format($item['shipment_outstanding']) }} unit</span>
-                        <span class="report-highlight__meta fw-semibold text-primary">{{ $item['actual_pct'] }}% dari alokasi</span>
-                    </div>
-                @endforeach
-            </div>
-        @endif
+        <div class="report-summary__item">
+            <span class="report-summary__label">Outstanding PO</span>
+            <span class="report-summary__value">{{ $formatQty($summary['po_outstanding_total'] ?? 0) }}</span>
+            <span class="report-summary__meta">Belum direalisasi (GR)</span>
+        </div>
+        <div class="report-summary__item">
+            <span class="report-summary__label">Qty GR</span>
+            <span class="report-summary__value">{{ $formatQty($summary['gr_total_qty'] ?? 0) }}</span>
+            <span class="report-summary__meta">Dalam rentang tanggal</span>
+        </div>
+        <div class="report-summary__item">
+            <span class="report-summary__label">Dokumen GR</span>
+            <span class="report-summary__value">{{ $formatInt($summary['gr_document_total'] ?? 0) }}</span>
+            <span class="report-summary__meta">Unik (GR Unique/PO-Line-Date)</span>
+        </div>
+        <div class="report-summary__item">
+            <span class="report-summary__label">Kuota (Total vs Sisa)</span>
+            <span class="report-summary__value">{{ $formatQty($summary['quota_total_allocation'] ?? 0) }}</span>
+            <span class="report-summary__meta">Sisa aktual {{ $formatQty($summary['quota_total_remaining'] ?? 0) }}</span>
+        </div>
     </div>
 
     <div class="report-grid">
         <div class="report-card">
-            <h2 class="report-card__title">Realisasi per Kuota</h2>
+            <div class="d-flex justify-content-between align-items-start">
+                <h2 class="report-card__title">Kuota: Total vs Remaining</h2>
+                <span class="report-card__meta">Bar Chart</span>
+            </div>
             <div id="report-quota-bar" class="chart-container"></div>
         </div>
         <div class="report-card">
-            <h2 class="report-card__title">Realisasi Bulanan</h2>
-            <div id="report-monthly-line" class="chart-container"></div>
-        </div>
-        <div class="report-card">
-            <h2 class="report-card__title">Komposisi Shipment</h2>
-            <div id="report-shipment-donut" class="chart-container"></div>
+            <div class="d-flex justify-content-between align-items-start">
+                <h2 class="report-card__title">GR Received vs Outstanding</h2>
+                <span class="report-card__meta">Donut Chart</span>
+            </div>
+            <div id="report-receipt-donut" class="chart-container"></div>
         </div>
     </div>
 
     <div class="report-grid">
         <div class="report-card">
-            <h2 class="report-card__title">Status Purchase Order</h2>
-            @if(empty($poStatus))
-                <p class="text-muted mb-0">Tidak ada data PO pada periode ini.</p>
-            @else
-                <ul class="status-list">
-                    @foreach($poStatus as $status => $total)
-                        <li class="status-list__item">
-                            <span>{{ ucfirst(str_replace('_', ' ', $status)) }}</span>
-                            <span class="status-list__badge">{{ number_format($total) }}</span>
-                        </li>
-                    @endforeach
-                </ul>
-            @endif
+            <div class="d-flex justify-content-between align-items-start">
+                <h2 class="report-card__title">Tren GR Bulanan</h2>
+                <span class="report-card__meta">Area Chart</span>
+            </div>
+            <div id="report-gr-trend" class="chart-container"></div>
         </div>
         <div class="report-card">
-            <h2 class="report-card__title">Status Shipment</h2>
-            @if(empty($shipmentStatus))
-                <p class="text-muted mb-0">Tidak ada data shipment pada periode ini.</p>
+            <div class="d-flex justify-content-between align-items-start">
+                <h2 class="report-card__title mb-0">Status PO (SAP)</h2>
+                <span class="report-card__meta">Ringkasan</span>
+            </div>
+            @if(empty($poStatusLabels))
+                <p class="text-muted mb-0">Belum ada status yang tercatat.</p>
             @else
                 <ul class="status-list">
-                    @foreach($shipmentStatus as $status => $total)
+                    @foreach($poStatusLabels as $index => $label)
+                        @php $value = $poStatusSeries[$index] ?? 0; @endphp
                         <li class="status-list__item">
-                            <span>{{ ucfirst(str_replace('_', ' ', $status)) }}</span>
-                            <span class="status-list__badge">{{ number_format($total) }}</span>
+                            <span>{{ $label }}</span>
+                            <span class="status-list__badge">{{ $formatInt($value) }}</span>
                         </li>
                     @endforeach
                 </ul>
             @endif
         </div>
-    </div>
-
-    <div class="report-table-wrapper">
-        <table class="table report-table mb-0">
-            <thead>
-                <tr>
-                    <th>Quota</th>
-                    <th>Range PK</th>
-                    <th>Total Allocation</th>
-                    <th>Forecast Remaining</th>
-                    <th>Actual Remaining</th>
-                    <th>PO Count</th>
-                    <th>PO Quantity</th>
-                    <th>PO Received</th>
-                    <th>Shipment Count</th>
-                    <th>Shipment Planned</th>
-                    <th>Shipment Received</th>
-                    <th>Outstanding</th>
-                    <th>Last Receipt</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($rows as $row)
-                    <tr>
-                        <td><strong>{{ $row['quota_number'] }}</strong><br><span class="text-muted small">{{ $row['quota_name'] }}</span></td>
-                        <td>{{ $row['range_pk'] }}</td>
-                        <td>{{ number_format($row['total_allocation']) }}</td>
-                        <td>{{ number_format($row['forecast_remaining']) }}</td>
-                        <td>{{ number_format($row['actual_remaining']) }}</td>
-                        <td>{{ number_format($row['po_count']) }}</td>
-                        <td>{{ number_format($row['po_quantity']) }}</td>
-                        <td>{{ number_format($row['po_received']) }}</td>
-                        <td>{{ number_format($row['shipment_count']) }}</td>
-                        <td>{{ number_format($row['shipment_planned']) }}</td>
-                        <td>{{ number_format($row['shipment_received']) }}</td>
-                        <td>{{ number_format($row['shipment_outstanding']) }}</td>
-                        <td>{{ $row['last_receipt_date'] ?? '-' }}</td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="13" class="text-center text-muted py-4">Belum ada data pada periode yang dipilih.</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
     </div>
 
     <div class="report-card">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-            <h2 class="report-card__title mb-0">Shipment Outstanding Terbesar</h2>
-            <span class="text-muted small">{{ count($topShipments) }} catatan</span>
+            <h2 class="report-card__title mb-0">Detail PO & Realisasi GR</h2>
+            <span class="text-muted small">{{ count($rows) }} baris</span>
         </div>
-        @if(empty($topShipments))
-            <p class="text-muted mb-0">Seluruh shipment telah diterima sepenuhnya.</p>
+        <div class="report-table-wrapper">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>PO Number</th>
+                        <th>Tanggal</th>
+                        <th>Supplier</th>
+                        <th class="text-end">Qty Ordered</th>
+                        <th class="text-end">Qty Received</th>
+                        <th class="text-end">Outstanding</th>
+                        <th>Last GR</th>
+                        <th class="text-end">GR Docs</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($rows as $row)
+                        <tr>
+                            <td>{{ $row['po_number'] }}</td>
+                            <td>{{ $row['po_date_label'] ?? '-' }}</td>
+                            <td>{{ $row['supplier'] ?? '-' }}</td>
+                            <td class="text-end">{{ $formatQty($row['qty_ordered']) }}</td>
+                            <td class="text-end">{{ $formatQty($row['qty_received']) }}</td>
+                            <td class="text-end">{{ $formatQty($row['qty_outstanding']) }}</td>
+                            <td>{{ $row['last_receipt_label'] ?? '-' }}</td>
+                            <td class="text-end">{{ $formatInt($row['receipt_documents']) }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">Belum ada data pada periode yang dipilih.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="report-card">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <h2 class="report-card__title mb-0">Outstanding Terbesar (PO Line)</h2>
+            <span class="text-muted small">{{ count($outstanding ?? []) }} catatan</span>
+        </div>
+        @if(empty($outstanding))
+            <p class="text-muted mb-0">Seluruh line PO dalam periode ini telah direalisasikan.</p>
         @else
-            <ul class="shipments-list">
-                @foreach($topShipments as $item)
-                    <li class="shipments-item">
-                        <div class="d-flex justify-content-between flex-wrap gap-2">
+            <ul class="outstanding-list">
+                @foreach($outstanding as $item)
+                    <li class="outstanding-item">
+                        <div class="outstanding-item__header">
                             <div>
-                                <div class="fw-semibold">{{ $item['shipment_number'] }}</div>
-                                <div class="text-muted small">PO {{ $item['po_number'] }} — {{ $item['product_code'] }} ({{ $item['product_name'] }})</div>
+                                <strong>{{ $item['po_number'] }}</strong> · Line {{ $item['line_no'] }}
+                                @if(!empty($item['model_code']))
+                                    <span class="text-muted">({{ $item['model_code'] }})</span>
+                                @endif
                             </div>
-                            <span class="shipments-badge">Outstanding {{ number_format($item['outstanding']) }}</span>
+                            <span class="outstanding-item__badge">Outstanding {{ $formatQty($item['outstanding']) }}</span>
                         </div>
-                        <div class="d-flex flex-wrap gap-3 small text-muted">
-                            <span>Planned: {{ number_format($item['quantity_planned']) }}</span>
-                            <span>Received: {{ number_format($item['quantity_received']) }}</span>
-                            <span>Status: {{ ucfirst(str_replace('_',' ', $item['status'])) }}</span>
-                            <span>Ship: {{ $item['ship_date'] ?? '-' }}</span>
+                        <div class="outstanding-item__meta">
+                            <span>Ordered: {{ $formatQty($item['qty_ordered']) }}</span>
+                            <span>Received: {{ $formatQty($item['qty_received']) }}</span>
+                            <span>Status: {{ $item['sap_order_status'] ?? 'Unknown' }}</span>
                             <span>ETA: {{ $item['eta_date'] ?? '-' }}</span>
+                            <span>Last GR: {{ $item['last_receipt_date'] ?? '-' }}</span>
                         </div>
+                        @if(!empty($item['item_desc']))
+                            <div class="text-muted" style="font-size:12px;">{{ $item['item_desc'] }}</div>
+                        @endif
                     </li>
                 @endforeach
             </ul>
@@ -367,64 +404,67 @@
         }
     }
 
-    whenReady(function(){
-        function renderCharts(){
-            if (typeof ApexCharts === 'undefined') {
-                setTimeout(renderCharts, 200);
-                return;
-            }
-
-            const quotaBar = chartData.quota_bar || { categories: [], series: [] };
-            const barEl = document.getElementById('report-quota-bar');
-            if (barEl && quotaBar.series && quotaBar.series.length) {
-                new ApexCharts(barEl, {
-                    chart: { type: 'bar', height: 320, toolbar: { show:false } },
-                    series: quotaBar.series,
-                    xaxis: { categories: quotaBar.categories || [], labels: { rotate:-15 } },
-                    plotOptions: { bar: { columnWidth: '45%', borderRadius: 6 } },
-                    dataLabels: { enabled: true },
-                    legend: { position: 'top' },
-                    colors: ['#2563eb', '#f97316']
-                }).render();
-            }
-
-            const monthly = chartData.monthly_line || { categories: [], series: [] };
-            const lineEl = document.getElementById('report-monthly-line');
-            if (lineEl && monthly.series && monthly.series.length) {
-                new ApexCharts(lineEl, {
-                    chart: { type: 'area', height: 320, toolbar: { show:false } },
-                    series: [{ name: 'Actual Received', data: monthly.series }],
-                    xaxis: { categories: monthly.categories || [] },
-                    dataLabels: { enabled: false },
-                    stroke: { curve: 'smooth', width: 3 },
-                    fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 95, 100] } },
-                    colors: ['#0ea5e9']
-                }).render();
-            }
-
-            const shipmentDonut = chartData.shipment_donut || { labels: [], series: [] };
-            const donutEl = document.getElementById('report-shipment-donut');
-            if (donutEl && shipmentDonut.series && shipmentDonut.series.length) {
-                new ApexCharts(donutEl, {
-                    chart: { type: 'donut', height: 320 },
-                    series: shipmentDonut.series,
-                    labels: shipmentDonut.labels || [],
-                    legend: { position: 'bottom' },
-                    dataLabels: { enabled: true, formatter: val => Math.round(val) + '%' },
-                    colors: ['#22c55e', '#f97316']
-                }).render();
-            }
+    function renderCharts(){
+        if (typeof ApexCharts === 'undefined') {
+            setTimeout(renderCharts, 200);
+            return;
         }
 
-        if (!window.__apexInjected) {
+        const quotaBar = chartData.quota_bar || { categories: [], series: [] };
+        const quotaEl = document.getElementById('report-quota-bar');
+        if (quotaEl && Array.isArray(quotaBar.series) && quotaBar.series.length) {
+            new ApexCharts(quotaEl, {
+                chart: { type:'bar', height:320, toolbar:{ show:false } },
+                series: quotaBar.series,
+                xaxis: { categories: quotaBar.categories || [], labels: { rotate:-15 } },
+                plotOptions: { bar:{ columnWidth:'45%', borderRadius:6 } },
+                dataLabels: { enabled:false },
+                legend: { position:'top' },
+                colors: ['#2563eb','#10b981']
+            }).render();
+        }
+
+        const trend = chartData.gr_trend || { categories: [], series: [] };
+        const trendEl = document.getElementById('report-gr-trend');
+        if (trendEl && Array.isArray(trend.series) && trend.series.length) {
+            new ApexCharts(trendEl, {
+                chart: { type:'area', height:320, toolbar:{ show:false } },
+                series: trend.series,
+                xaxis: { categories: trend.categories || [] },
+                dataLabels: { enabled:false },
+                stroke: { curve:'smooth', width:3 },
+                fill: { type:'gradient', gradient:{ shadeIntensity:1, opacityFrom:0.45, opacityTo:0.05, stops:[0,90,100] } },
+                colors: ['#0ea5e9']
+            }).render();
+        }
+
+        const donut = chartData.receipt_donut || { labels: [], series: [] };
+        const donutEl = document.getElementById('report-receipt-donut');
+        if (donutEl && Array.isArray(donut.series) && donut.series.length) {
+            new ApexCharts(donutEl, {
+                chart: { type:'donut', height:320 },
+                series: donut.series,
+                labels: donut.labels || [],
+                legend: { position:'bottom' },
+                dataLabels: { enabled:true, formatter:(val) => Math.round(val) + '%' },
+                colors: ['#22c55e','#f97316']
+            }).render();
+        }
+    }
+
+    function initCharts() {
+        renderCharts();
+    }
+
+    whenReady(function(){
+        if (typeof ApexCharts === 'undefined') {
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/apexcharts';
             script.async = true;
-            script.onload = renderCharts;
+            script.onload = initCharts;
             document.head.appendChild(script);
-            window.__apexInjected = true;
         } else {
-            renderCharts();
+            initCharts();
         }
     });
 })();
