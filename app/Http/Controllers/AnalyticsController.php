@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Quota;
+use App\Support\PkCategoryParser;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 
 class AnalyticsController extends Controller
@@ -63,7 +66,9 @@ class AnalyticsController extends Controller
         $callback = function () use ($columns, $rows) {
             $out = fopen('php://output', 'w');
             fputcsv($out, $columns);
-            foreach ($rows as $r) { fputcsv($out, $r); }
+            foreach ($rows as $r) {
+                fputcsv($out, $r);
+            }
             fclose($out);
         };
 
@@ -78,7 +83,7 @@ class AnalyticsController extends Controller
         $tableRows = $dataset['table']['rows'] ?? ($dataset['table'] ?? []);
 
         if (!class_exists(\Maatwebsite\Excel\Facades\Excel::class)) {
-            return response('\n[Missing dependency] Install Laravel-Excel first: composer require maatwebsite/excel\n', 501);
+            return response("\n[Missing dependency] Install Laravel-Excel first: composer require maatwebsite/excel\n", 501);
         }
 
         $rows = collect($tableRows)->map(function ($row) use ($labels) {
@@ -126,25 +131,32 @@ class AnalyticsController extends Controller
             'summary' => $dataset['summary'] ?? [],
             'labels' => $dataset['labels'] ?? [],
             'rows' => $dataset['table']['rows'] ?? ($dataset['table'] ?? []),
-        ]);
+        ])->setPaper('a4', 'portrait');
 
         $mode = $dataset['mode'] ?? 'actual';
 
         return $pdf->download('analytics_'.$mode.'.pdf');
     }
 
+    /**
+     * @return array{
+     *     mode: string,
+     *     labels: array{primary:string,secondary:string,percentage:string},
+     *     filters: array{start_date:string,end_date:string},
+     *     bar: array<string,mixed>,
+     *     donut: array<string,mixed>,
+     *     table: array{rows: array<int,array<string,mixed>>},
+     *     summary: array<string,mixed>
+     * }
+     */
     private function buildDataset(Request $request): array
     {
-        $startDate = $request->query('start_date');
-        $endDate = $request->query('end_date');
+        [$start, $end] = $this->resolveRange($request);
         $mode = $this->resolveMode($request->query('mode'));
-
-        $start = $startDate ? Carbon::parse($startDate)->startOfDay() : now()->startOfMonth();
-        $end = $endDate ? Carbon::parse($endDate)->endOfDay() : now()->endOfDay();
 
         if ($mode === 'forecast') {
             $rows = $this->buildForecastRows($start, $end);
-            $primaryLabel = 'Forecast (Purchase Orders)';
+            $primaryLabel = 'Forecast (Consumption)';
             $secondaryLabel = 'Sisa Forecast';
             $percentageLabel = 'Penggunaan Forecast %';
         } else {
@@ -154,15 +166,19 @@ class AnalyticsController extends Controller
             $percentageLabel = 'Pemakaian Actual %';
         }
 
+        $rows = $rows->values();
         $categories = $rows->pluck('quota_number')->all();
-        $seriesQuota = $rows->pluck('initial_quota')->all();
-        $seriesPrimary = $rows->pluck('primary_value')->all();
+        $seriesQuota = $rows->pluck('initial_quota')->map(fn ($v) => (float) $v)->all();
+        $seriesPrimary = $rows->pluck('primary_value')->map(fn ($v) => (float) $v)->all();
+
         $totalAllocation = array_sum($seriesQuota);
         $totalUsage = array_sum($seriesPrimary);
-        $totalRemaining = $rows->pluck('secondary_value')->sum();
+        $totalRemaining = array_sum(
+            $rows->pluck('secondary_value')->map(fn ($v) => (float) $v)->all()
+        );
+
         if ($totalRemaining === 0 && $totalAllocation > 0) {
-            $calculatedRemaining = $totalAllocation - $totalUsage;
-            $totalRemaining = $calculatedRemaining > 0 ? $calculatedRemaining : 0;
+            $totalRemaining = max($totalAllocation - $totalUsage, 0);
         }
 
         return [
@@ -188,7 +204,18 @@ class AnalyticsController extends Controller
                 'series' => [$totalUsage, $totalRemaining],
             ],
             'table' => [
-                'rows' => $rows->values()->all(),
+                'rows' => $rows->map(function ($row) {
+                    return [
+                        'quota_number' => $row['quota_number'],
+                        'range_pk' => $row['range_pk'],
+                        'initial_quota' => $row['initial_quota'],
+                        'primary_value' => $row['primary_value'],
+                        'secondary_value' => $row['secondary_value'],
+                        'percentage' => $row['percentage'],
+                        'forecast_current_remaining' => $row['forecast_current_remaining'] ?? null,
+                        'actual_current_remaining' => $row['actual_current_remaining'] ?? null,
+                    ];
+                })->all(),
             ],
             'summary' => [
                 'total_allocation' => $totalAllocation,
@@ -202,81 +229,135 @@ class AnalyticsController extends Controller
         ];
     }
 
-    private function buildActualRows(Carbon $start, Carbon $end)
+    /**
+     * @return Collection<int,array<string,mixed>>
+     */
+    private function buildActualRows(Carbon $start, Carbon $end): Collection
     {
-        return Quota::query()
-            ->select([
-                'quotas.id',
-                'quotas.quota_number',
-                'quotas.government_category',
-                'quotas.total_allocation',
-                'quotas.forecast_remaining',
-                'quotas.actual_remaining',
-            ])
-            ->selectRaw('COALESCE(SUM(shipment_receipts.quantity_received),0) as actual_received')
-            ->leftJoin('purchase_orders', 'purchase_orders.quota_id', '=', 'quotas.id')
-            ->leftJoin('shipments', 'shipments.purchase_order_id', '=', 'purchase_orders.id')
-            ->leftJoin('shipment_receipts', function ($join) use ($start, $end) {
-                $join->on('shipment_receipts.shipment_id', '=', 'shipments.id')
-                    ->whereDate('shipment_receipts.receipt_date', '>=', $start->toDateString())
-                    ->whereDate('shipment_receipts.receipt_date', '<=', $end->toDateString());
-            })
-            ->groupBy(
-                'quotas.id',
-                'quotas.quota_number',
-                'quotas.government_category',
-                'quotas.total_allocation',
-                'quotas.forecast_remaining',
-                'quotas.actual_remaining'
-            )
-            ->orderBy('quotas.quota_number')
-            ->get()
-            ->map(function ($row) {
-                $allocation = (int) ($row->total_allocation ?? 0);
-                $actual = (int) ($row->actual_received ?? 0);
-                $remaining = max(0, $allocation - $actual);
-                $pct = $allocation > 0 ? round(($actual / $allocation) * 100, 2) : 0;
-
-                return [
-                    'quota_id' => $row->id,
-                    'quota_number' => $row->quota_number,
-                    'range_pk' => $row->government_category,
-                    'initial_quota' => $allocation,
-                    'primary_value' => $actual,
-                    'secondary_value' => $remaining,
-                    'percentage' => $pct,
-                    'forecast_current_remaining' => (int) ($row->forecast_remaining ?? 0),
-                    'actual_current_remaining' => (int) ($row->actual_remaining ?? 0),
-                ];
-            });
-    }
-
-    private function buildForecastRows(Carbon $start, Carbon $end)
-    {
-        // Use invoice-based forecast (Actual + In-Transit) computed via QuotaConsumptionService.
         $quotas = Quota::orderBy('quota_number')->get();
-        try {
-            $service = app(\App\Services\QuotaConsumptionService::class);
-            $derived = $service->computeForQuotas($quotas);
-        } catch (\Throwable $e) {
-            $derived = [];
+        if ($quotas->isEmpty()) {
+            return collect();
         }
 
-        return $quotas->map(function($q) use ($derived) {
-            $alloc = (int) ($q->total_allocation ?? 0);
-            $d = $derived[$q->id] ?? ['forecast_consumed'=>0,'forecast_remaining'=>$alloc];
-            $forecast = (int) ($d['forecast_consumed'] ?? 0);
-            $remain = (int) max($alloc - $forecast, 0);
-            $pct = $alloc > 0 ? round(($forecast / $alloc) * 100, 2) : 0;
+        $meta = [];
+        $rows = [];
+
+        foreach ($quotas as $quota) {
+            $parsed = PkCategoryParser::parse((string) $quota->government_category);
+            $meta[$quota->id] = [
+                'min_pk' => $parsed['min_pk'],
+                'max_pk' => $parsed['max_pk'],
+                'min_incl' => $parsed['min_incl'],
+                'max_incl' => $parsed['max_incl'],
+                'start' => $quota->period_start?->toDateString(),
+                'end' => $quota->period_end?->toDateString(),
+            ];
+
+            $rows[$quota->id] = [
+                'quota_id' => $quota->id,
+                'quota_number' => $quota->quota_number,
+                'range_pk' => $quota->government_category,
+                'initial_quota' => (float) ($quota->total_allocation ?? 0),
+                'primary_value' => 0.0,
+                'secondary_value' => (float) ($quota->total_allocation ?? 0),
+                'percentage' => 0.0,
+                'forecast_current_remaining' => (float) ($quota->forecast_remaining ?? 0),
+                'actual_current_remaining' => (float) ($quota->actual_remaining ?? 0),
+            ];
+        }
+
+        $grRows = DB::table('gr_receipts as gr')
+            ->join('po_headers as ph', 'gr.po_no', '=', 'ph.po_number')
+            ->join('po_lines as pl', function ($join) {
+                $join->on('pl.po_header_id', '=', 'ph.id');
+                $join->on('pl.line_no', '=', 'gr.line_no');
+            })
+            ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
+            ->whereBetween('gr.receive_date', [$start->toDateString(), $end->toDateString()])
+            ->select([
+                'gr.qty',
+                'gr.receive_date',
+                'ph.po_date',
+                'hs.pk_capacity',
+            ])
+            ->get();
+
+        foreach ($grRows as $entry) {
+            $pk = $entry->pk_capacity !== null ? (float) $entry->pk_capacity : null;
+            if ($pk === null) {
+                continue;
+            }
+
+            $receiptDate = $entry->receive_date;
+            $poDate = $entry->po_date;
+
+            foreach ($meta as $quotaId => $info) {
+                if (!$this->pkMatchesQuota($pk, $info)) {
+                    continue;
+                }
+                if (!$this->dateMatchesQuota($receiptDate, $info['start'], $info['end'], $poDate)) {
+                    continue;
+                }
+
+                $rows[$quotaId]['primary_value'] += (float) $entry->qty;
+                break;
+            }
+        }
+
+        foreach ($rows as &$row) {
+            $allocation = max(0.0, (float) $row['initial_quota']);
+            $actual = (float) $row['primary_value'];
+            $remaining = $allocation > 0 ? max($allocation - $actual, 0.0) : 0.0;
+            $row['primary_value'] = round($actual, 2);
+            $row['secondary_value'] = round($remaining, 2);
+            $row['percentage'] = $allocation > 0
+                ? round(($actual / $allocation) * 100, 2)
+                : 0.0;
+        }
+        unset($row);
+
+        return collect(array_values($rows));
+    }
+
+    /**
+     * @return Collection<int,array<string,mixed>>
+     */
+    private function buildForecastRows(Carbon $start, Carbon $end): Collection
+    {
+        $quotas = Quota::orderBy('quota_number')->get();
+        if ($quotas->isEmpty()) {
+            return collect();
+        }
+
+        try {
+            $service = app(\App\Services\QuotaConsumptionService::class);
+            $computed = $service->computeForQuotas($quotas);
+        } catch (\Throwable $e) {
+            $computed = [];
+        }
+
+        return $quotas->map(function (Quota $quota) use ($computed) {
+            $allocation = (float) ($quota->total_allocation ?? 0);
+            $data = $computed[$quota->id] ?? [
+                'forecast_consumed' => 0,
+                'forecast_remaining' => $allocation,
+                'actual_consumed' => 0,
+                'actual_remaining' => $allocation,
+            ];
+            $forecast = (float) ($data['forecast_consumed'] ?? 0);
+            $remaining = max($allocation - $forecast, 0.0);
+            $pct = $allocation > 0 ? round(($forecast / $allocation) * 100, 2) : 0;
+
             return [
-                'quota_id' => $q->id,
-                'quota_number' => $q->quota_number,
-                'range_pk' => $q->government_category,
-                'initial_quota' => $alloc,
-                'primary_value' => $forecast,
-                'secondary_value' => $remain,
+                'quota_id' => $quota->id,
+                'quota_number' => $quota->quota_number,
+                'range_pk' => $quota->government_category,
+                'initial_quota' => $allocation,
+                'primary_value' => round($forecast, 2),
+                'secondary_value' => round($remaining, 2),
                 'percentage' => $pct,
-                'forecast_current_remaining' => (int) ($d['forecast_remaining'] ?? $remain),
+                'forecast_current_remaining' => (float) ($data['forecast_remaining'] ?? $remaining),
+                'actual_current_remaining' => (float) ($data['actual_remaining'] ?? max($allocation - ($data['actual_consumed'] ?? 0), 0)),
             ];
         });
     }
@@ -285,4 +366,69 @@ class AnalyticsController extends Controller
     {
         return in_array($mode, ['forecast', 'actual'], true) ? $mode : 'actual';
     }
+
+    /**
+     * @return array{0:Carbon,1:Carbon}
+     */
+    private function resolveRange(Request $request): array
+    {
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
+
+        $start = $startDate ? Carbon::parse($startDate)->startOfDay() : now()->startOfMonth();
+        $end = $endDate ? Carbon::parse($endDate)->endOfDay() : now()->endOfDay();
+
+        if ($start->greaterThan($end)) {
+            [$start, $end] = [$end->copy(), $start];
+        }
+
+        return [$start, $end];
+    }
+
+    /**
+     * @param  array{min_pk:?float,max_pk:?float,min_incl:bool,max_incl:bool}  $info
+     */
+    private function pkMatchesQuota(float $pk, array $info): bool
+    {
+        if ($info['min_pk'] !== null) {
+            $minOk = $info['min_incl'] ? $pk >= $info['min_pk'] : $pk > $info['min_pk'];
+            if (!$minOk) {
+                return false;
+            }
+        }
+
+        if ($info['max_pk'] !== null) {
+            $maxOk = $info['max_incl'] ? $pk <= $info['max_pk'] : $pk < $info['max_pk'];
+            if (!$maxOk) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function dateMatchesQuota(?string $date, ?string $start, ?string $end, ?string $fallback = null): bool
+    {
+        if (!$start && !$end) {
+            return true;
+        }
+
+        $target = $date ?? $fallback;
+        if (!$target) {
+            return true;
+        }
+
+        $targetDate = Carbon::parse($target)->toDateString();
+
+        if ($start && $targetDate < $start) {
+            return false;
+        }
+
+        if ($end && $targetDate > $end) {
+            return false;
+        }
+
+        return true;
+    }
 }
+

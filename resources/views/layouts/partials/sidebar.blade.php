@@ -28,9 +28,10 @@
         @php
           $isHsPk     = request()->routeIs('admin.imports.hs_pk.*');
           $isQuotas   = request()->routeIs('admin.imports.quotas.*');
+          $isGr       = request()->routeIs('admin.imports.gr.*');
           $isUnmapped = request()->routeIs('admin.mapping.unmapped.*');
           // pastikan grup Operasional membuka saat salah satu aktif
-          $operationalOpen = ($isHsPk || $isQuotas || $isUnmapped || ($operationalOpen ?? false));
+          $operationalOpen = ($isHsPk || $isQuotas || $isGr || $isUnmapped || ($operationalOpen ?? false));
         @endphp
 
         <!-- Sidebar Menu -->
@@ -58,6 +59,12 @@
                             <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ $isQuotas ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Import Kuota</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.imports.gr.index') }}" class="nav-link {{ request()->routeIs('admin.imports.gr.*') ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Import GR</p>
                             </a>
                         </li>
                         @endif
@@ -323,4 +330,3 @@
         </nav>
     </div>
 </aside>
-
