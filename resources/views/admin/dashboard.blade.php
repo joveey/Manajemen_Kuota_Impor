@@ -1094,37 +1094,37 @@
                         @foreach($recentPurchaseOrders as $po)
                             @php
                                 $poStatusStyles = [
-                                    \App\Models\PurchaseOrder::STATUS_ORDERED => ['label' => 'Ordered', 'class' => 'badge-chip--info'],
-                                    \App\Models\PurchaseOrder::STATUS_IN_TRANSIT => ['label' => 'In Transit', 'class' => 'badge-chip--warning'],
-                                    \App\Models\PurchaseOrder::STATUS_PARTIAL => ['label' => 'Partial', 'class' => 'badge-chip--warning'],
-                                    \App\Models\PurchaseOrder::STATUS_COMPLETED => ['label' => 'Completed', 'class' => 'badge-chip--success'],
-                                    \App\Models\PurchaseOrder::STATUS_CANCELLED => ['label' => 'Cancelled', 'class' => 'badge-chip--muted'],
-                                    \App\Models\PurchaseOrder::STATUS_DRAFT => ['label' => 'Draft', 'class' => 'badge-chip--muted'],
+                                    'ordered' => ['label' => 'Ordered', 'class' => 'badge-chip--info'],
+                                    'partial' => ['label' => 'Partial', 'class' => 'badge-chip--warning'],
+                                    'completed' => ['label' => 'Completed', 'class' => 'badge-chip--success'],
+                                    'draft' => ['label' => 'Draft', 'class' => 'badge-chip--muted'],
                                 ];
-                                $poStatus = $poStatusStyles[$po->status] ?? ['label' => ucfirst($po->status), 'class' => 'badge-chip--muted'];
+                                $poStatus = $poStatusStyles[$po->status_key] ?? ['label' => ucfirst($po->status_key ?? 'status'), 'class' => 'badge-chip--muted'];
+                                $sapStatuses = $po->sap_statuses ?? [];
                             @endphp
                             <div class="data-row data-row--po">
                                 <div class="data-cell">
                                     <span class="data-title">{{ $po->po_number }}</span>
-                                    <span class="data-sub">{{ $po->order_date?->format('d M') ?? 'Tanpa tanggal' }}</span>
+                                    <span class="data-sub">{{ optional($po->po_date)->format('d M Y') ?? 'Tanpa tanggal' }}</span>
+                                    @if(!empty($po->supplier))
+                                        <span class="data-sub">{{ $po->supplier }}</span>
+                                    @endif
                                 </div>
                                 <div class="data-cell">
-                                    @if($po->product)
-                                        <span class="data-link">{{ $po->product->code }}</span>
-                                        <span class="data-sub">{{ \Illuminate\Support\Str::limit($po->product->name, 36) }}</span>
+                                    <span class="data-title">{{ $po->line_count }} line</span>
+                                    @if(!empty($sapStatuses))
+                                        <span class="data-sub">{{ implode(', ', $sapStatuses) }}</span>
                                     @else
-                                        <span class="data-sub">Produk tidak tersedia</span>
+                                        <span class="data-sub text-muted">SAP status belum tersedia</span>
                                     @endif
                                 </div>
                                 <div class="data-cell data-cell--status">
                                     <span class="badge-chip {{ $poStatus['class'] }}">{{ $poStatus['label'] }}</span>
-                                    @if($po->status_po_display)
-                                        <span class="data-sub">{{ $po->status_po_display }}</span>
-                                    @endif
+                                    <span class="data-sub">Received {{ number_format($po->received_qty, 2) }} / {{ number_format($po->total_qty, 2) }}</span>
                                 </div>
                                 <div class="data-cell data-cell--qty">
-                                    <span class="data-qty">{{ number_format($po->quantity) }}</span>
-                                    <span class="data-sub">unit</span>
+                                    <span class="data-qty">{{ number_format($po->total_qty, 2) }}</span>
+                                    <span class="data-sub">Total unit</span>
                                 </div>
                             </div>
                         @endforeach
@@ -1141,54 +1141,46 @@
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h11v7h7l-3-5h-4V7H3zM5 18a2 2 0 104 0 2 2 0 10-4 0zm10 0a2 2 0 104 0 2 2 0 10-4 0z" />
                     </svg>
-                    Pengiriman Terbaru
+                    GR Receipt Terbaru
                 </h3>
-                @if(\Illuminate\Support\Facades\Route::has('admin.shipments.index'))
-                    <a href="{{ route('admin.shipments.index') }}" class="panel-modern__link">Lihat semua</a>
+                @if(\Illuminate\Support\Facades\Route::has('admin.imports.gr.index'))
+                    <a href="{{ route('admin.imports.gr.index') }}" class="panel-modern__link">Lihat semua</a>
                 @endif
             </div>
             @php $recentShipmentsEmpty = $recentShipments->isEmpty(); @endphp
             <div class="panel-modern__body {{ $recentShipmentsEmpty ? 'panel-modern__body--empty' : '' }}">
                 @if($recentShipmentsEmpty)
                     <div class="empty-state">
-                        <span class="empty-state__icon"><i class="fas fa-shipping-fast"></i></span>
-                        <p class="empty-state__text">Belum ada pengiriman terbaru.</p>
+                        <span class="empty-state__icon"><i class="fas fa-receipt"></i></span>
+                        <p class="empty-state__text">Belum ada GR receipt terbaru.</p>
                     </div>
                 @else
                     <div class="data-list">
                         @foreach($recentShipments as $shipment)
-                            @php
-                                $statusStyles = [
-                                    \App\Models\Shipment::STATUS_IN_TRANSIT => ['label' => 'In Transit', 'class' => 'badge-chip--warning'],
-                                    \App\Models\Shipment::STATUS_PARTIAL => ['label' => 'Partial', 'class' => 'badge-chip--info'],
-                                    \App\Models\Shipment::STATUS_DELIVERED => ['label' => 'Delivered', 'class' => 'badge-chip--success'],
-                                    \App\Models\Shipment::STATUS_PENDING => ['label' => 'Pending', 'class' => 'badge-chip--muted'],
-                                    \App\Models\Shipment::STATUS_CANCELLED => ['label' => 'Cancelled', 'class' => 'badge-chip--muted'],
-                                ];
-                                $statusMeta = $statusStyles[$shipment->status] ?? ['label' => ucfirst($shipment->status), 'class' => 'badge-chip--muted'];
-                            @endphp
                             <div class="data-row data-row--shipment">
                                 <div class="data-cell">
-                                    <span class="data-title">{{ $shipment->shipment_number }}</span>
-                                    <span class="data-sub">{{ $shipment->ship_date?->format('d M') ?? 'Tanpa jadwal' }}</span>
+                                    <span class="data-title">{{ $shipment->po_number }}@if($shipment->line_no) <span class="text-muted"> / {{ $shipment->line_no }}</span>@endif</span>
+                                    <span class="data-sub">{{ optional($shipment->receive_date)->format('d M Y') ?? 'Tanpa tanggal' }}</span>
                                 </div>
                                 <div class="data-cell">
-                                    @if($shipment->purchaseOrder)
-                                        <span class="data-link">{{ $shipment->purchaseOrder->po_number }}</span>
-                                        <span class="data-sub">{{ \Illuminate\Support\Str::limit($shipment->purchaseOrder->product?->name, 36) }}</span>
-                                    @else
-                                        <span class="data-sub">PO tidak tersedia</span>
+                                    <span class="data-title">{{ $shipment->item_name ?? 'Item tidak diketahui' }}</span>
+                                    @if($shipment->vendor_name)
+                                        <span class="data-sub">{{ $shipment->vendor_name }}</span>
+                                    @endif
+                                    @if($shipment->warehouse_name)
+                                        <span class="data-sub text-muted">{{ $shipment->warehouse_name }}</span>
                                     @endif
                                 </div>
                                 <div class="data-cell data-cell--status">
-                                    <span class="badge-chip {{ $statusMeta['class'] }}">{{ $statusMeta['label'] }}</span>
-                                    @if($shipment->eta_date)
-                                        <span class="data-sub">ETA {{ $shipment->eta_date->format('d M') }}</span>
+                                    @if(!empty($shipment->sap_status))
+                                        <span class="badge-chip badge-chip--info">{{ $shipment->sap_status }}</span>
+                                    @else
+                                        <span class="badge-chip badge-chip--muted">GR</span>
                                     @endif
                                 </div>
                                 <div class="data-cell data-cell--qty">
-                                    <span class="data-qty">{{ number_format($shipment->quantity_planned) }}</span>
-                                    <span class="data-sub">unit</span>
+                                    <span class="data-qty">{{ number_format($shipment->quantity, 2) }}</span>
+                                    <span class="data-sub">Unit diterima</span>
                                 </div>
                             </div>
                         @endforeach

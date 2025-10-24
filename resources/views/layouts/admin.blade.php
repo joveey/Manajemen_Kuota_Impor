@@ -759,7 +759,7 @@
                     
                     $operationalActive = (
                         request()->routeIs('admin.openpo.*') ||
-                        ($canPORead && (request()->is('admin/purchase-orders*') || request()->is('admin/shipments*') || request()->routeIs('admin.mapping.mapped.page') || request()->routeIs('admin.master.quick_hs.*')))
+                        ($canPORead && (request()->is('admin/purchase-orders*') || request()->routeIs('admin.mapping.mapped.page') || request()->routeIs('admin.master.quick_hs.*')))
                     );
 
                     $quotaActive = $canQuota && (request()->is('admin/quotas*') || request()->is('admin/kuota*'));
@@ -854,10 +854,6 @@
                                 <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
                                     <span>Daftar Purchase Order</span>
-                                </a>
-                                <a href="{{ route('admin.shipments.index') }}" class="nav-link {{ request()->routeIs('admin.shipments.index') || request()->is('admin/shipments*') ? 'active' : '' }}">
-                                    <span class="nav-icon"><i class="fas fa-truck"></i></span>
-                                    <span>Pengiriman & Receipt</span>
                                 </a>
                                 <a href="{{ route('admin.mapping.mapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.mapped.page') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-link"></i></span>
