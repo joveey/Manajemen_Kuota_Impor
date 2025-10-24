@@ -5,8 +5,6 @@ use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\FinalReportController;
 use App\Http\Controllers\Admin\QuotaController;
 use App\Http\Controllers\Admin\PurchaseOrderController;
-use App\Http\Controllers\Admin\ShipmentController;
-use App\Http\Controllers\Admin\ReceiptController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UserController;
@@ -153,21 +151,6 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'show', 'destroy']);
     Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
 
-    Route::prefix('shipments')->name('shipments.')->group(function () {
-        Route::get('/', [ShipmentController::class, 'index'])->name('index');
-        Route::get('/create', [ShipmentController::class, 'create'])->name('create');
-        Route::post('/', [ShipmentController::class, 'store'])->name('store');
-        Route::get('/export/csv', [ShipmentController::class, 'export'])->name('export');
-        Route::get('/{shipment}', [ShipmentController::class, 'show'])->name('show');
-    });
-
-    // Receipts
-    Route::post('shipments/{shipment}/receipts', [ReceiptController::class, 'store'])
-        ->name('shipments.receipts.store');
-    Route::get('shipments/{shipment}/receipts/create', function(\App\Models\Shipment $shipment) {
-        return view('admin.shipments.receipts.create', compact('shipment'));
-    })->name('shipments.receipts.create');
-
     // HS→PK Imports upload (backend only)
     Route::middleware(['permission:read quota'])->group(function () {
         Route::post('imports/hs-pk', [ImportController::class, 'uploadHsPk'])->name('imports.hs_pk.upload');
@@ -235,5 +218,3 @@ Route::middleware(['auth', 'verified'])->prefix('analytics')->name('analytics.')
     Route::get('/export/xlsx', [AnalyticsController::class, 'exportXlsx'])->name('export.xlsx');
     Route::get('/export/pdf', [AnalyticsController::class, 'exportPdf'])->name('export.pdf');
 });
-
-

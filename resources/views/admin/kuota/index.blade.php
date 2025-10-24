@@ -240,10 +240,11 @@
                 Export CSV
             </a>
             @can('create quota')
-<a href="{{ route('admin.imports.quotas.index') }}" class="action-pill action-pill--primary">
-    <i class="fas fa-file-import"></i>
-    Import Kuota
-</a>
+                <a href="{{ route('admin.imports.quotas.index') }}" class="action-pill action-pill--primary">
+                    <i class="fas fa-file-import"></i>
+                    Import Kuota
+                </a>
+            @endcan
         </div>
     </div>
 

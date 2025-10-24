@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Permission;
-use App\Models\PurchaseOrder;
 use App\Models\Quota;
 use App\Models\QuotaHistory;
 use App\Models\Role;
-use App\Models\Shipment;
+use App\Models\PoHeader;
+use App\Models\PoLine;
+use App\Models\GrReceipt;
 use App\Models\User;
 use Carbon\Carbon;
 
@@ -139,28 +140,69 @@ class DashboardController extends Controller
         $currentPeriodEnd = Carbon::now()->endOfMonth();
 
         $poStats = [
-            'this_month' => PurchaseOrder::whereBetween('order_date', [$currentPeriodStart, $currentPeriodEnd])->count(),
-            'need_shipment' => PurchaseOrder::whereColumn('quantity_shipped', '<', 'quantity')->count(),
-            'in_transit' => PurchaseOrder::where('status', PurchaseOrder::STATUS_IN_TRANSIT)->count(),
-            'completed' => PurchaseOrder::where('status', PurchaseOrder::STATUS_COMPLETED)->count(),
+            'this_month' => PoHeader::whereBetween('po_date', [$currentPeriodStart, $currentPeriodEnd])->count(),
+            'need_shipment' => PoLine::whereColumn('qty_received', '<', 'qty_ordered')->count(),
+            'in_transit' => PoLine::where('qty_received', '>', 0)->whereColumn('qty_received', '<', 'qty_ordered')->count(),
+            'completed' => PoLine::where('qty_ordered', '>', 0)->whereColumn('qty_received', '>=', 'qty_ordered')->count(),
         ];
 
-        $recentPurchaseOrders = PurchaseOrder::with(['product', 'quota'])
-            ->latest('order_date')
+        $recentPurchaseOrders = PoHeader::with(['lines' => function ($query) {
+                $query->orderBy('line_no');
+            }])
+            ->orderByDesc('po_date')
+            ->orderByDesc('created_at')
             ->take(5)
-            ->get();
+            ->get()
+            ->map(function (PoHeader $header) {
+                $totalQty = (float) $header->lines->sum('qty_ordered');
+                $receivedQty = (float) $header->lines->sum('qty_received');
 
-        // Shipment insights
+                $statusKey = 'draft';
+                if ($totalQty <= 0) {
+                    $statusKey = 'draft';
+                } elseif ($receivedQty >= $totalQty) {
+                    $statusKey = 'completed';
+                } elseif ($receivedQty > 0) {
+                    $statusKey = 'partial';
+                } else {
+                    $statusKey = 'ordered';
+                }
+
+                return (object) [
+                    'po_number' => $header->po_number,
+                    'po_date' => $header->po_date,
+                    'supplier' => $header->supplier,
+                    'line_count' => $header->lines->count(),
+                    'total_qty' => $totalQty,
+                    'received_qty' => $receivedQty,
+                    'status_key' => $statusKey,
+                    'sap_statuses' => $header->lines->pluck('sap_order_status')->filter()->unique()->values()->all(),
+                ];
+            });
+
+        // Shipment insights (derived from PO lines & GR receipts)
         $shipmentStats = [
-            'in_transit' => Shipment::whereIn('status', [Shipment::STATUS_IN_TRANSIT, Shipment::STATUS_PARTIAL])->count(),
-            'delivered' => Shipment::where('status', Shipment::STATUS_DELIVERED)->count(),
-            'pending_receipt' => Shipment::whereColumn('quantity_planned', '>', 'quantity_received')->count(),
+            'in_transit' => $poStats['in_transit'],
+            'delivered' => GrReceipt::count(),
+            'pending_receipt' => $poStats['need_shipment'],
         ];
 
-        $recentShipments = Shipment::with(['purchaseOrder.product'])
-            ->latest('ship_date')
+        $recentShipments = GrReceipt::orderByDesc('receive_date')
+            ->orderByDesc('created_at')
             ->take(5)
-            ->get();
+            ->get()
+            ->map(function (GrReceipt $receipt) {
+                return (object) [
+                    'po_number' => $receipt->po_no,
+                    'line_no' => $receipt->line_no,
+                    'receive_date' => $receipt->receive_date,
+                    'quantity' => (float) $receipt->qty,
+                    'vendor_name' => $receipt->vendor_name,
+                    'warehouse_name' => $receipt->wh_name,
+                    'item_name' => $receipt->item_name,
+                    'sap_status' => $receipt->cat_po,
+                ];
+            });
 
         // Optional no-cache response (diagnostic only). Uncomment to disable browser caching while styling.
         // return response()->view('admin.dashboard', compact(
