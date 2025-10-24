@@ -747,11 +747,10 @@
 
             <nav class="nav-groups">
                 @php
-                    $overviewActive = request()->routeIs('dashboard') || request()->is('admin/master-data*');
-                    $overviewExpand = request()->routeIs('dashboard') || request()->is('admin/master-data*');
-                    $overviewActive = request()->routeIs('dashboard');
-                    $overviewExpand = false;
-
+                    $hasMasterDataIndex = \Illuminate\Support\Facades\Route::has('admin.master-data.index');
+                    $hasMasterDataCreate = \Illuminate\Support\Facades\Route::has('admin.master-data.create');
+                    $overviewActive = request()->routeIs('dashboard') || ($hasMasterDataIndex && request()->is('admin/master-data*'));
+                    $overviewExpand = $overviewActive;
                     $canQuota = $currentUser?->can('read quota');
                     $canPORead = $currentUser?->can('read purchase_orders');
                     $canPOCreate = $currentUser?->can('po.create');
@@ -787,17 +786,17 @@
                             <span class="nav-icon"><i class="fas fa-gauge-high"></i></span>
                             <span>Dashboard</span>
                         </a>
-                        @if($currentUser?->can('read master_data'))
+                        @if($hasMasterDataIndex && $currentUser?->can('read master_data'))
                             <a href="{{ route('admin.master-data.index') }}" class="nav-link {{ request()->is('admin/master-data*') ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-boxes"></i></span>
                                 <span>Produk</span>
                             </a>
-                            @can('create master_data')
+                            @if($hasMasterDataCreate && $currentUser?->can('create master_data'))
                                 <a href="{{ route('admin.master-data.create') }}" class="nav-link {{ request()->routeIs('admin.master-data.create') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-circle-plus"></i></span>
                                     <span>Tambah Produk</span>
                                 </a>
-                            @endcan
+                            @endif
                         @endif
                         {{-- Produk & Tambah Produk removed per request --}}
                     </div>
@@ -1266,4 +1265,3 @@
     @stack('scripts')
 </body>
 </html>
-
