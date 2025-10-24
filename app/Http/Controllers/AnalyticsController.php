@@ -253,46 +253,32 @@ class AnalyticsController extends Controller
 
     private function buildForecastRows(Carbon $start, Carbon $end)
     {
-        return Quota::query()
-            ->select([
-                'quotas.id',
-                'quotas.quota_number',
-                'quotas.government_category',
-                'quotas.total_allocation',
-                'quotas.forecast_remaining',
-            ])
-            ->selectRaw('COALESCE(SUM(purchase_orders.quantity),0) as forecast_reserved')
-            ->leftJoin('purchase_orders', function ($join) use ($start, $end) {
-                $join->on('purchase_orders.quota_id', '=', 'quotas.id')
-                    ->whereDate('purchase_orders.order_date', '>=', $start->toDateString())
-                    ->whereDate('purchase_orders.order_date', '<=', $end->toDateString());
-            })
-            ->groupBy(
-                'quotas.id',
-                'quotas.quota_number',
-                'quotas.government_category',
-                'quotas.total_allocation',
-                'quotas.forecast_remaining'
-            )
-            ->orderBy('quotas.quota_number')
-            ->get()
-            ->map(function ($row) {
-                $allocation = (int) ($row->total_allocation ?? 0);
-                $reserved = (int) ($row->forecast_reserved ?? 0);
-                $remaining = max(0, $allocation - $reserved);
-                $pct = $allocation > 0 ? round(($reserved / $allocation) * 100, 2) : 0;
+        // Use invoice-based forecast (Actual + In-Transit) computed via QuotaConsumptionService.
+        $quotas = Quota::orderBy('quota_number')->get();
+        try {
+            $service = app(\App\Services\QuotaConsumptionService::class);
+            $derived = $service->computeForQuotas($quotas);
+        } catch (\Throwable $e) {
+            $derived = [];
+        }
 
-                return [
-                    'quota_id' => $row->id,
-                    'quota_number' => $row->quota_number,
-                    'range_pk' => $row->government_category,
-                    'initial_quota' => $allocation,
-                    'primary_value' => $reserved,
-                    'secondary_value' => $remaining,
-                    'percentage' => $pct,
-                    'forecast_current_remaining' => (int) ($row->forecast_remaining ?? 0),
-                ];
-            });
+        return $quotas->map(function($q) use ($derived) {
+            $alloc = (int) ($q->total_allocation ?? 0);
+            $d = $derived[$q->id] ?? ['forecast_consumed'=>0,'forecast_remaining'=>$alloc];
+            $forecast = (int) ($d['forecast_consumed'] ?? 0);
+            $remain = (int) max($alloc - $forecast, 0);
+            $pct = $alloc > 0 ? round(($forecast / $alloc) * 100, 2) : 0;
+            return [
+                'quota_id' => $q->id,
+                'quota_number' => $q->quota_number,
+                'range_pk' => $q->government_category,
+                'initial_quota' => $alloc,
+                'primary_value' => $forecast,
+                'secondary_value' => $remain,
+                'percentage' => $pct,
+                'forecast_current_remaining' => (int) ($d['forecast_remaining'] ?? $remain),
+            ];
+        });
     }
 
     private function resolveMode(?string $mode): string

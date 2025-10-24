@@ -776,6 +776,23 @@
 @section('content')
 <div class="dashboard-shell">
 
+    @include('admin.partials.pipeline_funnel', ['metrics' => $metrics])
+
+    <div class="card mt-3">
+        <div class="card-header"><strong>KPI per PK Bucket</strong></div>
+        <div class="card-body">
+            <div class="row g-3">
+                @forelse($quotaCards as $qc)
+                    <div class="col-12 col-md-6 col-xl-4">@include('admin.partials.kpi_bucket_card', ['quota' => $qc])</div>
+                @empty
+                    <div class="text-muted">Tidak ada data kuota.</div>
+                @endforelse
+            </div>
+        </div>
+    </div>
+
+    @include('admin.partials.activity_feed', ['activities' => $activities, 'alerts' => $alerts])
+
 <!-- Statistics Cards -->
 <div class="row g-3 mb-4">
     @if(Auth::user()->hasPermission('read users'))
