@@ -111,7 +111,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // MANAJEMEN KUOTA IMPOR
     // ============================================
 
-    Route::resource('master-data', ProductController::class)->except(['show']);
+    // Removed master-data UI per request
+    // Route::resource('master-data', ProductController::class)->except(['show']);
 
     Route::resource('quotas', QuotaController::class);
     Route::get('quotas/export/csv', [QuotaController::class, 'export'])->name('quotas.export');
@@ -132,13 +133,13 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Constrain route model binding for PurchaseOrder to numeric IDs to avoid clashes
     Route::pattern('purchase_order', '[0-9]+');
 
-    // Quick Product -> HS (manual)
-    Route::middleware(['permission:product.create'])->group(function () {
-        Route::get('master-data/create-hs', [\App\Http\Controllers\Admin\ProductQuickController::class, 'create'])
-            ->name('master.quick_hs.create');
-        Route::post('master-data/store-hs', [\App\Http\Controllers\Admin\ProductQuickController::class, 'store'])
-            ->name('master.quick_hs.store');
-    });
+    // Quick Product -> HS (manual) removed per request
+    // Route::middleware(['permission:product.create'])->group(function () {
+    //     Route::get('master-data/create-hs', [\App\Http\Controllers\Admin\ProductQuickController::class, 'create'])
+    //         ->name('master.quick_hs.create');
+    //     Route::post('master-data/store-hs', [\App\Http\Controllers\Admin\ProductQuickController::class, 'store'])
+    //         ->name('master.quick_hs.store');
+    // });
 
     Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'show', 'destroy']);
     Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
@@ -177,6 +178,17 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('imports/quotas/upload', [QuotaImportPageController::class, 'uploadForm'])->name('imports.quotas.upload.form');
         Route::get('imports/quotas/{import}', [QuotaImportPageController::class, 'preview'])->name('imports.quotas.preview');
         Route::post('imports/quotas/{import}/publish', [QuotaImportPageController::class, 'publishForm'])->name('imports.quotas.publish.form');
+
+        // ===== New: Invoice & GR imports =====
+        Route::get('imports/invoices', [\App\Http\Controllers\Admin\InvoiceImportPageController::class, 'index'])->name('imports.invoices.index');
+        Route::post('imports/invoices/upload', [\App\Http\Controllers\Admin\InvoiceImportPageController::class, 'uploadForm'])->name('imports.invoices.upload');
+        Route::get('imports/invoices/{import}/preview', [\App\Http\Controllers\Admin\InvoiceImportPageController::class, 'preview'])->name('imports.invoices.preview');
+        Route::post('imports/invoices/{import}/publish', [\App\Http\Controllers\Admin\InvoiceImportPageController::class, 'publishForm'])->name('imports.invoices.publish');
+
+        Route::get('imports/gr', [\App\Http\Controllers\Admin\GrImportPageController::class, 'index'])->name('imports.gr.index');
+        Route::post('imports/gr/upload', [\App\Http\Controllers\Admin\GrImportPageController::class, 'uploadForm'])->name('imports.gr.upload');
+        Route::get('imports/gr/{import}/preview', [\App\Http\Controllers\Admin\GrImportPageController::class, 'preview'])->name('imports.gr.preview');
+        Route::post('imports/gr/{import}/publish', [\App\Http\Controllers\Admin\GrImportPageController::class, 'publishForm'])->name('imports.gr.publish');
     });
 
     // =====================
@@ -215,4 +227,3 @@ Route::middleware(['auth', 'verified'])->prefix('analytics')->name('analytics.')
     Route::get('/export/pdf', [AnalyticsController::class, 'exportPdf'])->name('export.pdf');
 });
 
-// (Product Mapping custom module removed — restoring original routes)

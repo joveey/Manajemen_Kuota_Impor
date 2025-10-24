@@ -197,46 +197,7 @@
                 </li>
                 @endcan
 
-                <!-- Master Data -->
-                @can('read master_data')
-                <li class="nav-item {{ request()->is('admin/master-data*') ? 'menu-open' : '' }}">
-                    <a href="#" class="nav-link {{ request()->is('admin/master-data*') ? 'active' : '' }}">
-                        <i class="nav-icon fas fa-database"></i>
-                        <p>
-                            Master Data
-                            <i class="right fas fa-angle-left"></i>
-                        </p>
-                    </a>
-                    <ul class="nav nav-treeview">
-                        <li class="nav-item">
-                            <a href="{{ route('admin.master-data.index') }}" class="nav-link {{ request()->routeIs('admin.master-data.index') ? 'active' : '' }}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Product List</p>
-                            </a>
-                        </li>
-                        @can('create master_data')
-                        <li class="nav-item">
-                            <a href="{{ route('admin.master-data.create') }}" class="nav-link {{ request()->routeIs('admin.master-data.create') ? 'active' : '' }}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Create Product</p>
-                            </a>
-                        </li>
-                        @endcan
-                        <li class="nav-item">
-                            <a href="#" class="nav-link">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Suppliers</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#" class="nav-link">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Categories</p>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-                @endcan
+                {{-- Master Data (Products) removed per request --}}
 
                 <!-- Shipments -->
                 @if(Route::has('admin.shipments.index') && Auth::user()->hasPermission('read purchase_orders'))
@@ -364,3 +325,4 @@
         </nav>
     </div>
 </aside>
+

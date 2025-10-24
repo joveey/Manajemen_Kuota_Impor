@@ -28,14 +28,26 @@ class QuotaController extends Controller
     public function index(): View
     {
         $quotas = Quota::query()
-            ->withCount('products')
             ->orderByDesc('period_start')
             ->get();
 
+        // Compute derived Actual/Forecast using invoices + GR, mapping via HS->PK bucket (without changing mapping tables)
+        $service = app(\App\Services\QuotaConsumptionService::class);
+        $derived = $service->computeForQuotas($quotas);
+
+        foreach ($quotas as $q) {
+            $d = $derived[$q->id] ?? ['actual_consumed'=>0,'forecast_consumed'=>0,'actual_remaining'=>$q->total_allocation,'forecast_remaining'=>$q->total_allocation];
+            // attach derived (do not persist)
+            $q->setAttribute('actual_consumed', (float)$d['actual_consumed']);
+            $q->setAttribute('forecast_consumed', (float)$d['forecast_consumed']);
+            $q->setAttribute('actual_remaining', (float)$d['actual_remaining']);
+            $q->setAttribute('forecast_remaining', (float)$d['forecast_remaining']);
+        }
+
         $summary = [
-            'total_quota' => $quotas->sum('total_allocation'),
-            'forecast_remaining' => $quotas->sum('forecast_remaining'),
-            'actual_remaining' => $quotas->sum('actual_remaining'),
+            'total_quota' => (float) $quotas->sum('total_allocation'),
+            'forecast_remaining' => (float) $quotas->sum('forecast_remaining'),
+            'actual_remaining' => (float) $quotas->sum('actual_remaining'),
             'active_count' => $quotas->where('is_active', true)->count(),
         ];
 
