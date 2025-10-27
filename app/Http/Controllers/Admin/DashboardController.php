@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Permission;
 use App\Models\Quota;
-use App\Models\QuotaHistory;
 use App\Models\Role;
 use App\Models\PoHeader;
 use App\Models\PoLine;
@@ -113,15 +112,6 @@ class DashboardController extends Controller
         $totalRoles = Role::count();
         $totalPermissions = Permission::count();
 
-        // Recent users
-        $recentUsers = User::with('roles')
-            ->latest()
-            ->take(5)
-            ->get();
-
-        // User by role
-        $usersByRole = Role::withCount('users')->get();
-
         // Quota insights
         $quotaStats = [
             'total' => Quota::count(),
@@ -133,7 +123,6 @@ class DashboardController extends Controller
         ];
 
         $quotaAlerts = Quota::orderBy('forecast_remaining')->take(5)->get();
-        $recentQuotaHistories = QuotaHistory::with('quota')->latest()->take(5)->get();
 
         // Purchase order insights
         $currentPeriodStart = Carbon::now()->startOfMonth();
@@ -187,6 +176,22 @@ class DashboardController extends Controller
             'pending_receipt' => $poStats['need_shipment'],
         ];
 
+        // Consolidated summary tiles
+        $poAggregate = PoLine::selectRaw('SUM(qty_ordered) as ordered_total, SUM(qty_received) as received_total')->first();
+        $orderedTotal = (float) ($poAggregate->ordered_total ?? 0);
+        $receivedTotal = (float) ($poAggregate->received_total ?? 0);
+        $summary = [
+            'po_total' => PoHeader::count(),
+            'po_ordered_total' => $orderedTotal,
+            'po_outstanding_total' => max($orderedTotal - $receivedTotal, 0),
+            'gr_total_qty' => (float) \DB::table('gr_receipts')->sum('qty'),
+            'gr_document_total' => (int) \DB::table('gr_receipts')
+                ->selectRaw("COUNT(DISTINCT COALESCE(gr_unique, po_no || '|' || line_no || '|' || receive_date::text)) as total")
+                ->value('total'),
+            'quota_total_allocation' => (float) Quota::sum('total_allocation'),
+            'quota_total_remaining' => (float) Quota::sum('actual_remaining'),
+        ];
+
         $recentShipments = GrReceipt::orderByDesc('receive_date')
             ->orderByDesc('created_at')
             ->take(5)
@@ -221,11 +226,8 @@ class DashboardController extends Controller
             'totalRegularUsers',
             'totalRoles',
             'totalPermissions',
-            'recentUsers',
-            'usersByRole',
             'quotaStats',
             'quotaAlerts',
-            'recentQuotaHistories',
             'poStats',
             'recentPurchaseOrders',
             'shipmentStats',
@@ -233,7 +235,8 @@ class DashboardController extends Controller
             'metrics',
             'quotaCards',
             'activities',
-            'alerts'
+            'alerts',
+            'summary'
         ));
     }
 }

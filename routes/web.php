@@ -61,6 +61,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Users Management - Requires user permissions
     Route::middleware(['permission:read users'])->group(function () {
         Route::get('users', [UserController::class, 'index'])->name('users.index');
+        Route::get('users/recent', [UserController::class, 'recent'])->name('users.recent');
     });
     Route::middleware(['permission:create users'])->group(function () {
         Route::get('users/create', [UserController::class, 'create'])->name('users.create');
@@ -221,4 +222,3 @@ Route::middleware(['auth', 'verified'])->prefix('analytics')->name('analytics.')
     Route::get('/export/xlsx', [AnalyticsController::class, 'exportXlsx'])->name('export.xlsx');
     Route::get('/export/pdf', [AnalyticsController::class, 'exportPdf'])->name('export.pdf');
 });
-

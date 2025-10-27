@@ -1,30 +1,68 @@
-<div class="card">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <strong>Aktivitas (7 hari)</strong>
-    <a href="{{ route('admin.imports.quotas.index') }}" class="btn btn-sm btn-outline-secondary">Riwayat Import</a>
-  </div>
-  <div class="card-body">
-    <ul class="list-unstyled mb-0">
-      @forelse($activities as $a)
-        <li class="mb-2">
-          <span class="badge bg-primary me-2">{{ strtoupper($a['type']) }}</span>
-          <strong>{{ $a['title'] }}</strong>
-          <span class="text-muted small">— {{ $a['time'] }}</span>
-        </li>
-      @empty
-        <li class="text-muted">Tidak ada aktivitas.</li>
-      @endforelse
-    </ul>
-  </div>
-  @if(!empty($alerts))
-  <div class="card-footer">
-    <strong>Alert</strong>
-    <ul class="mb-0">
-      @foreach($alerts as $msg)
-        <li class="text-danger small">{{ $msg }}</li>
-      @endforeach
-    </ul>
-  </div>
-  @endif
+@props(['activities' => [], 'alerts' => []])
+@php
+    $iconMap = [
+        'GR' => ['icon' => 'fa-receipt', 'variant' => 'info'],
+        'HS_PK' => ['icon' => 'fa-layer-group', 'variant' => 'primary'],
+        'QUOTA' => ['icon' => 'fa-chart-pie', 'variant' => 'warning'],
+        'PO' => ['icon' => 'fa-file-invoice', 'variant' => 'primary'],
+        'SHIPMENT' => ['icon' => 'fa-truck', 'variant' => 'success'],
+        'USER' => ['icon' => 'fa-user-check', 'variant' => 'success'],
+    ];
+    $hasImportRoute = \Illuminate\Support\Facades\Route::has('admin.imports.quotas.index');
+@endphp
+<div class="card activity-card">
+    <div class="card-header">
+        <div>
+            <strong>Aktivitas (7 hari)</strong>
+            <span class="activity-card__subtitle">Riwayat import dan pembaruan terbaru.</span>
+        </div>
+        @if($hasImportRoute)
+            <a href="{{ route('admin.imports.quotas.index') }}" class="kpi-card__action">Riwayat Import</a>
+        @endif
+    </div>
+    <div class="card-body">
+        @if(!empty($activities))
+            <ul class="activity-list">
+                @foreach($activities as $a)
+                    @php
+                        $type = strtoupper($a['type'] ?? 'LOG');
+                        $meta = $iconMap[$type] ?? ['icon' => 'fa-file-alt', 'variant' => 'muted'];
+                        $time = $a['time'] ?? null;
+                    @endphp
+                    <li class="activity-item">
+                        <span class="activity-icon activity-icon--{{ $meta['variant'] }}">
+                            <i class="fas {{ $meta['icon'] }}" aria-hidden="true"></i>
+                        </span>
+                        <div class="activity-content">
+                            <div class="activity-title">{{ $a['title'] }}</div>
+                            <div class="activity-meta">
+                                <span class="activity-tag activity-tag--{{ $meta['variant'] }}">{{ $type }}</span>
+                                @if($time)
+                                    <span>• {{ $time }}</span>
+                                @endif
+                            </div>
+                        </div>
+                    </li>
+                @endforeach
+            </ul>
+        @else
+            <div class="activity-empty">
+                <i class="fas fa-inbox mb-2" aria-hidden="true"></i>
+                <div>Tidak ada aktivitas dalam 7 hari terakhir.</div>
+            </div>
+        @endif
+    </div>
+    @if(!empty($alerts))
+        <div class="activity-alerts">
+            <div class="activity-alerts__title">
+                <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+                Alert Penting
+            </div>
+            <ul class="activity-alerts__list">
+                @foreach($alerts as $msg)
+                    <li>{{ $msg }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 </div>
-

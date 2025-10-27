@@ -37,6 +37,18 @@ class UserController extends Controller
     }
 
     /**
+     * Display recently created users with roles.
+     */
+    public function recent()
+    {
+        $recentUsers = User::with('roles')
+            ->orderByDesc('created_at')
+            ->paginate(15);
+
+        return view('admin.users.recent', compact('recentUsers'));
+    }
+
+    /**
      * Show the form for creating a new user.
      */
     public function create()
