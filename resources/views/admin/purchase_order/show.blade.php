@@ -167,6 +167,42 @@
             </div>
         </div>
 
+        <div class="card mb-3">
+            <div class="card-header">
+                <h3 class="card-title mb-0"><i class="fas fa-diagram-project me-2"></i>Alokasi Kuota</h3>
+            </div>
+            <div class="card-body p-0">
+                @php $allocs = $purchaseOrder->allocatedQuotas()->with('products')->get(); @endphp
+                @if($allocs->isEmpty())
+                    <div class="p-3 text-muted">Belum ada alokasi tercatat.</div>
+                @else
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Quota</th>
+                                    <th>Periode</th>
+                                    <th class="text-end">Allocated Qty</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($allocs as $q)
+                                    <tr>
+                                        <td>{{ $q->quota_number }}</td>
+                                        <td>{{ optional($q->period_start)->format('Y') }}{{ $q->period_end && $q->period_start && $q->period_end->format('Y') !== $q->period_start->format('Y') ? ' - '.optional($q->period_end)->format('Y') : '' }}</td>
+                                        <td class="text-end">{{ fmt_qty($q->pivot->allocated_qty) }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+                @if($allocs->count() > 1)
+                    <div class="p-3"><span class="badge text-bg-warning">Carry-over</span> PO ini dialokasikan lintas periode.</div>
+                @endif
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title mb-0"><i class="fas fa-stream me-2"></i>Timeline</h3>

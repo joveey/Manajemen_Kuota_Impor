@@ -59,6 +59,23 @@
         </div>
     </section>
 
+    <section class="analytics-card">
+        <header class="analytics-card__header">
+            <h2 class="analytics-card__title">KPI Kuota</h2>
+            <span class="analytics-card__badge analytics-card__badge--muted">Summary</span>
+        </header>
+        <div class="row g-3">
+            <div class="col-12 col-md-6 col-lg-3"><div class="kpi-tile"><div class="kpi-label">Allocation</div><div class="kpi-value" id="kpiAllocation">-</div></div></div>
+            <div class="col-12 col-md-6 col-lg-3"><div class="kpi-tile"><div class="kpi-label">Forecast Consumed</div><div class="kpi-value" id="kpiForecast">-</div></div></div>
+            <div class="col-12 col-md-6 col-lg-3"><div class="kpi-tile"><div class="kpi-label">Actual Consumed</div><div class="kpi-value" id="kpiActual">-</div></div></div>
+            <div class="col-12 col-md-6 col-lg-3"><div class="kpi-tile"><div class="kpi-label">In-Transit</div><div class="kpi-value" id="kpiInTransit">-</div></div></div>
+        </div>
+        <div class="row g-3 mt-1">
+            <div class="col-12 col-md-6 col-lg-3"><div class="kpi-sub">Forecast Remaining: <span id="kpiForecastRem">-</span></div></div>
+            <div class="col-12 col-md-6 col-lg-3"><div class="kpi-sub">Actual Remaining: <span id="kpiActualRem">-</span></div></div>
+        </div>
+    </section>
+
     <section class="analytics-grid">
         <article class="analytics-card">
             <header class="analytics-card__header">
@@ -186,6 +203,11 @@
         border-top:1px solid #e5eaf5;
     }
     .analytics-table tbody tr:hover { background:rgba(37,99,235,0.04); }
+
+    .kpi-tile { background:#f8fbff; border:1px solid #dfe4f3; border-radius:14px; padding:14px 16px; height:100%; }
+    .kpi-label { font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:.08em; }
+    .kpi-value { font-size:22px; font-weight:700; color:#0f172a; }
+    .kpi-sub { font-size:13px; color:#475569; }
 
     @media (max-width: 640px) {
         .analytics-card,

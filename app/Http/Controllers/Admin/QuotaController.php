@@ -31,23 +31,34 @@ class QuotaController extends Controller
             ->orderByDesc('period_start')
             ->get();
 
-        // Compute derived Actual/Forecast using invoices + GR, mapping via HS->PK bucket (without changing mapping tables)
-        $service = app(\App\Services\QuotaConsumptionService::class);
-        $derived = $service->computeForQuotas($quotas);
+        // Compute derived metrics per quota using PO allocations (forecast) and histories (actual)
+        $ids = $quotas->pluck('id')->all();
+        $forecastByQuota = empty($ids) ? collect() : \Illuminate\Support\Facades\DB::table('purchase_order_quota')
+            ->select('quota_id', \Illuminate\Support\Facades\DB::raw('SUM(allocated_qty) as qty'))
+            ->whereIn('quota_id', $ids)
+            ->groupBy('quota_id')
+            ->pluck('qty', 'quota_id');
+        $actualByQuota = empty($ids) ? collect() : \Illuminate\Support\Facades\DB::table('quota_histories')
+            ->select('quota_id', \Illuminate\Support\Facades\DB::raw('SUM(ABS(quantity_change)) as qty'))
+            ->where('change_type', \App\Models\QuotaHistory::TYPE_ACTUAL_DECREASE)
+            ->whereIn('quota_id', $ids)
+            ->groupBy('quota_id')
+            ->pluck('qty', 'quota_id');
 
         foreach ($quotas as $q) {
-            $d = $derived[$q->id] ?? ['actual_consumed'=>0,'forecast_consumed'=>0,'actual_remaining'=>$q->total_allocation,'forecast_remaining'=>$q->total_allocation];
-            // attach derived (do not persist)
-            $q->setAttribute('actual_consumed', (float)$d['actual_consumed']);
-            $q->setAttribute('forecast_consumed', (float)$d['forecast_consumed']);
-            $q->setAttribute('actual_remaining', (float)$d['actual_remaining']);
-            $q->setAttribute('forecast_remaining', (float)$d['forecast_remaining']);
+            $allocation = (float) ($q->total_allocation ?? 0);
+            $fc = min($allocation, (float) ($forecastByQuota[$q->id] ?? 0));
+            $ac = min($allocation, (float) ($actualByQuota[$q->id] ?? 0));
+            $q->setAttribute('forecast_consumed', $fc);
+            $q->setAttribute('actual_consumed', $ac);
+            $q->setAttribute('forecast_remaining', max($allocation - $fc, 0));
+            $q->setAttribute('actual_remaining', max($allocation - $ac, 0));
         }
 
         $summary = [
             'total_quota' => (float) $quotas->sum('total_allocation'),
-            'forecast_remaining' => (float) $quotas->sum('forecast_remaining'),
-            'actual_remaining' => (float) $quotas->sum('actual_remaining'),
+            'forecast_remaining' => (float) $quotas->sum(function ($q) { return (float)$q->getAttribute('forecast_remaining'); }),
+            'actual_remaining' => (float) $quotas->sum(function ($q) { return (float)$q->getAttribute('actual_remaining'); }),
             'active_count' => $quotas->where('is_active', true)->count(),
         ];
 

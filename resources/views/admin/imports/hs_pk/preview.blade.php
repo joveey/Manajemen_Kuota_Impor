@@ -23,7 +23,6 @@
         <div class="card-header d-flex justify-content-between align-items-center">
           <div>
             <strong>HS & PK Import #{{ $import->id }}</strong>
-            <span class="text-muted">Period: {{ $import->period_key }}</span>
           </div>
           <div>
             <span class="badge bg-secondary me-1">Total: <span id="sum-total">{{ (int)($import->total_rows ?? 0) }}</span></span>
@@ -59,9 +58,9 @@
             @csrf
             <div class="form-check mb-2">
               <input class="form-check-input" type="checkbox" value="1" id="run_automap" name="run_automap" checked>
-              <label class="form-check-label" for="run_automap">Run automapper for period {{ $import->period_key }}</label>
+              <label class="form-check-label" for="run_automap">Run automapper (opsional)</label>
             </div>
-            <small class="text-muted d-block mb-2">Run Automap akan membuat mapping otomatis per periode; mapping manual tidak diubah.</small>
+            <small class="text-muted d-block mb-2">Automapper akan menyelaraskan mapping Product ↔ Quota berdasarkan HS/PK.</small>
             <button class="btn btn-primary" type="submit" {{ $import->status !== 'ready' ? 'disabled' : '' }}>Publish HS & PK</button>
           </form>
         </div>

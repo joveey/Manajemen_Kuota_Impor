@@ -270,10 +270,9 @@ class PurchaseOrderController extends Controller
         }
 
         $po = null;
-        $allocated = false;
         $allocationNote = null;
 
-        \Illuminate\Support\Facades\DB::transaction(function () use (&$po, &$allocated, &$allocationNote, $data, $product, $quota) {
+        \Illuminate\Support\Facades\DB::transaction(function () use (&$po, &$allocationNote, $data, $product, $quota) {
             $amount = isset($data['unit_price']) ? ((float)$data['unit_price'] * (int)$data['quantity']) : 0;
 
             $po = \App\Models\PurchaseOrder::create([
@@ -291,28 +290,18 @@ class PurchaseOrderController extends Controller
                 'plant_detail' => 'Created via Manual PO form',
             ]);
 
-            // Simple allocation logic (fallback when no dedicated service exists)
-            if ($quota->forecast_remaining >= $po->quantity) {
-                $quota->decrementForecast(
-                    $po->quantity,
-                    'Forecast allocated for PO '.$po->po_number,
-                    $po,
-                    $po->order_date,
-                    \Illuminate\Support\Facades\Auth::id()
-                );
-                $allocated = true;
-            } else {
-                $allocated = false;
-                $allocationNote = 'Forecast tersisa: '.number_format($quota->forecast_remaining).' < kebutuhan: '.number_format($po->quantity);
+            // Allocate across periods using service
+            [$allocs, $left] = app(\App\Services\QuotaAllocationService::class)
+                ->allocateForecast($product->id, (int) $po->quantity, $po->order_date, $po);
+
+            if ($left > 0) {
+                $allocationNote = 'Sebagian belum teralokasi: '.number_format($left).' unit. Mohon impor kuota periode berikutnya.';
             }
         });
 
-        if ($allocated) {
-            return redirect()->route('admin.purchase-orders.show', $po)
-                ->with('status', 'PO dibuat & kuota teralokasi/tercatat.');
-        }
-
-        return redirect()->route('admin.purchase-orders.show', $po)
-            ->with('warning', 'PO dibuat, namun alokasi kuota perlu ditindaklanjuti. '.$allocationNote);
+        $redir = redirect()->route('admin.purchase-orders.show', $po)
+            ->with('status', 'PO dibuat & alokasi forecast diproses.');
+        if ($allocationNote) { $redir->with('warning', $allocationNote); }
+        return $redir;
     }
 }

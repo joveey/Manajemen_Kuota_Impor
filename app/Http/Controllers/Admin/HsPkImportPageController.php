@@ -25,7 +25,6 @@ class HsPkImportPageController extends Controller
     {
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
-            'period_key' => ['required'],
         ]);
 
         // Delegate to backend API controller directly

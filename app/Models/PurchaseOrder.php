@@ -92,6 +92,13 @@ class PurchaseOrder extends Model
         return $this->morphMany(QuotaHistory::class, 'reference');
     }
 
+    public function allocatedQuotas()
+    {
+        return $this->belongsToMany(Quota::class, 'purchase_order_quota')
+            ->withPivot(['allocated_qty'])
+            ->withTimestamps();
+    }
+
     public function getRemainingQuantityAttribute(): int
     {
         return max(0, $this->quantity - $this->quantity_received);

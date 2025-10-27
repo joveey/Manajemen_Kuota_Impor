@@ -90,6 +90,20 @@
               json.labels || defaultLabels
             );
           }catch(e){}
+          try {
+            var sum = json.summary || {};
+            var nf = function(n){ n = Number(n)||0; return n.toLocaleString(); };
+            var byId = function(id){ return document.getElementById(id); };
+            var m = {
+              kpiAllocation: sum.total_allocation,
+              kpiForecast: sum.total_forecast_consumed,
+              kpiActual: sum.total_actual_consumed,
+              kpiInTransit: sum.total_in_transit,
+              kpiForecastRem: sum.total_forecast_remaining,
+              kpiActualRem: sum.total_actual_remaining
+            };
+            Object.keys(m).forEach(function(k){ var el = byId(k); if(el) el.textContent = nf(m[k]); });
+          } catch(e){}
         })
         .catch(function(){ fillTable(tbodyId, [], defaultMode, defaultLabels); });
     });
