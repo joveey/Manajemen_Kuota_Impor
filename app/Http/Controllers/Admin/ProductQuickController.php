@@ -17,7 +17,10 @@ class ProductQuickController extends Controller
     {
         $model = trim((string) $request->query('model', ''));
         $periodKey = trim((string) $request->query('period_key', ''));
-        $returnUrl = (string) $request->query('return', url()->previous() ?: route('admin.openpo.form'));
+        $returnUrl = (string) $request->query(
+            'return',
+            url()->previous() ?: route('admin.mapping.mapped.page')
+        );
 
         return view('admin.products.quick_create_hs', compact('model', 'periodKey', 'returnUrl'));
     }
@@ -30,7 +33,7 @@ class ProductQuickController extends Controller
         $pk = $data['pk_capacity'] !== null ? (float) $data['pk_capacity'] : null;
         $category = isset($data['category']) ? trim((string) $data['category']) : null;
         $periodKey = $data['period_key'] ?? null;
-        $return = $data['return'] ?? route('admin.openpo.form');
+        $return = $data['return'] ?? route('admin.mapping.mapped.page');
 
         // Pastikan kolom hs_code tersedia pada schema
         if (!Schema::hasColumn('products', 'hs_code')) {
