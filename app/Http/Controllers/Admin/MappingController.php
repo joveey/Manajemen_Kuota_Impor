@@ -15,6 +15,7 @@ class MappingController extends Controller
     public function __construct()
     {
         $this->middleware('permission:read master_data');
+        $this->middleware('role:admin|manager|editor');
     }
 
     public function unmapped(Request $request)
