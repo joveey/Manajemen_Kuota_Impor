@@ -314,47 +314,6 @@
 
     <div class="report-card">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-            <h2 class="report-card__title mb-0">Detail PO & Realisasi GR</h2>
-            <span class="text-muted small">{{ count($rows) }} baris</span>
-        </div>
-        <div class="report-table-wrapper">
-            <table class="report-table">
-                <thead>
-                    <tr>
-                        <th>PO Number</th>
-                        <th>Tanggal</th>
-                        <th>Supplier</th>
-                        <th class="text-end">Qty Ordered</th>
-                        <th class="text-end">Qty Received</th>
-                        <th class="text-end">Outstanding</th>
-                        <th>Last GR</th>
-                        <th class="text-end">GR Docs</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($rows as $row)
-                        <tr>
-                            <td>{{ $row['po_number'] }}</td>
-                            <td>{{ $row['po_date_label'] ?? '-' }}</td>
-                            <td>{{ $row['supplier'] ?? '-' }}</td>
-                            <td class="text-end">{{ $formatQty($row['qty_ordered']) }}</td>
-                            <td class="text-end">{{ $formatQty($row['qty_received']) }}</td>
-                            <td class="text-end">{{ $formatQty($row['qty_outstanding']) }}</td>
-                            <td>{{ $row['last_receipt_label'] ?? '-' }}</td>
-                            <td class="text-end">{{ $formatInt($row['receipt_documents']) }}</td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="8" class="text-center text-muted py-4">Belum ada data pada periode yang dipilih.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div class="report-card">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
             <h2 class="report-card__title mb-0">Outstanding Terbesar (PO Line)</h2>
             <span class="text-muted small">{{ count($outstanding ?? []) }} catatan</span>
         </div>
