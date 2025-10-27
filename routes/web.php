@@ -40,7 +40,9 @@ Route::get('/', function () {
 
 // Rute Dashboard utama (dilindungi oleh middleware auth)
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->middleware('permission:read dashboard')
+        ->name('dashboard');
 });
 
 // Rute Profil Pengguna
@@ -56,7 +58,9 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
     
     // Dashboard Admin
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->middleware('permission:read dashboard')
+        ->name('dashboard');
     
     // Users Management - Requires user permissions
     Route::middleware(['permission:read users'])->group(function () {
@@ -187,7 +191,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // =====================
     // Open PO Import
     // =====================
-    Route::middleware(['role:admin,manager,editor'])->prefix('open-po')->name('openpo.')->group(function () {
+    Route::middleware(['permission:po.create'])->prefix('open-po')->name('openpo.')->group(function () {
         Route::get('/import', [OpenPoImportController::class, 'form'])->name('form');
         Route::post('/preview', [OpenPoImportController::class, 'preview'])->name('preview');
         // Allow reloading preview via GET (reads session)
@@ -195,16 +199,17 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('/publish', [OpenPoImportController::class, 'publish'])->name('publish');
     });
 
-    // Mapping diagnostics
-    Route::get('mapping/unmapped', [MappingController::class, 'unmapped'])->name('mapping.unmapped');
-    // Mapping UI page (uses JSON endpoint above via XHR)
-    Route::get('mapping/unmapped/view', [MappingPageController::class, 'unmapped'])->name('mapping.unmapped.page');
-    // Mapped Model -> HS UI page
-    Route::get('mapping/mapped', [MappingPageController::class, 'mapped'])->name('mapping.mapped.page');
+    // Mapping diagnostics & UI
+    Route::middleware(['permission:read master_data'])->group(function () {
+        Route::get('mapping/unmapped', [MappingController::class, 'unmapped'])->name('mapping.unmapped');
+        Route::get('mapping/unmapped/view', [MappingPageController::class, 'unmapped'])->name('mapping.unmapped.page');
+        Route::get('mapping/mapped', [MappingPageController::class, 'mapped'])->name('mapping.mapped.page');
+    });
 
 
     // Read-only PO progress (based on po_headers/po_lines + Invoice as Shipment + GR)
     Route::get('po-progress', [\App\Http\Controllers\Admin\PoProgressController::class, 'index'])
+        ->middleware('permission:read purchase_orders')
         ->name('po_progress.index');
 });
 
@@ -215,7 +220,7 @@ require __DIR__.'/auth.php';
 // Analytics (Actual-based)
 // =====================
 use App\Http\Controllers\AnalyticsController;
-Route::middleware(['auth', 'verified'])->prefix('analytics')->name('analytics.')->group(function () {
+Route::middleware(['auth', 'verified', 'permission:read reports'])->prefix('analytics')->name('analytics.')->group(function () {
     Route::get('/', [AnalyticsController::class, 'index'])->name('index');
     Route::get('/data', [AnalyticsController::class, 'data'])->name('data');
     Route::get('/export/csv', [AnalyticsController::class, 'exportCsv'])->name('export.csv');

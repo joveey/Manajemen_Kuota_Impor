@@ -847,10 +847,12 @@
                             <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
                         </button>
                         <div class="nav-group__body" id="nav-group-operational">
-                            <a href="{{ route('admin.openpo.form') }}" class="nav-link {{ request()->routeIs('admin.openpo.*') ? 'active' : '' }}">
-                                <span class="nav-icon"><i class="fas fa-upload"></i></span>
-                                <span>Upload Open PO</span>
-                            </a>
+                            @can('po.create')
+                                <a href="{{ route('admin.openpo.form') }}" class="nav-link {{ request()->routeIs('admin.openpo.*') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-upload"></i></span>
+                                    <span>Upload Open PO</span>
+                                </a>
+                            @endcan
                             @if($canPORead)
                                 <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>

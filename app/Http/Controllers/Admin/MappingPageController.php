@@ -8,6 +8,11 @@ use Illuminate\View\View;
 
 class MappingPageController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:read master_data');
+    }
+
     public function unmapped(Request $request): View
     {
         $period   = (string)($request->query('period') ?: now()->format('Y'));
