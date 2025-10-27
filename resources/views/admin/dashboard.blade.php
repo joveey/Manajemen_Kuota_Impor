@@ -1,4 +1,4 @@
-﻿@extends('layouts.admin')
+@extends('layouts.admin')
 
 @section('title', 'Dashboard')
 
@@ -17,56 +17,58 @@
         margin-bottom: 24px;
     }
 
-    
     @media (max-width: 640px) {
         .dashboard-shell { padding-bottom: 60px; }
         .dashboard-shell > *:not(:last-child) { margin-bottom: 16px; }
-        .summary-grid { grid-template-columns: 1fr; }
-        .summary-card { padding: 14px 14px; border-radius:14px; }
-        .summary-card__icon { width:42px; height:42px; }
-        .summary-card__label { font-size:12px; }
-        .summary-card__value { font-size:20px; }
-        .summary-card__meta { font-size:11px; }
-        .summary-card__info { font-size:11px; }
+        .stat-card { padding: 16px; }
+        .stat-icon { width: 40px; height: 40px; }
+        .stat-number { font-size: 24px; }
         .chart-container { min-height: 220px; height: 220px; }
-        .po-table thead { display:none; }
-        .po-table tbody tr { display:block; margin-bottom:18px; border:1px solid #e2e8f0; border-radius:16px; padding:12px 16px; box-shadow:0 10px 24px -18px rgba(15,23,42,.35); }
-        .po-table tbody td { display:flex; justify-content:space-between; align-items:flex-start; padding:8px 0; border:none; }
-        .po-table tbody td::before { content: attr(data-label); font-weight:600; color:#64748b; font-size:11px; text-transform:uppercase; letter-spacing:.08em; margin-right:12px; }
-        .po-table tbody td:last-child { justify-content:flex-start; }
-        .timeline-sm { gap: 12px; }
-        .timeline-sm li { padding: 12px 14px; gap: 12px; }
-        .timeline-icon { width: 26px; height: 26px; }
+        .data-row, .data-row--shipment { 
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        .data-cell--qty {
+            align-items: flex-start;
+            text-align: left;
+        }
+        .quota-item {
+            flex-direction: column;
+            gap: 12px;
+        }
+        .btn-ghost {
+            align-self: flex-start;
+        }
     }
+
     /* Stat Cards */
     .stat-card {
         background: white;
         border: 1px solid #e5eaef;
-        border-radius: 14px;
-        padding: 22px;
+        border-radius: 16px;
+        padding: 24px;
         height: 100%;
         transition: transform 0.25s ease, box-shadow 0.25s ease;
     }
 
     .stat-card:hover {
         transform: translateY(-3px);
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
     }
 
     .stat-icon {
-        width: 48px;
-        height: 48px;
+        width: 52px;
+        height: 52px;
         border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-bottom: 12px;
-        box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
-        background: rgba(15, 23, 42, 0.02);
+        margin-bottom: 16px;
+        box-shadow: 0 8px 20px -10px currentColor;
     }
 
     .stat-icon i {
-        font-size: 20px;
+        font-size: 22px;
     }
 
     .stat-icon.primary {
@@ -90,36 +92,26 @@
     }
 
     .stat-label {
-        font-size: 14px;
-        color: #5A6A85;
-        font-weight: 500;
+        font-size: 13px;
+        color: #64748b;
+        font-weight: 600;
         margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
     .stat-number {
-        font-size: 28px;
+        font-size: 32px;
         font-weight: 700;
-        color: #2A3547;
+        color: #0f172a;
         margin-bottom: 12px;
+        line-height: 1;
     }
 
-    .stat-link {
-        font-size: 13px;
-        font-weight: 600;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        color: #5D87FF;
-        transition: all 0.2s ease;
-    }
-
-    .stat-link:hover {
-        gap: 8px;
-    }
-
-    .stat-link i {
-        margin-left: 6px;
+    .stat-meta {
         font-size: 12px;
+        color: #94a3b8;
+        line-height: 1.6;
     }
 
     /* Welcome Card */
@@ -132,7 +124,7 @@
     }
 
     .welcome-card .card-body {
-        padding: 26px 30px 30px;
+        padding: 32px;
     }
 
     .welcome-card__header {
@@ -143,16 +135,17 @@
     }
 
     .welcome-card__title {
-        font-size: 22px;
+        font-size: 26px;
         font-weight: 700;
         margin: 0;
         color: #0f172a;
     }
 
     .welcome-card__subtitle {
-        margin: 6px 0 0;
+        margin: 8px 0 0;
         color: #64748b;
-        font-size: 13px;
+        font-size: 14px;
+        line-height: 1.6;
     }
 
     .welcome-card__last-login {
@@ -160,7 +153,11 @@
         flex-direction: column;
         align-items: flex-end;
         gap: 4px;
-        min-width: 150px;
+        min-width: 160px;
+        padding: 12px 16px;
+        background: rgba(37, 99, 235, 0.06);
+        border-radius: 12px;
+        border: 1px solid rgba(37, 99, 235, 0.12);
     }
 
     .welcome-card__last-login-label {
@@ -172,79 +169,365 @@
     }
 
     .welcome-card__last-login-value {
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 600;
         color: #0f172a;
     }
 
     .welcome-card__last-login-meta {
         font-size: 12px;
-        color: #94a3b8;
+        color: #64748b;
     }
 
     .welcome-card__roles {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin: 20px 0 6px;
+        gap: 10px;
+        margin: 24px 0 0;
     }
 
-    .role-badge,
     .role-chip {
         display: inline-flex;
         align-items: center;
-        padding: 6px 12px;
+        padding: 8px 16px;
         border-radius: 999px;
         background: rgba(37, 99, 235, 0.12);
         color: #2563eb;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
+        letter-spacing: 0.02em;
     }
 
-    .welcome-card__actions {
-        margin-top: 22px;
+    /* KPI Buckets */
+    .kpi-section {
+        border: 1px solid #e6ebf5;
+        border-radius: 22px;
+        background: linear-gradient(135deg, #ffffff 0%, #f6f9ff 100%);
+        box-shadow: 0 32px 64px -52px rgba(15, 23, 42, 0.55);
+        overflow: hidden;
     }
 
-    .welcome-card__actions-label {
-        font-size: 11px;
-        font-weight: 600;
-        color: #64748b;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        margin-bottom: 12px;
-        display: block;
+    .kpi-section .card-header {
+        border-bottom: 1px solid #eef2fb;
+        background: transparent;
+        padding: 26px 30px 18px;
     }
 
-    .quick-action-grid {
+    .kpi-section .card-body {
+        padding: 26px 30px 32px;
+    }
+
+    .kpi-grid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+
+    .kpi-card {
+        background: #ffffff;
+        border: 1px solid #e5eaef;
+        border-radius: 18px;
+        padding: 22px 22px 24px;
+        position: relative;
+        overflow: hidden;
+        height: 100%;
         display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
+        flex-direction: column;
+        gap: 18px;
+        transition: transform 0.22s ease, box-shadow 0.22s ease;
     }
 
-    .quick-action-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        padding: 12px 18px;
-        border-radius: 14px;
-        border: 1px solid rgba(37, 99, 235, 0.18);
+    .kpi-card::after {
+        content: '';
+        position: absolute;
+        inset: auto 18px 18px;
+        height: 140px;
+        border-radius: 999px;
+        background: radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent 70%);
+        opacity: 0;
+        transition: opacity 0.22s ease;
+        pointer-events: none;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 24px 42px -36px rgba(15, 23, 42, 0.48);
+    }
+
+    .kpi-card:hover::after {
+        opacity: 1;
+    }
+
+    .kpi-card__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 18px;
+    }
+
+    .kpi-card__title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 4px;
+    }
+
+    .kpi-card__period {
+        font-size: 12px;
+        color: #64748b;
+    }
+
+    .kpi-card__action {
+        padding: 6px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(37, 99, 235, 0.4);
         background: rgba(37, 99, 235, 0.08);
         color: #1d4ed8;
         font-weight: 600;
-        font-size: 13px;
+        font-size: 12px;
         text-decoration: none;
-        flex: 1 1 180px;
         transition: all 0.2s ease;
+        white-space: nowrap;
     }
 
-    .quick-action-chip:hover {
+    .kpi-card__action:hover {
         background: #2563eb;
         color: #ffffff;
-        border-color: #2563eb;
-        box-shadow: 0 16px 30px -24px rgba(37, 99, 235, 0.75);
-        transform: translateY(-2px);
+        box-shadow: 0 12px 28px -20px rgba(37, 99, 235, 0.65);
+    }
+
+    .kpi-card__progress {
+        height: 8px;
+        border-radius: 999px;
+        background: #eef2fb;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .kpi-card__progress-fill {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #2563eb 0%, #38bdf8 100%);
+    }
+
+    .kpi-card__progress-fill--warning {
+        background: linear-gradient(90deg, #f59e0b 0%, #f97316 100%);
+    }
+
+    .kpi-card__progress-fill--critical {
+        background: linear-gradient(90deg, #ef4444 0%, #f43f5e 100%);
+    }
+
+    .kpi-card__progress-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: #64748b;
+    }
+
+    .kpi-card__metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 14px;
+    }
+
+    .kpi-card__metric {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .kpi-card__metric dt {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #94a3b8;
+        margin: 0;
+    }
+
+    .kpi-card__metric dd {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .kpi-card__metric--accent dd {
+        color: #2563eb;
+    }
+
+    .kpi-card__metric--safe dd {
+        color: #16a34a;
+    }
+
+    .kpi-empty {
+        padding: 40px 20px;
+        border-radius: 18px;
+        background: #f8fafc;
+        border: 1px dashed #d0d8e5;
+        text-align: center;
+        color: #64748b;
+        font-size: 14px;
+    }
+
+    @media (max-width: 768px) {
+        .kpi-section .card-header,
+        .kpi-section .card-body {
+            padding: 22px 18px;
+        }
+    }
+
+    /* Activity feed */
+    .activity-card {
+        border: 1px solid #e6ebf5;
+        border-radius: 20px;
+        box-shadow: 0 26px 46px -40px rgba(15, 23, 42, 0.45);
+        overflow: hidden;
+    }
+
+    .activity-card .card-header {
+        border-bottom: 1px solid #eef2fb;
+        background: transparent;
+        padding: 24px 28px 16px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .activity-card__subtitle {
+        display: block;
+        font-size: 12px;
+        color: #94a3b8;
+        margin-top: 4px;
+    }
+
+    .activity-card .card-body {
+        padding: 20px 28px 28px;
+    }
+
+    .activity-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin: 0;
+        padding: 0;
+    }
+
+    .activity-item {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+    }
+
+    .activity-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+        box-shadow: 0 12px 24px -18px rgba(15, 23, 42, 0.38);
+    }
+
+    .activity-icon--primary { background: rgba(37, 99, 235, 0.12); color: #2563eb; }
+    .activity-icon--info { background: rgba(59, 130, 246, 0.12); color: #1d4ed8; }
+    .activity-icon--success { background: rgba(16, 185, 129, 0.12); color: #059669; }
+    .activity-icon--warning { background: rgba(245, 158, 11, 0.12); color: #b45309; }
+    .activity-icon--muted { background: rgba(148, 163, 184, 0.18); color: #475569; }
+
+    .activity-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .activity-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #0f172a;
+    }
+
+    .activity-meta {
+        font-size: 12px;
+        color: #94a3b8;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .activity-tag {
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .activity-tag--primary { background: rgba(37, 99, 235, 0.12); color: #1d4ed8; }
+    .activity-tag--info { background: rgba(59, 130, 246, 0.14); color: #1e3a8a; }
+    .activity-tag--success { background: rgba(16, 185, 129, 0.12); color: #047857; }
+    .activity-tag--warning { background: rgba(245, 158, 11, 0.12); color: #9a3412; }
+    .activity-tag--muted { background: rgba(148, 163, 184, 0.18); color: #475569; }
+
+    .activity-empty {
+        padding: 32px;
+        border-radius: 18px;
+        background: #f8fafc;
+        border: 1px dashed #d0d8e5;
+        color: #64748b;
+        text-align: center;
+    }
+
+    .activity-alerts {
+        border-top: 1px solid #eef2fb;
+        background: rgba(254, 249, 195, 0.35);
+        padding: 18px 28px;
+    }
+
+    .activity-alerts__title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #b45309;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .activity-alerts__list {
+        margin: 12px 0 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        color: #92400e;
+        font-size: 12px;
+    }
+
+    @media (max-width: 768px) {
+        .activity-card .card-header,
+        .activity-card .card-body {
+            padding: 22px 18px;
+        }
+
+        .activity-card .card-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .activity-icon {
+            width: 38px;
+            height: 38px;
+            font-size: 16px;
+        }
     }
 
     /* Operational panels */
@@ -261,7 +544,7 @@
     }
 
     .panel-modern__header {
-        padding: 20px 24px 16px;
+        padding: 22px 26px 18px;
         border-bottom: 1px solid #eef2fb;
         display: flex;
         align-items: center;
@@ -269,8 +552,8 @@
     }
 
     .panel-modern__title {
-        font-size: 15px;
-        font-weight: 600;
+        font-size: 16px;
+        font-weight: 700;
         color: #0f172a;
         margin: 0;
         display: inline-flex;
@@ -279,7 +562,7 @@
     }
 
     .panel-modern__body {
-        padding: 20px 24px 24px;
+        padding: 22px 26px 26px;
         flex: 1;
         display: flex;
         flex-direction: column;
@@ -292,9 +575,9 @@
 
     .empty-state {
         width: 100%;
-        padding: 32px 16px;
-        border: 1px dashed #e2e8f0;
-        border-radius: 14px;
+        padding: 40px 20px;
+        border: 2px dashed #e2e8f0;
+        border-radius: 16px;
         display: flex;
         flex-direction: column;
         gap: 12px;
@@ -305,27 +588,29 @@
     }
 
     .empty-state__icon {
-        width: 44px;
-        height: 44px;
+        width: 52px;
+        height: 52px;
         border-radius: 50%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        font-size: 18px;
+        font-size: 20px;
         background: rgba(37, 99, 235, 0.08);
         color: #2563eb;
     }
 
     .empty-state__text {
         margin: 0;
-        font-size: 13px;
+        font-size: 14px;
         font-weight: 500;
+        color: #64748b;
     }
 
     .panel-modern__link {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
         color: #2563eb;
+        text-decoration: none;
     }
 
     .panel-modern__link:hover {
@@ -333,84 +618,17 @@
         text-decoration: underline;
     }
 
-    .panel-modern__empty {
-        padding: 28px;
-        text-align: center;
-        border: 1px dashed #e2e8f0;
-        border-radius: 14px;
-        color: #94a3b8;
-        font-size: 13px;
-        margin-top: 6px;
-    }
-
-    .role-panel {
-        border: 1px solid #e6ebf5;
-        border-radius: 20px;
-        background: #ffffff;
-        box-shadow: 0 24px 44px -36px rgba(15, 23, 42, 0.35);
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-    }
-
-    .role-panel__header {
-        padding: 20px 24px 16px;
-        border-bottom: 1px solid #eef2fb;
-        font-weight: 600;
-        color: #0f172a;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-size: 15px;
-    }
-
-    .role-panel__body {
-        padding: 18px 24px 24px;
-        flex: 1;
-    }
-
-    .role-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .role-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px 18px;
-        border-radius: 12px;
-        border: 1px solid #eef2fb;
-        background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
-        transition: transform 0.18s ease, box-shadow 0.18s ease;
-    }
-
-    .role-item:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 14px 32px -30px rgba(15, 23, 42, 0.4);
-    }
-
-    .role-item__count {
-        font-weight: 700;
-        color: #0f172a;
-        font-size: 14px;
-    }
-
     .quota-alerts {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 14px;
     }
 
     .quota-item {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        padding: 16px 18px;
+        padding: 18px 20px;
         border-radius: 14px;
         border: 1px solid #eef2fb;
         background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
@@ -433,29 +651,31 @@
     }
 
     .quota-item__title {
-        font-size: 14px;
-        font-weight: 600;
+        font-size: 15px;
+        font-weight: 700;
         color: #0f172a;
     }
 
     .quota-meta {
-        font-size: 11.5px;
+        font-size: 12px;
         color: #64748b;
-        margin-top: 4px;
+        margin-top: 6px;
+        line-height: 1.5;
     }
 
     .quota-pill {
-        margin-top: 8px;
+        margin-top: 10px;
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 4px 10px;
+        padding: 5px 12px;
         border-radius: 999px;
         font-size: 11px;
         font-weight: 600;
         background: #e2e8f0;
         color: #475569;
         letter-spacing: 0.02em;
+        text-transform: uppercase;
     }
 
     .quota-item--warning .quota-pill {
@@ -477,13 +697,13 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 8px 14px;
+        padding: 9px 16px;
         border-radius: 999px;
         border: 1px solid rgba(37, 99, 235, 0.35);
         background: rgba(37, 99, 235, 0.08);
         color: #2563eb;
         font-weight: 600;
-        font-size: 12px;
+        font-size: 13px;
         transition: all 0.2s ease;
         text-decoration: none;
     }
@@ -492,20 +712,21 @@
         background: #2563eb;
         color: #ffffff;
         box-shadow: 0 10px 20px -18px rgba(37, 99, 235, 0.75);
+        transform: translateY(-1px);
     }
 
     .data-list {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 14px;
     }
 
     .data-row {
         display: grid;
         grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.7fr) minmax(0, 1fr) auto;
-        gap: 16px;
+        gap: 18px;
         align-items: center;
-        padding: 16px 18px;
+        padding: 18px 20px;
         border-radius: 14px;
         border: 1px solid #eef2fb;
         background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);
@@ -524,40 +745,28 @@
     .data-cell {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 5px;
         min-width: 0;
     }
 
     .data-cell--status {
         align-items: flex-start;
-        gap: 6px;
+        gap: 8px;
     }
 
     .data-cell--qty {
         align-items: flex-end;
         text-align: right;
-        min-width: 72px;
+        min-width: 80px;
     }
 
     .data-title {
         font-size: 14px;
-        font-weight: 600;
+        font-weight: 700;
         color: #0f172a;
         white-space: nowrap;
         text-overflow: ellipsis;
         overflow: hidden;
-    }
-
-    .data-link {
-        font-size: 13px;
-        font-weight: 600;
-        color: #2563eb;
-        text-decoration: none;
-    }
-
-    .data-link:hover {
-        color: #1d4ed8;
-        text-decoration: underline;
     }
 
     .data-sub {
@@ -569,7 +778,7 @@
     }
 
     .data-qty {
-        font-size: 16px;
+        font-size: 18px;
         font-weight: 700;
         color: #0f172a;
     }
@@ -590,7 +799,7 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 4px 10px;
+        padding: 6px 12px;
         border-radius: 999px;
         font-size: 12px;
         font-weight: 600;
@@ -617,158 +826,28 @@
         color: #475569;
     }
 
-    .timeline-sm {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-    }
-
-    .timeline-sm li {
-        display: flex;
-        gap: 14px;
-        align-items: flex-start;
-        border-radius: 14px;
-        border: 1px solid #e2e8f0;
-        background: #ffffff;
-        padding: 14px 18px;
-    }
-
-    .timeline-icon {
-        flex: 0 0 30px;
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-        color: #ffffff;
-        box-shadow: 0 8px 18px -16px rgba(37, 99, 235, 0.55);
-        margin-top: 2px;
-    }
-
-    .timeline-icon i {
-        font-size: 13px;
-        line-height: 1;
-    }
-
-    .timeline-content {
-        flex: 1;
-    }
-
-    /* Role & Summary Tables */
-    .dashboard-table,
-    .role-table,
-    .users-table {
-        margin: 0;
-    }
-
-    .dashboard-table thead th,
-    .role-table thead th,
-    .users-table thead th {
-        font-weight: 600;
-        color: #5A6A85;
-        font-size: 12px;
-        text-transform: uppercase;
-        border: none;
-        padding: 14px 20px;
-        background: #F9FAFB;
-    }
-
-    .dashboard-table tbody td,
-    .role-table tbody td,
-    .users-table tbody td {
-        padding: 16px 20px;
-        border-top: 1px solid #e5eaef;
-        font-size: 14px;
-        color: #2A3547;
-        vertical-align: middle;
-    }
-
-    .role-badge-table {
-        padding: 6px 12px;
-        border-radius: 6px;
-        background: #ECF2FF;
-        color: #5D87FF;
-        font-size: 12px;
-        font-weight: 600;
-    }
-
-    .user-cell {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .user-avatar-table {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        border: 2px solid #e5eaef;
-    }
-
-    .user-name {
-        font-weight: 600;
-    }
-
-    .status-badge {
-        padding: 5px 12px;
-        border-radius: 6px;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-    }
-
-    .status-badge.active {
-        background: #E6FFFA;
-        color: #13DEB9;
-    }
-
-    .status-badge.inactive {
-        background: #FDEDE8;
-        color: #FA896B;
-    }
-
-    .btn-view {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        border: 1px solid #e5eaef;
-        background: white;
-        color: #5A6A85;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s ease;
-    }
-
-    .btn-view:hover {
-        background: #ECF2FF;
-        color: #5D87FF;
-        border-color: #5D87FF;
-    }
-
-    .card-header-actions {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .btn-add-user {
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 13px;
-        background: #5D87FF;
-        color: white;
-        border: none;
-        transition: all 0.2s ease;
-    }
-
-    .btn-add-user:hover {
-        background: #4570EA;
-        transform: translateY(-2px);
+    @media (max-width: 640px) {
+        .welcome-card .card-body {
+            padding: 24px;
+        }
+        
+        .welcome-card__header {
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .welcome-card__last-login {
+            width: 100%;
+            align-items: flex-start;
+        }
+        
+        .welcome-card__title {
+            font-size: 22px;
+        }
+        
+        .welcome-card__subtitle {
+            font-size: 13px;
+        }
     }
 </style>
 @endpush
@@ -776,544 +855,335 @@
 @section('content')
 <div class="dashboard-shell">
 
-    @include('admin.partials.pipeline_funnel', ['metrics' => $metrics])
-
-    <div class="card mt-3">
-        <div class="card-header"><strong>KPI per PK Bucket</strong></div>
+    <!-- Pipeline Kuota -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong style="font-size: 16px; font-weight: 700;">Pipeline Kuota</strong>
+            <a href="{{ route('admin.mapping.unmapped.page') }}" class="panel-modern__link">Lihat</a>
+        </div>
         <div class="card-body">
             <div class="row g-3">
-                @forelse($quotaCards as $qc)
-                    <div class="col-12 col-md-6 col-xl-4">@include('admin.partials.kpi_bucket_card', ['quota' => $qc])</div>
-                @empty
-                    <div class="text-muted">Tidak ada data kuota.</div>
-                @endforelse
-            </div>
-        </div>
-    </div>
-
-    @include('admin.partials.activity_feed', ['activities' => $activities, 'alerts' => $alerts])
-
-<!-- Statistics Cards -->
-<div class="row g-3 mb-4">
-    @if(Auth::user()->hasPermission('read users'))
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="stat-card">
-            <div class="stat-icon primary">
-                <i class="fas fa-users"></i>
-            </div>
-            <div class="stat-label">Total Users</div>
-            <div class="stat-number">{{ $totalUsers }}</div>
-            <a href="{{ route('admin.users.index') }}" class="stat-link">
-                View Details
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="14" height="14" style="margin-left:6px">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-            </a>
-        </div>
-    </div>
-    @endif
-
-    @if(Auth::user()->isAdmin())
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="stat-card">
-            <div class="stat-icon success">
-                <i class="fas fa-user-shield"></i>
-            </div>
-            <div class="stat-label">Administrators</div>
-            <div class="stat-number">{{ $totalAdmins }}</div>
-            <a href="{{ route('admin.admins.index') }}" class="stat-link">
-                View Details
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="14" height="14" style="margin-left:6px">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-            </a>
-        </div>
-    </div>
-    @endif
-
-    @if(Auth::user()->hasPermission('read roles'))
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="stat-card">
-            <div class="stat-icon info">
-                <i class="fas fa-bookmark"></i>
-            </div>
-            <div class="stat-label">Roles</div>
-            <div class="stat-number">{{ $totalRoles }}</div>
-            <a href="{{ route('admin.roles.index') }}" class="stat-link">
-                View Details
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="14" height="14" style="margin-left:6px">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-            </a>
-        </div>
-    </div>
-    @endif
-
-    @if(Auth::user()->hasPermission('read permissions'))
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="stat-card">
-            <div class="stat-icon danger">
-                <i class="fas fa-key"></i>
-            </div>
-            <div class="stat-label">Permissions</div>
-            <div class="stat-number">{{ $totalPermissions }}</div>
-            <a href="{{ route('admin.permissions.index') }}" class="stat-link">
-                View Details <i class="fas fa-arrow-right"></i>
-            </a>
-        </div>
-    </div>
-    @endif
-</div>
-
-<!-- Supply Chain Metrics -->
-<div class="row g-3 mb-4">
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="stat-card">
-            <div class="stat-icon primary">
-                <i class="fas fa-warehouse"></i>
-            </div>
-            <div class="stat-label">Total Kuota</div>
-            <div class="stat-number">{{ number_format($quotaStats['total']) }}</div>
-            <p class="text-muted small mb-0">Available: {{ number_format($quotaStats['available']) }} | Limited: {{ number_format($quotaStats['limited']) }} | Depleted: {{ number_format($quotaStats['depleted']) }}</p>
-        </div>
-    </div>
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="stat-card">
-            <div class="stat-icon info">
-                <i class="fas fa-tachometer-alt"></i>
-            </div>
-            <div class="stat-label">Forecast Remaining</div>
-            <div class="stat-number">{{ number_format($quotaStats['forecast_remaining']) }}</div>
-            <p class="text-muted small mb-0">Actual Remaining: {{ number_format($quotaStats['actual_remaining']) }}</p>
-        </div>
-    </div>
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="stat-card">
-            <div class="stat-icon success">
-                <i class="fas fa-file-invoice"></i>
-            </div>
-            <div class="stat-label">PO Bulan Ini</div>
-            <div class="stat-number">{{ number_format($poStats['this_month']) }}</div>
-            <p class="text-muted small mb-0">Need Shipment: {{ number_format($poStats['need_shipment']) }} | In Transit: {{ number_format($poStats['in_transit']) }}</p>
-        </div>
-    </div>
-    <div class="col-12 col-md-6 col-xl-3">
-        <div class="stat-card">
-            <div class="stat-icon danger">
-                <i class="fas fa-truck-loading"></i>
-            </div>
-            <div class="stat-label">Pengiriman</div>
-            <div class="stat-number">{{ number_format($shipmentStats['in_transit']) }}</div>
-            <p class="text-muted small mb-0">Delivered: {{ number_format($shipmentStats['delivered']) }} | Pending Receipt: {{ number_format($shipmentStats['pending_receipt']) }}</p>
-        </div>
-    </div>
-</div>
-
-<!-- Welcome & Role Cards -->
-<div class="row g-3 mb-4">
-    <!-- Welcome Card -->
-    <div class="col-12 col-lg-{{ (Auth::user()->hasPermission('read users') || Auth::user()->hasPermission('read roles')) ? '8' : '12' }}">
-        <div class="card welcome-card">
-            <div class="card-body">
-                <div class="welcome-card__header">
-                    <div>
-                        <h2 class="welcome-card__title">Hello, {{ Auth::user()->name }}! &#128075;</h2>
-                        <p class="welcome-card__subtitle">Kelola perizinan, kuota, dan pengirimanmu langsung dari sini.</p>
-                    </div>
-                    <div class="welcome-card__last-login">
-                        <span class="welcome-card__last-login-label">Last login</span>
-                        @if(Auth::user()->last_login_at)
-                            <span class="welcome-card__last-login-value">{{ Auth::user()->last_login_at->diffForHumans() }}</span>
-                            <span class="welcome-card__last-login-meta">{{ Auth::user()->last_login_at->format('d M Y, H:i') }}</span>
-                        @else
-                            <span class="welcome-card__last-login-value">First time login</span>
-                        @endif
+                <div class="col-12 col-md-6 col-lg">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.12); color: #f59e0b;">
+                            <i class="fas fa-question-circle"></i>
+                        </div>
+                        <div class="stat-label">Unmapped Model</div>
+                        <div class="stat-number">{{ number_format($metrics['unmapped'] ?? 0) }}</div>
+                        <p class="stat-meta">Belum punya HS/PK</p>
                     </div>
                 </div>
+                <div class="col-12 col-md-6 col-lg">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(139, 92, 246, 0.12); color: #8b5cf6;">
+                            <i class="fas fa-link"></i>
+                        </div>
+                        <div class="stat-label">Mapped</div>
+                        <div class="stat-number">{{ number_format($metrics['mapped'] ?? 0) }}</div>
+                        <p class="stat-meta">Model sudah map</p>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-lg">
+                    <div class="stat-card">
+                        <div class="stat-icon primary">
+                            <i class="fas fa-file-invoice"></i>
+                        </div>
+                        <div class="stat-label">Open PO</div>
+                        <div class="stat-number">{{ number_format($metrics['open_po_qty'] ?? 0) }}</div>
+                        <p class="stat-meta">Outstanding qty</p>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-lg">
+                    <div class="stat-card">
+                        <div class="stat-icon success">
+                            <i class="fas fa-truck"></i>
+                        </div>
+                        <div class="stat-label">In-Transit</div>
+                        <div class="stat-number">{{ number_format($metrics['in_transit_qty'] ?? 0) }}</div>
+                        <p class="stat-meta">Invoice - GR</p>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-lg">
+                    <div class="stat-card">
+                        <div class="stat-icon danger">
+                            <i class="fas fa-box-open"></i>
+                        </div>
+                        <div class="stat-label">GR (Actual)</div>
+                        <div class="stat-number">{{ number_format($metrics['gr_qty'] ?? 0) }}</div>
+                        <p class="stat-meta">Diterima</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                @if(Auth::user()->roles->isNotEmpty())
-                <div class="welcome-card__roles">
-                    @foreach(Auth::user()->roles as $role)
-                        <span class="role-chip">{{ $role->name }}</span>
+    <!-- Supply Chain Metrics -->
+    <div class="row g-3">
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="stat-card">
+                <div class="stat-icon primary">
+                    <i class="fas fa-warehouse"></i>
+                </div>
+                <div class="stat-label">Total Kuota</div>
+                <div class="stat-number">{{ number_format($quotaStats['total']) }}</div>
+                <p class="stat-meta">Available: {{ number_format($quotaStats['available']) }} | Limited: {{ number_format($quotaStats['limited']) }} | Depleted: {{ number_format($quotaStats['depleted']) }}</p>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="stat-card">
+                <div class="stat-icon info">
+                    <i class="fas fa-tachometer-alt"></i>
+                </div>
+                <div class="stat-label">Forecast Remaining</div>
+                <div class="stat-number">{{ number_format($quotaStats['forecast_remaining']) }}</div>
+                <p class="stat-meta">Actual Remaining: {{ number_format($quotaStats['actual_remaining']) }}</p>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i class="fas fa-file-invoice"></i>
+                </div>
+                <div class="stat-label">PO Bulan Ini</div>
+                <div class="stat-number">{{ number_format($poStats['this_month']) }}</div>
+                <p class="stat-meta">Need Shipment: {{ number_format($poStats['need_shipment']) }} | In Transit: {{ number_format($poStats['in_transit']) }}</p>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="stat-card">
+                <div class="stat-icon danger">
+                    <i class="fas fa-truck-loading"></i>
+                </div>
+                <div class="stat-label">Pengiriman</div>
+                <div class="stat-number">{{ number_format($shipmentStats['in_transit']) }}</div>
+                <p class="stat-meta">Delivered: {{ number_format($shipmentStats['delivered']) }} | Pending Receipt: {{ number_format($shipmentStats['pending_receipt']) }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI per PK Bucket -->
+    <div class="card kpi-section">
+        <div class="card-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+                <strong style="font-size: 16px; font-weight: 700;">KPI per PK Bucket</strong>
+                <span class="activity-card__subtitle">Pantau alokasi dan konsumsi terbaru untuk setiap bucket PK.</span>
+            </div>
+            @if(\Illuminate\Support\Facades\Route::has('admin.quotas.index'))
+                <a href="{{ route('admin.quotas.index') }}" class="kpi-card__action">Kelola Kuota</a>
+            @endif
+        </div>
+        <div class="card-body">
+            @if($quotaCards->isNotEmpty())
+                <div class="kpi-grid">
+                    @foreach($quotaCards as $qc)
+                        @include('admin.partials.kpi_bucket_card', ['quota' => $qc])
                     @endforeach
                 </div>
-                @endif
-
-                @if(Auth::user()->hasPermission('read users') || Auth::user()->hasPermission('read roles') || Auth::user()->hasPermission('read permissions'))
-                <div class="welcome-card__actions">
-                    <span class="welcome-card__actions-label">Quick actions</span>
-                    <div class="quick-action-grid">
-                        @if(Auth::user()->hasPermission('read users'))
-                            <a href="{{ route('admin.users.index') }}" class="quick-action-chip">
-                                <i class="fas fa-users"></i>
-                                <span>Manage Users</span>
-                            </a>
-                        @endif
-                        @if(Auth::user()->hasPermission('read roles'))
-                            <a href="{{ route('admin.roles.index') }}" class="quick-action-chip">
-                                <i class="fas fa-user-tag"></i>
-                                <span>Manage Roles</span>
-                            </a>
-                        @endif
-                        @if(Auth::user()->hasPermission('read permissions'))
-                            <a href="{{ route('admin.permissions.index') }}" class="quick-action-chip">
-                                <i class="fas fa-key"></i>
-                                <span>Manage Permissions</span>
-                            </a>
-                        @endif
-                    </div>
+            @else
+                <div class="kpi-empty">
+                    <i class="fas fa-chart-pie mb-2" aria-hidden="true"></i>
+                    <div>Belum ada data kuota untuk ditampilkan.</div>
                 </div>
-                @endif
-            </div>
+            @endif
         </div>
     </div>
 
-    <!-- Users by Role -->
-    @if(Auth::user()->hasPermission('read users') || Auth::user()->hasPermission('read roles'))
-    <div class="col">
-        <div class="role-panel">
-            <div class="role-panel__header">
-                <i class="fas fa-chart-pie"></i>
-                <span>Users by Role</span>
-            </div>
-            <div class="role-panel__body">
-                @if($usersByRole->isEmpty())
-                    <div class="panel-modern__empty">Belum ada data role.</div>
-                @else
-                    <ul class="role-list">
-                        @foreach($usersByRole as $role)
-                            <li class="role-item">
-                                <span class="role-chip">{{ $role->name }}</span>
-                                <span class="role-item__count">{{ $role->users_count }}</span>
-                            </li>
-                        @endforeach
-                    </ul>
-                @endif
-            </div>
-        </div>
-    </div>
-    @endif
-</div>
+    <!-- Activity Feed & Alerts -->
+    @include('admin.partials.activity_feed', ['activities' => $activities, 'alerts' => $alerts])
 
-<!-- Operational Overview -->
-<div class="row g-3 mb-4">
-    <div class="col-12 col-lg-4">
-        <div class="panel-modern h-100">
-            <div class="panel-modern__header">
-                <h3 class="panel-modern__title">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 3h.01M4.93 19h14.14a1 1 0 00.86-1.5L12.86 4.5a1 1 0 00-1.72 0L4.07 17.5A1 1 0 004.93 19z" />
-                    </svg>
-                    Quota Alerts
-                </h3>
-                @if(\Illuminate\Support\Facades\Route::has('admin.quotas.index'))
-                    <a href="{{ route('admin.quotas.index') }}" class="panel-modern__link">Lihat semua</a>
-                @endif
-            </div>
-            @php $quotaAlertsEmpty = $quotaAlerts->isEmpty(); @endphp
-            <div class="panel-modern__body {{ $quotaAlertsEmpty ? 'panel-modern__body--empty' : '' }}">
-                @if($quotaAlertsEmpty)
-                    <div class="empty-state">
-                        <span class="empty-state__icon"><i class="fas fa-clipboard-list"></i></span>
-                        <p class="empty-state__text">Belum ada alert kuota terkini.</p>
-                    </div>
-                @else
-                    <div class="quota-alerts">
-                        @foreach($quotaAlerts as $alert)
-                            @php
-                                $quotaDetailUrl = \Illuminate\Support\Facades\Route::has('admin.quotas.show')
-                                    ? route('admin.quotas.show', $alert)
-                                    : null;
-                                $totalAllocation = (int) ($alert->total_allocation ?? 0);
-                                $forecastRemaining = max(0, (int) ($alert->forecast_remaining ?? 0));
-                                $actualRemaining = max(0, (int) ($alert->actual_remaining ?? 0));
-                                $calcBase = $totalAllocation > 0 ? $totalAllocation : null;
-                                $remainingPercent = $calcBase ? max(0, round(($forecastRemaining / $calcBase) * 100)) : null;
-                                $consumed = $calcBase ? max(0, $calcBase - $forecastRemaining) : null;
-                                $severity = match(true) {
-                                    $alert->status === \App\Models\Quota::STATUS_DEPLETED || ($remainingPercent !== null && $remainingPercent <= 5) => 'critical',
-                                    $alert->status === \App\Models\Quota::STATUS_LIMITED || ($remainingPercent !== null && $remainingPercent <= 20) => 'warning',
-                                    default => 'normal',
-                                };
-                            @endphp
-                            <div class="quota-item quota-item--{{ $severity }}">
-                                <div>
-                                    <span class="quota-item__title">{{ $alert->quota_number }}</span>
-                                    @if($alert->name)
-                                        <div class="quota-meta">{{ $alert->name }}</div>
-                                    @endif
-                                    <div class="quota-meta">Forecast: {{ number_format($forecastRemaining) }} | Actual: {{ number_format($actualRemaining) }}</div>
-                                    <div class="quota-meta">
-                                        Consumed: {{ $consumed !== null ? number_format($consumed) : '-' }}
-                                        @if($remainingPercent !== null)
-                                            &bull; Remaining {{ $remainingPercent }}%
-                                        @endif
-                                    </div>
-                                    <div class="quota-pill">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="12" height="12">
-                                            <path d="M10 3a7 7 0 100 14 7 7 0 000-14zm0 2a1 1 0 01.993.883L11 6v4h3a1 1 0 01.117 1.993L14 12h-4a1 1 0 01-.993-.883L9 11V6a1 1 0 011-1z" />
-                                        </svg>
-                                        <span>{{ ucfirst($alert->status) }}</span>
-                                    </div>
-                                </div>
-                                @if($quotaDetailUrl)
-                                    <div class="d-flex flex-column align-items-end gap-2">
-                                        <a href="{{ $quotaDetailUrl }}" class="btn-ghost">Detail</a>
-                                    </div>
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
-                @endif
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-12 col-lg-4">
-        <div class="panel-modern h-100">
-            <div class="panel-modern__header">
-                <h3 class="panel-modern__title">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h8m-9 8h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    Recent Purchase Orders
-                </h3>
-                @if(\Illuminate\Support\Facades\Route::has('admin.purchase-orders.index'))
-                    <a href="{{ route('admin.purchase-orders.index') }}" class="panel-modern__link">Lihat semua</a>
-                @endif
-            </div>
-            @php $recentPurchaseOrdersEmpty = $recentPurchaseOrders->isEmpty(); @endphp
-            <div class="panel-modern__body {{ $recentPurchaseOrdersEmpty ? 'panel-modern__body--empty' : '' }}">
-                @if($recentPurchaseOrdersEmpty)
-                    <div class="empty-state">
-                        <span class="empty-state__icon"><i class="fas fa-file-invoice"></i></span>
-                        <p class="empty-state__text">Belum ada purchase order terbaru.</p>
-                    </div>
-                @else
-                    <div class="data-list">
-                        @foreach($recentPurchaseOrders as $po)
-                            @php
-                                $poStatusStyles = [
-                                    'ordered' => ['label' => 'Ordered', 'class' => 'badge-chip--info'],
-                                    'partial' => ['label' => 'Partial', 'class' => 'badge-chip--warning'],
-                                    'completed' => ['label' => 'Completed', 'class' => 'badge-chip--success'],
-                                    'draft' => ['label' => 'Draft', 'class' => 'badge-chip--muted'],
-                                ];
-                                $poStatus = $poStatusStyles[$po->status_key] ?? ['label' => ucfirst($po->status_key ?? 'status'), 'class' => 'badge-chip--muted'];
-                                $sapStatuses = $po->sap_statuses ?? [];
-                            @endphp
-                            <div class="data-row data-row--po">
-                                <div class="data-cell">
-                                    <span class="data-title">{{ $po->po_number }}</span>
-                                    <span class="data-sub">{{ optional($po->po_date)->format('d M Y') ?? 'Tanpa tanggal' }}</span>
-                                    @if(!empty($po->supplier))
-                                        <span class="data-sub">{{ $po->supplier }}</span>
-                                    @endif
-                                </div>
-                                <div class="data-cell">
-                                    <span class="data-title">{{ $po->line_count }} line</span>
-                                    @if(!empty($sapStatuses))
-                                        <span class="data-sub">{{ implode(', ', $sapStatuses) }}</span>
-                                    @else
-                                        <span class="data-sub text-muted">SAP status belum tersedia</span>
-                                    @endif
-                                </div>
-                                <div class="data-cell data-cell--status">
-                                    <span class="badge-chip {{ $poStatus['class'] }}">{{ $poStatus['label'] }}</span>
-                                    <span class="data-sub">Received {{ fmt_qty($po->received_qty) }} / {{ fmt_qty($po->total_qty) }}</span>
-                                </div>
-                                <div class="data-cell data-cell--qty">
-                                    <span class="data-qty">{{ fmt_qty($po->total_qty) }}</span>
-                                    <span class="data-sub">Total unit</span>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                @endif
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-12 col-lg-4">
-        <div class="panel-modern h-100">
-            <div class="panel-modern__header">
-                <h3 class="panel-modern__title">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h11v7h7l-3-5h-4V7H3zM5 18a2 2 0 104 0 2 2 0 10-4 0zm10 0a2 2 0 104 0 2 2 0 10-4 0z" />
-                    </svg>
-                    GR Receipt Terbaru
-                </h3>
-                @if(\Illuminate\Support\Facades\Route::has('admin.imports.gr.index'))
-                    <a href="{{ route('admin.imports.gr.index') }}" class="panel-modern__link">Lihat semua</a>
-                @endif
-            </div>
-            @php $recentShipmentsEmpty = $recentShipments->isEmpty(); @endphp
-            <div class="panel-modern__body {{ $recentShipmentsEmpty ? 'panel-modern__body--empty' : '' }}">
-                @if($recentShipmentsEmpty)
-                    <div class="empty-state">
-                        <span class="empty-state__icon"><i class="fas fa-receipt"></i></span>
-                        <p class="empty-state__text">Belum ada GR receipt terbaru.</p>
-                    </div>
-                @else
-                    <div class="data-list">
-                        @foreach($recentShipments as $shipment)
-                            <div class="data-row data-row--shipment">
-                                <div class="data-cell">
-                                    <span class="data-title">{{ $shipment->po_number }}@if($shipment->line_no) <span class="text-muted"> / {{ $shipment->line_no }}</span>@endif</span>
-                                    <span class="data-sub">{{ optional($shipment->receive_date)->format('d M Y') ?? 'Tanpa tanggal' }}</span>
-                                </div>
-                                <div class="data-cell">
-                                    <span class="data-title">{{ $shipment->item_name ?? 'Item tidak diketahui' }}</span>
-                                    @if($shipment->vendor_name)
-                                        <span class="data-sub">{{ $shipment->vendor_name }}</span>
-                                    @endif
-                                    @if($shipment->warehouse_name)
-                                        <span class="data-sub text-muted">{{ $shipment->warehouse_name }}</span>
-                                    @endif
-                                </div>
-                                <div class="data-cell data-cell--status">
-                                    @if(!empty($shipment->sap_status))
-                                        <span class="badge-chip badge-chip--info">{{ $shipment->sap_status }}</span>
-                                    @else
-                                        <span class="badge-chip badge-chip--muted">GR</span>
-                                    @endif
-                                </div>
-                                <div class="data-cell data-cell--qty">
-                                    <span class="data-qty">{{ fmt_qty($shipment->quantity) }}</span>
-                                    <span class="data-sub">Unit diterima</span>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                @endif
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Riwayat Kuota -->
-<div class="row g-3 mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title mb-0"><i class="fas fa-history me-2"></i>Riwayat Kuota Terbaru</h3>
-            </div>
-            <div class="card-body">
-                @if($recentQuotaHistories->isEmpty())
-                    <div class="empty-state">
-                        <span class="empty-state__icon"><i class="fas fa-history"></i></span>
-                        <p class="empty-state__text">Belum ada riwayat kuota terbaru.</p>
-                    </div>
-                @else
-                    <ul class="timeline-sm mb-0">
-                        @foreach($recentQuotaHistories as $history)
-                        <li>
-                            <span class="timeline-icon bg-primary"><i class="fas fa-sync"></i></span>
-                            <div class="timeline-content">
-                                <h6 class="mb-1">{{ ucfirst(str_replace('_', ' ', $history->change_type)) }}</h6>
-                                <p class="small mb-1">{{ $history->quota?->quota_number }} &mdash; {{ number_format($history->quantity_change) }} unit</p>
-                                <small class="text-muted">{{ $history->occurred_on?->format('d M Y') ?? $history->created_at->format('d M Y H:i') }} | {{ $history->description ?? 'Tidak ada catatan' }}</small>
-                            </div>
-                        </li>
-                        @endforeach
-                    </ul>
-                @endif
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Recent Users -->
-@if(Auth::user()->hasPermission('read users'))
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <div class="card-header-actions">
-                    <h3 class="card-title mb-0">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16" class="me-2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 12a4 4 0 10-8 0 4 4 0 008 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 14c-4.418 0-8 2.239-8 5v1h16v-1c0-2.761-3.582-5-8-5z"/></svg>Recent Users
+    <!-- Operational Overview -->
+    <div class="row g-3">
+        <div class="col-12 col-lg-4">
+            <div class="panel-modern">
+                <div class="panel-modern__header">
+                    <h3 class="panel-modern__title">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="18" height="18">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 3h.01M4.93 19h14.14a1 1 0 00.86-1.5L12.86 4.5a1 1 0 00-1.72 0L4.07 17.5A1 1 0 004.93 19z" />
+                        </svg>
+                        Quota Alerts
                     </h3>
-                    @if(Auth::user()->hasPermission('create users'))
-                    <a href="{{ route('admin.users.create') }}" class="btn btn-add-user">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16" class="me-2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4a4 4 0 100 8 4 4 0 000-8zm8 8h-3m-1 0h-3m-8 4a6 6 0 0112 0v2H4v-2z"/></svg>Add User
-                    </a>
+                    @if(\Illuminate\Support\Facades\Route::has('admin.quotas.index'))
+                        <a href="{{ route('admin.quotas.index') }}" class="panel-modern__link">Lihat semua</a>
+                    @endif
+                </div>
+                @php $quotaAlertsEmpty = $quotaAlerts->isEmpty(); @endphp
+                <div class="panel-modern__body {{ $quotaAlertsEmpty ? 'panel-modern__body--empty' : '' }}">
+                    @if($quotaAlertsEmpty)
+                        <div class="empty-state">
+                            <span class="empty-state__icon"><i class="fas fa-clipboard-list"></i></span>
+                            <p class="empty-state__text">Belum ada alert kuota terkini.</p>
+                        </div>
+                    @else
+                        <div class="quota-alerts">
+                            @foreach($quotaAlerts as $alert)
+                                @php
+                                    $quotaDetailUrl = \Illuminate\Support\Facades\Route::has('admin.quotas.show')
+                                        ? route('admin.quotas.show', $alert)
+                                        : null;
+                                    $totalAllocation = (int) ($alert->total_allocation ?? 0);
+                                    $forecastRemaining = max(0, (int) ($alert->forecast_remaining ?? 0));
+                                    $actualRemaining = max(0, (int) ($alert->actual_remaining ?? 0));
+                                    $calcBase = $totalAllocation > 0 ? $totalAllocation : null;
+                                    $remainingPercent = $calcBase ? max(0, round(($forecastRemaining / $calcBase) * 100)) : null;
+                                    $consumed = $calcBase ? max(0, $calcBase - $forecastRemaining) : null;
+                                    $severity = match(true) {
+                                        $alert->status === \App\Models\Quota::STATUS_DEPLETED || ($remainingPercent !== null && $remainingPercent <= 5) => 'critical',
+                                        $alert->status === \App\Models\Quota::STATUS_LIMITED || ($remainingPercent !== null && $remainingPercent <= 20) => 'warning',
+                                        default => 'normal',
+                                    };
+                                @endphp
+                                <div class="quota-item quota-item--{{ $severity }}">
+                                    <div>
+                                        <span class="quota-item__title">{{ $alert->quota_number }}</span>
+                                        @if($alert->name)
+                                            <div class="quota-meta">{{ $alert->name }}</div>
+                                        @endif
+                                        <div class="quota-meta">Forecast: {{ number_format($forecastRemaining) }} | Actual: {{ number_format($actualRemaining) }}</div>
+                                        <div class="quota-meta">
+                                            Consumed: {{ $consumed !== null ? number_format($consumed) : '-' }}
+                                            @if($remainingPercent !== null)
+                                                &bull; Remaining {{ $remainingPercent }}%
+                                            @endif
+                                        </div>
+                                        <div class="quota-pill">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="12" height="12">
+                                                <path d="M10 3a7 7 0 100 14 7 7 0 000-14zm0 2a1 1 0 01.993.883L11 6v4h3a1 1 0 01.117 1.993L14 12h-4a1 1 0 01-.993-.883L9 11V6a1 1 0 011-1z" />
+                                            </svg>
+                                            <span>{{ ucfirst($alert->status) }}</span>
+                                        </div>
+                                    </div>
+                                    @if($quotaDetailUrl)
+                                        <a href="{{ $quotaDetailUrl }}" class="btn-ghost">Detail</a>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
                     @endif
                 </div>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table users-table mb-0">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Roles</th>
-                                <th>Status</th>
-                                <th>Last Login</th>
-                                <th class="text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($recentUsers as $user)
-                            <tr>
-                                <td>
-                                    <div class="user-cell">
-                                        <img src="https://ui-avatars.com/api/?name={{ urlencode($user->name) }}&size=40&background=5D87FF&color=fff" 
-                                             class="user-avatar-table" alt="User">
-                                        <span class="user-name">{{ $user->name }}</span>
+        </div>
+        
+        <div class="col-12 col-lg-4">
+            <div class="panel-modern">
+                <div class="panel-modern__header">
+                    <h3 class="panel-modern__title">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="18" height="18">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h8m-9 8h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Recent Purchase Orders
+                    </h3>
+                    @if(\Illuminate\Support\Facades\Route::has('admin.purchase-orders.index'))
+                        <a href="{{ route('admin.purchase-orders.index') }}" class="panel-modern__link">Lihat semua</a>
+                    @endif
+                </div>
+                @php $recentPurchaseOrdersEmpty = $recentPurchaseOrders->isEmpty(); @endphp
+                <div class="panel-modern__body {{ $recentPurchaseOrdersEmpty ? 'panel-modern__body--empty' : '' }}">
+                    @if($recentPurchaseOrdersEmpty)
+                        <div class="empty-state">
+                            <span class="empty-state__icon"><i class="fas fa-file-invoice"></i></span>
+                            <p class="empty-state__text">Belum ada purchase order terbaru.</p>
+                        </div>
+                    @else
+                        <div class="data-list">
+                            @foreach($recentPurchaseOrders as $po)
+                                @php
+                                    $poStatusStyles = [
+                                        'ordered' => ['label' => 'Ordered', 'class' => 'badge-chip--info'],
+                                        'partial' => ['label' => 'Partial', 'class' => 'badge-chip--warning'],
+                                        'completed' => ['label' => 'Completed', 'class' => 'badge-chip--success'],
+                                        'draft' => ['label' => 'Draft', 'class' => 'badge-chip--muted'],
+                                    ];
+                                    $poStatus = $poStatusStyles[$po->status_key] ?? ['label' => ucfirst($po->status_key ?? 'status'), 'class' => 'badge-chip--muted'];
+                                    $sapStatuses = $po->sap_statuses ?? [];
+                                @endphp
+                                <div class="data-row data-row--po">
+                                    <div class="data-cell">
+                                        <span class="data-title">{{ $po->po_number }}</span>
+                                        <span class="data-sub">{{ optional($po->po_date)->format('d M Y') ?? 'Tanpa tanggal' }}</span>
+                                        @if(!empty($po->supplier))
+                                            <span class="data-sub">{{ $po->supplier }}</span>
+                                        @endif
                                     </div>
-                                </td>
-                                <td>{{ $user->email }}</td>
-                                <td>
-                                    @foreach($user->roles as $role)
-                                        <span class="role-badge-table me-1">{{ $role->name }}</span>
-                                    @endforeach
-                                </td>
-                                <td>
-                                    @if($user->is_active)
-                                        <span class="status-badge active">Active</span>
-                                    @else
-                                        <span class="status-badge inactive">Inactive</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($user->last_login_at)
-                                        <small class="text-muted">{{ $user->last_login_at->diffForHumans() }}</small>
-                                    @else
-                                        <small class="text-muted">Never</small>
-                                    @endif
-                                </td>
-                                <td class="text-center">
-                                    @if($user->isAdmin())
-                                        @if(\Illuminate\Support\Facades\Route::has('admin.admins.show'))
-                                            <a href="{{ route('admin.admins.show', $user) }}" class="btn btn-view">
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                            </a>
+                                    <div class="data-cell">
+                                        <span class="data-title">{{ $po->line_count }} line</span>
+                                        @if(!empty($sapStatuses))
+                                            <span class="data-sub">{{ implode(', ', $sapStatuses) }}</span>
+                                        @else
+                                            <span class="data-sub text-muted">SAP status belum tersedia</span>
                                         @endif
-                                    @else
-                                        @if(\Illuminate\Support\Facades\Route::has('admin.users.show'))
-                                            <a href="{{ route('admin.users.show', $user) }}" class="btn btn-view">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
+                                    </div>
+                                    <div class="data-cell data-cell--status">
+                                        <span class="badge-chip {{ $poStatus['class'] }}">{{ $poStatus['label'] }}</span>
+                                        <span class="data-sub">Received {{ fmt_qty($po->received_qty) }} / {{ fmt_qty($po->total_qty) }}</span>
+                                    </div>
+                                    <div class="data-cell data-cell--qty">
+                                        <span class="data-qty">{{ fmt_qty($po->total_qty) }}</span>
+                                        <span class="data-sub">Total unit</span>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-12 col-lg-4">
+            <div class="panel-modern">
+                <div class="panel-modern__header">
+                    <h3 class="panel-modern__title">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="18" height="18">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h11v7h7l-3-5h-4V7H3zM5 18a2 2 0 104 0 2 2 0 10-4 0zm10 0a2 2 0 104 0 2 2 0 10-4 0z" />
+                        </svg>
+                        GR Receipt Terbaru
+                    </h3>
+                    @if(\Illuminate\Support\Facades\Route::has('admin.imports.gr.index'))
+                        <a href="{{ route('admin.imports.gr.index') }}" class="panel-modern__link">Lihat semua</a>
+                    @endif
+                </div>
+                @php $recentShipmentsEmpty = $recentShipments->isEmpty(); @endphp
+                <div class="panel-modern__body {{ $recentShipmentsEmpty ? 'panel-modern__body--empty' : '' }}">
+                    @if($recentShipmentsEmpty)
+                        <div class="empty-state">
+                            <span class="empty-state__icon"><i class="fas fa-receipt"></i></span>
+                            <p class="empty-state__text">Belum ada GR receipt terbaru.</p>
+                        </div>
+                    @else
+                        <div class="data-list">
+                            @foreach($recentShipments as $shipment)
+                                <div class="data-row data-row--shipment">
+                                    <div class="data-cell">
+                                        <span class="data-title">{{ $shipment->po_number }}@if($shipment->line_no) <span class="text-muted"> / {{ $shipment->line_no }}</span>@endif</span>
+                                        <span class="data-sub">{{ optional($shipment->receive_date)->format('d M Y') ?? 'Tanpa tanggal' }}</span>
+                                    </div>
+                                    <div class="data-cell">
+                                        <span class="data-title">{{ $shipment->item_name ?? 'Item tidak diketahui' }}</span>
+                                        @if($shipment->vendor_name)
+                                            <span class="data-sub">{{ $shipment->vendor_name }}</span>
                                         @endif
-                                    @endif
-                                </td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="6" class="text-center py-4 text-muted">
-                                    Belum ada pengguna terbaru yang tercatat.
-                                </td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                                        @if($shipment->warehouse_name)
+                                            <span class="data-sub text-muted">{{ $shipment->warehouse_name }}</span>
+                                        @endif
+                                    </div>
+                                    <div class="data-cell data-cell--status">
+                                        @if(!empty($shipment->sap_status))
+                                            <span class="badge-chip badge-chip--info">{{ $shipment->sap_status }}</span>
+                                        @else
+                                            <span class="badge-chip badge-chip--muted">GR</span>
+                                        @endif
+                                    </div>
+                                    <div class="data-cell data-cell--qty">
+                                        <span class="data-qty">{{ fmt_qty($shipment->quantity) }}</span>
+                                        <span class="data-sub">Unit diterima</span>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
     </div>
-</div>
-@endif
 
 </div>
 @endsection

@@ -924,9 +924,13 @@
                         </button>
                         <div class="nav-group__body" id="nav-group-administration">
                             @if($currentUser?->can('read users'))
-                                <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->is('admin/users*') ? 'active' : '' }}">
+                                <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.index') || request()->routeIs('admin.users.show') || request()->routeIs('admin.users.edit') || request()->routeIs('admin.users.create') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-users"></i></span>
                                     <span>Users</span>
+                                </a>
+                                <a href="{{ route('admin.users.recent') }}" class="nav-link {{ request()->routeIs('admin.users.recent') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-clock"></i></span>
+                                    <span>Recent Users</span>
                                 </a>
                             @endif
                             @if($currentUser?->can('read roles'))
