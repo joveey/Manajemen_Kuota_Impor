@@ -14,7 +14,7 @@
         return number_format((float) ($value ?? 0), 0);
     };
     $formatQty = function ($value) {
-        return number_format((float) ($value ?? 0), 2);
+        return fmt_qty($value);
     };
     $filters = $filters ?? ['start_date' => now()->startOfYear()->toDateString(), 'end_date' => now()->toDateString()];
     $poStatusLabels = $charts['po_status']['labels'] ?? [];
