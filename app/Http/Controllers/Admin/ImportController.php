@@ -467,7 +467,7 @@ class ImportController extends Controller
     public function uploadHsPk(Request $request)
     {
         $data = $request->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls'],
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
             'period_key' => ['required'],
         ]);
 
@@ -512,10 +512,8 @@ class ImportController extends Controller
                 }
             }
         }
-        if (!$sheet) {
-            $import->markAs(Import::STATUS_FAILED, 'Sheet "HS code master" not found');
-            return response()->json(['error' => 'Sheet "HS code master" not found'], 422);
-        }
+        // Fallback: if named sheet not found (e.g., CSV), use the first sheet
+        if (!$sheet) { $sheet = $spreadsheet->getSheet(0); }
 
         $highestRow = (int) $sheet->getHighestRow();
         $highestColIndex = (int) Coordinate::columnIndexFromString($sheet->getHighestColumn());
@@ -683,7 +681,7 @@ class ImportController extends Controller
     public function uploadQuotas(Request $request)
     {
         $data = $request->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls'],
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
             'period_key' => ['required'],
         ]);
 
@@ -728,10 +726,8 @@ class ImportController extends Controller
                 }
             }
         }
-        if (!$sheet) {
-            $import->markAs(Import::STATUS_FAILED, 'Sheet "Quota master" not found');
-            return response()->json(['error' => 'Sheet "Quota master" not found'], 422);
-        }
+        // Fallback: if named sheet not found (e.g., CSV), use the first sheet
+        if (!$sheet) { $sheet = $spreadsheet->getSheet(0); }
 
         $highestRow = (int) $sheet->getHighestRow();
         $highestColIndex = (int) Coordinate::columnIndexFromString($sheet->getHighestColumn());

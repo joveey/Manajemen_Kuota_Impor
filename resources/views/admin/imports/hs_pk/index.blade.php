@@ -39,13 +39,13 @@
     }
     if (!file.files || file.files.length === 0) {
       file.classList.add('is-invalid');
-      fileHelp.textContent = 'File wajib diunggah (.xlsx atau .xls).';
+      fileHelp.textContent = 'File wajib diunggah (.xlsx, .xls, atau .csv).';
       ok = false;
     } else {
       const name = file.files[0].name.toLowerCase();
-      if (!name.endsWith('.xlsx') && !name.endsWith('.xls')) {
+      if (!name.endsWith('.xlsx') && !name.endsWith('.xls') && !name.endsWith('.csv')) {
         file.classList.add('is-invalid');
-        fileHelp.textContent = 'Tipe file harus .xlsx atau .xls.';
+        fileHelp.textContent = 'Tipe file harus .xlsx, .xls, atau .csv.';
         ok = false;
       }
     }
@@ -124,8 +124,8 @@
                                 <div class="invalid-feedback" id="period_key_help" aria-live="polite"></div>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label" for="file">File Excel (sheet: HS code master)</label>
-                                <input type="file" name="file" id="file" class="form-control" accept=".xlsx,.xls" required>
+                                <label class="form-label" for="file">File Excel/CSV (untuk Excel: sheet "HS code master")</label>
+                                <input type="file" name="file" id="file" class="form-control" accept=".xlsx,.xls,.csv" required>
                                 <div class="invalid-feedback" id="file_help" aria-live="polite"></div>
                             </div>
                             <button class="btn btn-primary" type="submit">
