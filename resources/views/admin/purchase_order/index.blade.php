@@ -18,6 +18,7 @@
         overflow-x: visible !important;
         overflow-y: visible !important;
         padding: 20px 36px 36px;
+        padding-top: calc(var(--app-bar-height-computed, var(--app-bar-height)) + 20px);
         width: 100%;
     }
 
@@ -326,6 +327,7 @@
 
         .app-content {
             padding: 16px 20px 28px;
+            padding-top: calc(var(--app-bar-height-computed, var(--app-bar-height)) + 16px);
         }
     }
 
@@ -336,6 +338,7 @@
 
         .app-content {
             padding: 16px 16px 24px;
+            padding-top: calc(var(--app-bar-height-computed, var(--app-bar-height)) + 16px);
         }
 
         .page-header__title {
