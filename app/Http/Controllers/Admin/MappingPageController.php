@@ -11,7 +11,13 @@ class MappingPageController extends Controller
     public function __construct()
     {
         $this->middleware('permission:read master_data');
-        $this->middleware('role:admin|manager|editor');
+        $this->middleware(function (\Illuminate\Http\Request $request, \Closure $next) {
+            if ($request->user()?->hasRole('user')) {
+                abort(403);
+            }
+
+            return $next($request);
+        });
     }
 
     public function unmapped(Request $request): View
