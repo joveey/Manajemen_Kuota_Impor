@@ -24,7 +24,7 @@ class QuotaImportPageController extends Controller
     public function uploadForm(Request $request): RedirectResponse
     {
         $request->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls'],
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
             'period_key' => ['required'],
         ]);
 
@@ -76,4 +76,3 @@ class QuotaImportPageController extends Controller
             ->with('status', $msg);
     }
 }
-

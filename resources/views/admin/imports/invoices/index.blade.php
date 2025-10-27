@@ -15,7 +15,7 @@
     <div class="row g-3 align-items-end">
       <div class="col-md-6">
         <label class="form-label">File</label>
-        <input type="file" name="file" class="form-control" required>
+        <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
         @error('file')<div class="text-danger small">{{ $message }}</div>@enderror
       </div>
       <div class="col-md-3">
@@ -47,4 +47,3 @@
   </div>
 </div>
 @endsection
-

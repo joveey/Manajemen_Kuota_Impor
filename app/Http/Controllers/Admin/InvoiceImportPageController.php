@@ -30,7 +30,7 @@ class InvoiceImportPageController extends Controller
 
     public function uploadForm(Request $request): RedirectResponse
     {
-        $request->validate(['file' => ['required','file','mimes:xlsx,xls']]);
+        $request->validate(['file' => ['required','file','mimes:xlsx,xls,csv']]);
         $api = app(ImportController::class);
         $resp = $api->uploadInvoices($request);
         $payload = json_decode($resp->getContent(), true) ?: [];
