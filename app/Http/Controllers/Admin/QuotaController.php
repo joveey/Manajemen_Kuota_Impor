@@ -97,7 +97,61 @@ class QuotaController extends Controller
             ->filter(fn (Product $product) => $quota->matchesProduct($product))
             ->sortBy('name');
 
-        return view('admin.kuota.show', compact('quota', 'availableProducts'));
+        // ===============
+        // PO breakdown for this quota (forecast vs actual per PO)
+        // ===============
+        $poAllocs = DB::table('purchase_order_quota as pq')
+            ->join('purchase_orders as po', 'po.id', '=', 'pq.purchase_order_id')
+            ->where('pq.quota_id', $quota->id)
+            ->groupBy('po.id', 'po.po_number', 'po.order_date', 'po.vendor_name')
+            ->get([
+                'po.id as po_id',
+                'po.po_number',
+                'po.order_date',
+                'po.vendor_name',
+                DB::raw('SUM(pq.allocated_qty) as allocated_qty'),
+            ]);
+
+        // Actual by PO number using histories meta->po_no
+        $actualByPo = DB::table('quota_histories')
+            ->where('quota_id', $quota->id)
+            ->where('change_type', \App\Models\QuotaHistory::TYPE_ACTUAL_DECREASE)
+            ->select(
+                DB::raw("COALESCE(NULLIF(meta->>'po_no',''), '') as po_no"),
+                DB::raw('SUM(ABS(quantity_change)) as qty')
+            )
+            ->groupBy(DB::raw("COALESCE(NULLIF(meta->>'po_no',''), '')"))
+            ->pluck('qty', 'po_no');
+
+        // Carry-over flag: PO using more than one quota
+        $poIds = $poAllocs->pluck('po_id')->all();
+        $carryMap = empty($poIds)
+            ? collect()
+            : DB::table('purchase_order_quota')
+                ->select('purchase_order_id', DB::raw('COUNT(DISTINCT quota_id) as c'))
+                ->whereIn('purchase_order_id', $poIds)
+                ->groupBy('purchase_order_id')
+                ->pluck('c', 'purchase_order_id');
+
+        $poStats = $poAllocs->map(function ($row) use ($actualByPo, $carryMap) {
+            $allocated = (float) ($row->allocated_qty ?? 0);
+            $actual = (float) ($actualByPo[$row->po_number] ?? 0);
+            // Clamp actual to allocated for per-quota-per-PO view
+            $actual = min($allocated, $actual);
+            $inTransit = max($allocated - $actual, 0.0);
+            $carryOver = (int) ($carryMap[$row->po_id] ?? 1) > 1;
+            return (object) [
+                'po_number' => $row->po_number,
+                'order_date' => $row->order_date,
+                'vendor_name' => $row->vendor_name,
+                'allocated' => $allocated,
+                'actual' => $actual,
+                'in_transit' => $inTransit,
+                'carry_over' => $carryOver,
+            ];
+        })->sortByDesc('order_date')->values();
+
+        return view('admin.kuota.show', compact('quota', 'availableProducts', 'poStats'));
     }
 
     public function edit(Quota $quota): View

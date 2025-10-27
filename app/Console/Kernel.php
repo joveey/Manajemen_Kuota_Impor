@@ -12,7 +12,8 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-        // no custom CLI commands registered
+        \App\Console\Commands\AllocBackfillForecast::class,
+        \App\Console\Commands\AllocBackfillActual::class,
     ];
 
     protected function commands(): void

@@ -129,6 +129,9 @@
                 </div>
             </div>
         </div>
+
+        
+
     </div>
 
     <div class="col-lg-4">
@@ -215,4 +218,68 @@
         </div>
     </div>
 </div>
+
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="card-title mb-0"><i class="fas fa-clipboard-list me-2"></i>PO yang Menggunakan Kuota Ini</h3>
+        <span class="text-muted small">Forecast dan Actual per PO dalam kuota ini</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table mb-0 po-breakdown__table">
+                <thead class="table-light">
+                    <tr>
+                        <th>PO Number</th>
+                        <th>Tanggal</th>
+                        <th>Supplier</th>
+                        <th class="text-end">Forecast</th>
+                        <th class="text-end">Actual</th>
+                        <th class="text-end">In-Transit</th>
+                        <th class="text-center">Carry-over</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @php $rows = $poStats ?? collect(); @endphp
+                @forelse($rows as $r)
+                    <tr>
+                        <td><strong>{{ $r->po_number }}</strong></td>
+                        <td>{{ optional($r->order_date)->format('d M Y') ?? (is_string($r->order_date) ? $r->order_date : '-') }}</td>
+                        <td>{{ $r->vendor_name ?? '-' }}</td>
+                        <td class="text-end">{{ fmt_qty($r->allocated) }}</td>
+                        <td class="text-end">{{ fmt_qty($r->actual) }}</td>
+                        <td class="text-end">{{ fmt_qty($r->in_transit) }}</td>
+                        <td class="text-center">
+                            @if(!empty($r->carry_over))
+                                <span class="badge text-bg-warning po-breakdown__badge">Carry-over</span>
+                            @else
+                                <span class="text-muted">-</span>
+                            @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">Belum ada PO yang dialokasikan ke kuota ini.</td>
+                    </tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 @endsection
+
+@push('styles')
+<style>
+    .po-breakdown__table thead th { background:#f8fbff; }
+    .po-breakdown__badge { font-size: 12px; }
+    @media (max-width: 768px) {
+        .po-breakdown__table { font-size: 13px; }
+    }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+// reserved for future interactive filters
+</script>
+@endpush

@@ -50,13 +50,26 @@
   <div class="accordion" id="acc-po">
     @php $i=0; @endphp
     @foreach ($result['groups'] as $po => $g)
-      @php $i++; $lines = $g['lines'] ?? []; $totalQty = collect($lines)->sum('qty_ordered'); @endphp
+      @php
+        $i++;
+        $lines = $g['lines'] ?? [];
+        $totalQty = collect($lines)->sum('qty_ordered');
+        $errorCount = collect($lines)->filter(function($ln){
+            return strtolower((string)($ln['validation_status'] ?? '')) !== 'ok';
+        })->count();
+      @endphp
       <div class="accordion-item mb-2">
         <h2 class="accordion-header" id="h{{ $i }}">
           <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c{{ $i }}" aria-expanded="false" aria-controls="c{{ $i }}">
             <div class="w-100 d-flex justify-content-between">
               <div><strong>PO:</strong> {{ $po }} | <strong>Date:</strong> {{ $g['po_date'] }} | <strong>Supplier:</strong> {{ $g['supplier'] }}</div>
-              <div><span class="badge bg-secondary">Lines: {{ count($lines) }}</span> <span class="badge bg-info text-dark">Qty: {{ (float)$totalQty }}</span></div>
+              <div>
+                <span class="badge bg-secondary">Lines: {{ count($lines) }}</span>
+                <span class="badge bg-info text-dark">Qty: {{ (float)$totalQty }}</span>
+                @if($errorCount > 0)
+                  <span class="badge bg-danger" title="Jumlah baris dengan error">Err: {{ $errorCount }}</span>
+                @endif
+              </div>
             </div>
           </button>
         </h2>

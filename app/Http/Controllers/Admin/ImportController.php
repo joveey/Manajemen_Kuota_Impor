@@ -470,7 +470,18 @@ class ImportController extends Controller
                             ->get()
                             ->first(function ($q) use ($product) { return $q->matchesProduct($product); });
                         if ($quota) {
-                            $quota->decrementActual((int)$qty, sprintf('GR %s/%s pada %s', $po, $ln, $date), null, new \DateTimeImmutable($date));
+                            // Idempotent check via meta.gr_unique
+                            $existsHist = \Illuminate\Support\Facades\DB::table('quota_histories')
+                                ->where('change_type','actual_decrease')
+                                ->where('meta->gr_unique', $uk)
+                                ->exists();
+                            if (!$existsHist) {
+                                $quota->decrementActual((int)$qty, sprintf('GR %s/%s pada %s', $po, $ln, $date), null, new \DateTimeImmutable($date), null, [
+                                    'gr_unique' => $uk,
+                                    'po_no' => $po,
+                                    'line_no' => $ln,
+                                ]);
+                            }
                         } else {
                             \Illuminate\Support\Facades\Log::warning('GR actual deduction skipped: quota not found for period', ['po'=>$po,'line'=>$ln,'date'=>$date,'model'=>$pl->model_code]);
                         }

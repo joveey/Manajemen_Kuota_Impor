@@ -49,20 +49,46 @@ class DashboardController extends Controller
             $metrics['gr_qty'] = (float) \DB::table('gr_receipts')->where('receive_date','>=',$since)->sum('qty');
         } catch (\Throwable $e) { $metrics['gr_qty'] = 0; }
 
-        // Derived per-quota KPI using service (tolerant if service fails)
+        // Derived per-quota KPI (quota_id-based, clamped to allocation)
         $quotaCards = collect();
         try {
-            $quotas = \App\Models\Quota::orderByDesc('period_start')->limit(6)->get();
-            $derived = app(\App\Services\QuotaConsumptionService::class)->computeForQuotas($quotas);
+            // Show latest/active quotas for quick glance
+            $quotas = \App\Models\Quota::query()
+                ->where(function($q){
+                    $today = now()->toDateString();
+                    $q->whereNull('period_start')->orWhere('period_start','<=',$today);
+                })
+                ->where(function($q){
+                    $today = now()->toDateString();
+                    $q->whereNull('period_end')->orWhere('period_end','>=',$today);
+                })
+                ->orderByDesc('period_start')
+                ->limit(6)
+                ->get();
+
+            $ids = $quotas->pluck('id')->all();
+            $forecastByQuota = empty($ids) ? collect() : \DB::table('purchase_order_quota')
+                ->select('quota_id', \DB::raw('SUM(allocated_qty) as qty'))
+                ->whereIn('quota_id', $ids)
+                ->groupBy('quota_id')
+                ->pluck('qty', 'quota_id');
+            $actualByQuota = empty($ids) ? collect() : \DB::table('quota_histories')
+                ->select('quota_id', \DB::raw('SUM(ABS(quantity_change)) as qty'))
+                ->where('change_type', \App\Models\QuotaHistory::TYPE_ACTUAL_DECREASE)
+                ->whereIn('quota_id', $ids)
+                ->groupBy('quota_id')
+                ->pluck('qty', 'quota_id');
+
             foreach ($quotas as $q) {
-                $d = $derived[$q->id] ?? null;
-                if ($d){
-                    $q->setAttribute('actual_consumed',$d['actual_consumed']);
-                    $q->setAttribute('forecast_consumed',$d['forecast_consumed']);
-                    $q->setAttribute('actual_remaining',$d['actual_remaining']);
-                    $q->setAttribute('forecast_remaining',$d['forecast_remaining']);
-                }
+                $alloc = (float) ($q->total_allocation ?? 0);
+                $fc = min($alloc, (float) ($forecastByQuota[$q->id] ?? 0));
+                $ac = min($alloc, (float) ($actualByQuota[$q->id] ?? 0));
+                $q->setAttribute('forecast_consumed', $fc);
+                $q->setAttribute('actual_consumed', $ac);
+                $q->setAttribute('forecast_remaining', max($alloc - $fc, 0));
+                $q->setAttribute('actual_remaining', max($alloc - $ac, 0));
             }
+
             $quotaCards = $quotas;
         } catch (\Throwable $e) {}
 
