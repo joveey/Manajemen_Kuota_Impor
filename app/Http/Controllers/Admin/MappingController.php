@@ -12,6 +12,11 @@ use Illuminate\Support\Carbon;
 
 class MappingController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:read master_data');
+    }
+
     public function unmapped(Request $request)
     {
         $data = $request->validate([
@@ -143,4 +148,3 @@ class MappingController extends Controller
         return [$today, $today];
     }
 }
-
