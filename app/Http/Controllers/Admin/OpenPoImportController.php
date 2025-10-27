@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
+use App\Models\Product;
+use App\Models\PurchaseOrder;
+use App\Services\QuotaAllocationService;
 
 class OpenPoImportController extends Controller
 {
@@ -80,10 +83,10 @@ class OpenPoImportController extends Controller
         $modelMap = session('openpo.model_map', []);
         // Read publish mode as plain string (avoid Stringable so strict comparisons work)
         $mode = (string) $request->input('publish_mode', 'insert'); // 'insert' | 'replace'
-        $inserted = 0; $skippedExisting = 0; $replaced = 0;
+        $inserted = 0; $skippedExisting = 0; $replaced = 0; $leftoverAll = 0;
 
         try {
-            DB::transaction(function () use ($groups, $modelMap, $mode, &$inserted, &$skippedExisting, &$replaced) {
+            DB::transaction(function () use ($groups, $modelMap, $mode, &$inserted, &$skippedExisting, &$replaced, &$leftoverAll) {
                 $hsTable = DB::getSchemaBuilder()->hasTable('hs_codes') ? 'hs_codes' : 'hs_code_pk_mappings';
                 $hsCodeCol = $hsTable === 'hs_codes' ? 'code' : 'hs_code';
                 $modelMapUpper = collect($modelMap ?? [])->mapWithKeys(fn($v,$k)=>[strtoupper((string)$k)=>$v])->all();
@@ -186,13 +189,58 @@ class OpenPoImportController extends Controller
                             ];
 
                         if ($mode === 'replace') {
-                            PoLine::create(array_merge($unique, $payloadAttrs));
+                            $poLine = PoLine::create(array_merge($unique, $payloadAttrs));
                             $inserted++;
                         } else { // insert-only
                             $exists = PoLine::where($unique)->exists();
                             if ($exists) { $skippedExisting++; continue; }
-                            PoLine::create(array_merge($unique, $payloadAttrs));
+                            $poLine = PoLine::create(array_merge($unique, $payloadAttrs));
                             $inserted++;
+                        }
+
+                        // Create/Update PurchaseOrder per PO line to drive forecast allocation
+                        $product = Product::query()
+                            ->whereRaw('LOWER(sap_model) = ?', [strtolower((string)$line['model_code'])])
+                            ->orWhereRaw('LOWER(code) = ?', [strtolower((string)$line['model_code'])])
+                            ->first();
+                        if (!$product) {
+                            // Minimal fallback product to keep pipeline moving
+                            $product = Product::create([
+                                'code' => (string)$line['model_code'],
+                                'name' => (string)$line['model_code'],
+                                'sap_model' => (string)$line['model_code'],
+                                'is_active' => true,
+                            ]);
+                        }
+
+                        // PurchaseOrder keyed only by po_number (table has unique on po_number)
+                        $po = PurchaseOrder::updateOrCreate(
+                            [
+                                'po_number' => (string) $poNumber,
+                            ],
+                            [
+                                'product_id' => $product->id,
+                                'quantity' => (int) max((int)($line['qty_ordered'] ?? 0), (int) (\App\Models\PurchaseOrder::where('po_number',(string)$poNumber)->value('quantity') ?? 0)),
+                                'amount' => isset($line['amount']) ? (float)$line['amount'] : null,
+                                'order_date' => $payload['po_date'] ?? now()->toDateString(),
+                                'vendor_number' => $payload['vendor_number'] ?? null,
+                                'vendor_name' => $payload['supplier'] ?? null,
+                                'status' => \App\Models\PurchaseOrder::STATUS_ORDERED,
+                                'remarks' => 'Imported via Open PO',
+                                'plant_name' => 'Open PO',
+                                'plant_detail' => 'Imported via Open PO flow',
+                                'created_by' => Auth::id(),
+                            ]
+                        );
+
+                        // Allocate per line quantity (pivot aggregates per PO). Mark line processed to avoid duplicates.
+                        $lineQty = (int) ($line['qty_ordered'] ?? 0);
+                        if ($lineQty > 0 && (empty($poLine->forecast_allocated_at))) {
+                            [$allocs, $left] = app(QuotaAllocationService::class)
+                                ->allocateForecast($product->id, $lineQty, $po->order_date, $po);
+                            $leftoverAll += (int) $left;
+                            // mark line allocated to avoid re-run duplication
+                            PoLine::where('id', $poLine->id)->update(['forecast_allocated_at' => now()]);
                         }
                     }
                 }
@@ -204,6 +252,10 @@ class OpenPoImportController extends Controller
         session()->forget('openpo.preview');
         session()->forget('openpo.model_map');
         $msg = 'Open PO berhasil dipublish. Mode: '.($mode === 'replace' ? 'Replace' : 'Insert').'. Ditambahkan: '.$inserted.'.'.($skippedExisting>0 ? ' Duplikat dilewati: '.$skippedExisting.'.' : '').($replaced>0 ? ' Header diganti: '.$replaced.'.' : '');
-        return redirect()->route('admin.openpo.form')->with('status', $msg);
+        $redir = redirect()->route('admin.openpo.form')->with('status', $msg);
+        if ($leftoverAll > 0) {
+            $redir->with('warning', 'Sebagian tidak teralokasi: '.number_format($leftoverAll).' unit. Mohon lengkapi kuota periode berikutnya.');
+        }
+        return $redir;
     }
 }

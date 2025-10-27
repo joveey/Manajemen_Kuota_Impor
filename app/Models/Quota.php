@@ -84,7 +84,7 @@ class Quota extends Model
         ]);
     }
 
-    public function decrementActual(int $quantity, ?string $description = null, ?Model $reference = null, ?\DateTimeInterface $occurredOn = null, ?int $userId = null): void
+    public function decrementActual(int $quantity, ?string $description = null, ?Model $reference = null, ?\DateTimeInterface $occurredOn = null, ?int $userId = null, ?array $meta = null): void
     {
         $this->actual_remaining = max(0, $this->actual_remaining - $quantity);
         $this->updateStatus();
@@ -98,6 +98,7 @@ class Quota extends Model
             'reference_type' => $reference ? get_class($reference) : null,
             'reference_id' => $reference?->getKey(),
             'created_by' => $userId,
+            'meta' => $meta,
         ]);
     }
 
