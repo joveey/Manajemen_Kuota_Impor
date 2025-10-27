@@ -157,7 +157,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
 
     // HS→PK Imports upload (backend only)
-    Route::middleware(['permission:read quota'])->group(function () {
+    Route::middleware(['permission:read quota', 'role:admin|manager|editor'])->group(function () {
         Route::post('imports/hs-pk', [ImportController::class, 'uploadHsPk'])->name('imports.hs_pk.upload');
         Route::post('imports/quotas', [ImportController::class, 'uploadQuotas'])->name('imports.quotas.upload');
 
@@ -200,7 +200,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     });
 
     // Mapping diagnostics & UI
-    Route::middleware(['permission:read master_data'])->group(function () {
+    Route::middleware(['permission:read master_data', 'role:admin|manager|editor'])->group(function () {
         Route::get('mapping/unmapped', [MappingController::class, 'unmapped'])->name('mapping.unmapped');
         Route::get('mapping/unmapped/view', [MappingPageController::class, 'unmapped'])->name('mapping.unmapped.page');
         Route::get('mapping/mapped', [MappingPageController::class, 'mapped'])->name('mapping.mapped.page');

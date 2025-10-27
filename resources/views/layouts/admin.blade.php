@@ -756,6 +756,7 @@
                     $canPOCreate = $currentUser?->can('po.create');
                     $canReports = $currentUser?->can('read reports');
                     $canProductCreate = $currentUser?->can('product.create');
+                    $showPrep = $currentUser && !$currentUser->hasRole('user');
                     
                     $operationalActive = (
                         request()->routeIs('admin.openpo.*') ||
@@ -770,7 +771,12 @@
                     $adminActive = request()->is('admin/users*') || request()->is('admin/roles*') ||
                         request()->is('admin/permissions*') || request()->is('admin/admins*');
                     
-                    $prepActive = request()->routeIs('admin.imports.hs_pk.*') || request()->routeIs('admin.imports.quotas.*') || request()->routeIs('admin.mapping.unmapped') || request()->routeIs('admin.mapping.unmapped.*');
+                    $prepActive = $showPrep && (
+                        request()->routeIs('admin.imports.hs_pk.*') ||
+                        request()->routeIs('admin.imports.quotas.*') ||
+                        request()->routeIs('admin.mapping.unmapped') ||
+                        request()->routeIs('admin.mapping.unmapped.*')
+                    );
                 @endphp
 
                 <div class="nav-group {{ $overviewActive ? 'is-current' : '' }} {{ $overviewExpand ? 'is-open' : '' }}" data-nav-group>
@@ -803,6 +809,7 @@
                     </div>
                 </div>
 
+                @if($showPrep)
                 <div class="nav-group {{ $prepActive ? 'is-open is-current' : '' }}" data-nav-group>
                     <button type="button"
                             class="nav-group__toggle"
@@ -835,6 +842,7 @@
                         </a>
                     </div>
                 </div>
+                @endif
 
                 @if($canPORead)
                     <div class="nav-group {{ $operationalActive ? 'is-open is-current' : '' }}" data-nav-group>
