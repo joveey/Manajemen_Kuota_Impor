@@ -864,6 +864,12 @@
                                     <span class="nav-icon"><i class="fas fa-link"></i></span>
                                     <span>Model → HS (Mapped)</span>
                                 </a>
+                                @can('product.create')
+                                    <a href="{{ route('admin.master.quick_hs.create') }}" class="nav-link {{ request()->routeIs('admin.master.quick_hs.create') ? 'active' : '' }}">
+                                        <span class="nav-icon"><i class="fas fa-circle-plus"></i></span>
+                                        <span>Tambah Model → HS</span>
+                                    </a>
+                                @endcan
                             @endif
                             {{-- Quick HS creation removed along with Product system --}}
                         </div>
