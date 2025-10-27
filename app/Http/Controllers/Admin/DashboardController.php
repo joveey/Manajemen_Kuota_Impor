@@ -122,8 +122,6 @@ class DashboardController extends Controller
             'actual_remaining' => Quota::sum('actual_remaining'),
         ];
 
-        $quotaAlerts = Quota::orderBy('forecast_remaining')->take(5)->get();
-
         // Purchase order insights
         $currentPeriodStart = Carbon::now()->startOfMonth();
         $currentPeriodEnd = Carbon::now()->endOfMonth();
@@ -227,7 +225,6 @@ class DashboardController extends Controller
             'totalRoles',
             'totalPermissions',
             'quotaStats',
-            'quotaAlerts',
             'poStats',
             'recentPurchaseOrders',
             'shipmentStats',
