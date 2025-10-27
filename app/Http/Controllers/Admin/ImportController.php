@@ -429,7 +429,7 @@ class ImportController extends Controller
                 $pl = \Illuminate\Support\Facades\DB::table('po_lines as pl')
                     ->join('po_headers as ph','pl.po_header_id','=','ph.id')
                     ->where('ph.po_number',$po)->where('pl.line_no',$ln)
-                    ->select('pl.id','pl.qty_received')->lockForUpdate()->first();
+                    ->select('pl.id','pl.qty_received','pl.model_code')->lockForUpdate()->first();
                 if (!$pl) { $skipped++; continue; }
 
                 // Insert journal row
@@ -453,6 +453,34 @@ class ImportController extends Controller
                     'updated_at' => $now,
                 ]);
 
+                // Actual deduction by receipt date based on product mapping and period
+                try {
+                    $product = null;
+                    if (!empty($pl->model_code)) {
+                        $product = \App\Models\Product::whereRaw('LOWER(sap_model) = ?', [strtolower($pl->model_code)])
+                            ->orWhereRaw('LOWER(code) = ?', [strtolower($pl->model_code)])
+                            ->first();
+                    }
+                    if ($product) {
+                        $periodDate = $date; // YYYY-MM-DD
+                        $quota = \App\Models\Quota::query()
+                            ->where('is_active', true)
+                            ->whereDate('period_start','<=',$periodDate)
+                            ->whereDate('period_end','>=',$periodDate)
+                            ->get()
+                            ->first(function ($q) use ($product) { return $q->matchesProduct($product); });
+                        if ($quota) {
+                            $quota->decrementActual((int)$qty, sprintf('GR %s/%s pada %s', $po, $ln, $date), null, new \DateTimeImmutable($date));
+                        } else {
+                            \Illuminate\Support\Facades\Log::warning('GR actual deduction skipped: quota not found for period', ['po'=>$po,'line'=>$ln,'date'=>$date,'model'=>$pl->model_code]);
+                        }
+                    } else {
+                        \Illuminate\Support\Facades\Log::warning('GR actual deduction skipped: product not found', ['po'=>$po,'line'=>$ln,'model'=>$pl->model_code]);
+                    }
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error('Failed to deduct actual for GR', ['error'=>$e->getMessage()]);
+                }
+
                 $published++;
             }
             $import->markAs(\App\Models\Import::STATUS_PUBLISHED, 'Published '.$published.' rows; skipped='.$skipped);
@@ -468,7 +496,6 @@ class ImportController extends Controller
     {
         $data = $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
-            'period_key' => ['required'],
         ]);
 
         if (!class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
@@ -485,7 +512,7 @@ class ImportController extends Controller
 
         $import = Import::create([
             'type' => Import::TYPE_HS_PK,
-            'period_key' => (string) $data['period_key'],
+            'period_key' => '',
             'source_filename' => $original,
             'stored_path' => $storedPath,
             'status' => Import::STATUS_VALIDATING,

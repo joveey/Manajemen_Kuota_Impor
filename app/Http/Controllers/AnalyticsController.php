@@ -167,6 +167,25 @@ class AnalyticsController extends Controller
         }
 
         $rows = $rows->values();
+        // Compute overall totals for both forecast and actual based on selected quotas
+        $quotaIds = $rows->pluck('quota_id')->all();
+        $totalAllocation = $rows->pluck('initial_quota')->map(fn ($v) => (float) $v)->sum();
+        $totalForecast = 0.0; $totalActual = 0.0;
+        if (!empty($quotaIds)) {
+            try {
+                $totalForecast = (float) DB::table('purchase_order_quota')
+                    ->whereIn('quota_id', $quotaIds)
+                    ->sum('allocated_qty');
+            } catch (\Throwable $e) { $totalForecast = 0.0; }
+            try {
+                $totalActual = (float) DB::table('quota_histories')
+                    ->where('change_type', 'actual_decrease')
+                    ->whereIn('quota_id', $quotaIds)
+                    ->whereBetween('occurred_on', [$start->toDateString(), $end->toDateString()])
+                    ->select(DB::raw('SUM(ABS(quantity_change)) as qty'))
+                    ->value('qty');
+            } catch (\Throwable $e) { $totalActual = 0.0; }
+        }
         $categories = $rows->pluck('quota_number')->all();
         $seriesQuota = $rows->pluck('initial_quota')->map(fn ($v) => (float) $v)->all();
         $seriesPrimary = $rows->pluck('primary_value')->map(fn ($v) => (float) $v)->all();
@@ -221,11 +240,16 @@ class AnalyticsController extends Controller
                 'total_allocation' => $totalAllocation,
                 'total_usage' => $totalUsage,
                 'total_remaining' => $totalRemaining,
+                'total_forecast_consumed' => (float) min($totalAllocation, $totalForecast),
+                'total_actual_consumed' => (float) min($totalAllocation, $totalActual),
+                'total_in_transit' => (float) max(min($totalAllocation, $totalForecast) - min($totalAllocation, $totalActual), 0.0),
+                'total_forecast_remaining' => (float) max($totalAllocation - min($totalAllocation, $totalForecast), 0.0),
+                'total_actual_remaining' => (float) max($totalAllocation - min($totalAllocation, $totalActual), 0.0),
                 'usage_label' => $primaryLabel,
                 'secondary_label' => $secondaryLabel,
                 'percentage_label' => $percentageLabel,
                 'mode' => $mode,
-            ],
+                ],
         ];
     }
 
@@ -234,87 +258,43 @@ class AnalyticsController extends Controller
      */
     private function buildActualRows(Carbon $start, Carbon $end): Collection
     {
-        $quotas = Quota::orderBy('quota_number')->get();
+        $quotas = $this->queryQuotasByDateRange($start, $end)->orderBy('quota_number')->get();
         if ($quotas->isEmpty()) {
             return collect();
         }
-
-        $meta = [];
         $rows = [];
-
-        foreach ($quotas as $quota) {
-            $parsed = PkCategoryParser::parse((string) $quota->government_category);
-            $meta[$quota->id] = [
-                'min_pk' => $parsed['min_pk'],
-                'max_pk' => $parsed['max_pk'],
-                'min_incl' => $parsed['min_incl'],
-                'max_incl' => $parsed['max_incl'],
-                'start' => $quota->period_start?->toDateString(),
-                'end' => $quota->period_end?->toDateString(),
-            ];
-
-            $rows[$quota->id] = [
-                'quota_id' => $quota->id,
-                'quota_number' => $quota->quota_number,
-                'range_pk' => $quota->government_category,
-                'initial_quota' => (float) ($quota->total_allocation ?? 0),
+        foreach ($quotas as $q) {
+            $rows[$q->id] = [
+                'quota_id' => $q->id,
+                'quota_number' => $q->quota_number,
+                'range_pk' => $q->government_category,
+                'initial_quota' => (float) ($q->total_allocation ?? 0),
                 'primary_value' => 0.0,
-                'secondary_value' => (float) ($quota->total_allocation ?? 0),
+                'secondary_value' => (float) ($q->total_allocation ?? 0),
                 'percentage' => 0.0,
-                'forecast_current_remaining' => (float) ($quota->forecast_remaining ?? 0),
-                'actual_current_remaining' => (float) ($quota->actual_remaining ?? 0),
+                'forecast_current_remaining' => (float) ($q->forecast_remaining ?? 0),
+                'actual_current_remaining' => (float) ($q->actual_remaining ?? 0),
             ];
         }
 
-        $grRows = DB::table('gr_receipts as gr')
-            ->join('po_headers as ph', 'gr.po_no', '=', 'ph.po_number')
-            ->join('po_lines as pl', function ($join) {
-                $join->on('pl.po_header_id', '=', 'ph.id');
-                $join->on('pl.line_no', '=', 'gr.line_no');
-            })
-            ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
-            ->whereBetween('gr.receive_date', [$start->toDateString(), $end->toDateString()])
-            ->select([
-                'gr.qty',
-                'gr.receive_date',
-                'ph.po_date',
-                'hs.pk_capacity',
-            ])
-            ->get();
+        $ids = array_keys($rows);
+        if (!empty($ids)) {
+            $hist = DB::table('quota_histories')
+                ->select('quota_id', DB::raw('SUM(ABS(quantity_change)) as qty'))
+                ->where('change_type', 'actual_decrease')
+                ->whereIn('quota_id', $ids)
+                ->whereBetween('occurred_on', [$start->toDateString(), $end->toDateString()])
+                ->groupBy('quota_id')
+                ->pluck('qty', 'quota_id');
 
-        foreach ($grRows as $entry) {
-            $pk = $entry->pk_capacity !== null ? (float) $entry->pk_capacity : null;
-            if ($pk === null) {
-                continue;
-            }
-
-            $receiptDate = $entry->receive_date;
-            $poDate = $entry->po_date;
-
-            foreach ($meta as $quotaId => $info) {
-                if (!$this->pkMatchesQuota($pk, $info)) {
-                    continue;
-                }
-                if (!$this->dateMatchesQuota($receiptDate, $info['start'], $info['end'], $poDate)) {
-                    continue;
-                }
-
-                $rows[$quotaId]['primary_value'] += (float) $entry->qty;
-                break;
+            foreach ($hist as $qid => $qty) {
+                $allocation = (float) $rows[$qid]['initial_quota'];
+                $actual = min($allocation, (float) $qty);
+                $rows[$qid]['primary_value'] = round($actual, 2);
+                $rows[$qid]['secondary_value'] = round(max($allocation - $actual, 0.0), 2);
+                $rows[$qid]['percentage'] = $allocation > 0 ? round(($actual / $allocation) * 100, 2) : 0.0;
             }
         }
-
-        foreach ($rows as &$row) {
-            $allocation = max(0.0, (float) $row['initial_quota']);
-            $actual = (float) $row['primary_value'];
-            $remaining = $allocation > 0 ? max($allocation - $actual, 0.0) : 0.0;
-            $row['primary_value'] = round($actual, 2);
-            $row['secondary_value'] = round($remaining, 2);
-            $row['percentage'] = $allocation > 0
-                ? round(($actual / $allocation) * 100, 2)
-                : 0.0;
-        }
-        unset($row);
 
         return collect(array_values($rows));
     }
@@ -324,29 +304,25 @@ class AnalyticsController extends Controller
      */
     private function buildForecastRows(Carbon $start, Carbon $end): Collection
     {
-        $quotas = Quota::orderBy('quota_number')->get();
+        $quotas = $this->queryQuotasByDateRange($start, $end)->orderBy('quota_number')->get();
         if ($quotas->isEmpty()) {
             return collect();
         }
-
-        try {
-            $service = app(\App\Services\QuotaConsumptionService::class);
-            $computed = $service->computeForQuotas($quotas);
-        } catch (\Throwable $e) {
-            $computed = [];
+        $ids = $quotas->pluck('id')->all();
+        $alloc = [];
+        if (!empty($ids)) {
+            $alloc = DB::table('purchase_order_quota')
+                ->select('quota_id', DB::raw('SUM(allocated_qty) as qty'))
+                ->whereIn('quota_id', $ids)
+                ->groupBy('quota_id')
+                ->pluck('qty', 'quota_id');
         }
 
-        return $quotas->map(function (Quota $quota) use ($computed) {
+        return $quotas->map(function (Quota $quota) use ($alloc) {
             $allocation = (float) ($quota->total_allocation ?? 0);
-            $data = $computed[$quota->id] ?? [
-                'forecast_consumed' => 0,
-                'forecast_remaining' => $allocation,
-                'actual_consumed' => 0,
-                'actual_remaining' => $allocation,
-            ];
-            $forecast = (float) ($data['forecast_consumed'] ?? 0);
+            $forecast = min($allocation, (float) ($alloc[$quota->id] ?? 0));
             $remaining = max($allocation - $forecast, 0.0);
-            $pct = $allocation > 0 ? round(($forecast / $allocation) * 100, 2) : 0;
+            $pct = $allocation > 0 ? round(($forecast / $allocation) * 100, 2) : 0.0;
 
             return [
                 'quota_id' => $quota->id,
@@ -356,9 +332,20 @@ class AnalyticsController extends Controller
                 'primary_value' => round($forecast, 2),
                 'secondary_value' => round($remaining, 2),
                 'percentage' => $pct,
-                'forecast_current_remaining' => (float) ($data['forecast_remaining'] ?? $remaining),
-                'actual_current_remaining' => (float) ($data['actual_remaining'] ?? max($allocation - ($data['actual_consumed'] ?? 0), 0)),
+                'forecast_current_remaining' => $remaining,
+                'actual_current_remaining' => max($allocation - 0.0, 0.0),
             ];
+        });
+    }
+
+    private function queryQuotasByDateRange(Carbon $start, Carbon $end)
+    {
+        return Quota::query()->where(function ($q) use ($start, $end) {
+            $q->where(function ($qq) use ($start) {
+                $qq->whereNull('period_end')->orWhere('period_end', '>=', $start->toDateString());
+            })->where(function ($qq) use ($end) {
+                $qq->whereNull('period_start')->orWhere('period_start', '<=', $end->toDateString());
+            });
         });
     }
 
@@ -431,4 +418,3 @@ class AnalyticsController extends Controller
         return true;
     }
 }
-

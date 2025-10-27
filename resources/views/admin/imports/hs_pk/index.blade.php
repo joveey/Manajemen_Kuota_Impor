@@ -13,30 +13,18 @@
 <script>
 (function(){
   const form = document.getElementById('hspk-upload-form');
-  const period = document.getElementById('period_key');
-  const periodHelp = document.getElementById('period_key_help');
   const file = document.getElementById('file');
   const fileHelp = document.getElementById('file_help');
   const backendDismiss = document.getElementById('dismiss-backend-error-hspk');
 
   backendDismiss?.addEventListener('click', function(){
-    period?.focus();
+    file?.focus();
   });
 
   function validate() {
     let ok = true;
-    period.classList.remove('is-invalid');
     file.classList.remove('is-invalid');
-    periodHelp.textContent='';
     fileHelp.textContent='';
-
-    const periodVal = (period.value||'').trim();
-    const re = /^\d{4}(-\d{2}(-\d{2})?)?$/;
-    if (!re.test(periodVal)) {
-      period.classList.add('is-invalid');
-      periodHelp.textContent = 'Gunakan format YYYY, YYYY-MM, atau YYYY-MM-DD.';
-      ok = false;
-    }
     if (!file.files || file.files.length === 0) {
       file.classList.add('is-invalid');
       fileHelp.textContent = 'File wajib diunggah (.xlsx, .xls, atau .csv).';
@@ -56,7 +44,7 @@
     if (!validate()) {
       e.preventDefault();
       e.stopPropagation();
-      period.focus();
+      file.focus();
     }
   });
 
@@ -118,11 +106,7 @@
 
                         <form action="{{ route('admin.imports.hs_pk.upload.form') }}" method="POST" enctype="multipart/form-data" id="hspk-upload-form" novalidate>
                             @csrf
-                            <div class="mb-3">
-                                <label class="form-label" for="period_key">Periode</label>
-                                <input type="text" name="period_key" id="period_key" class="form-control" placeholder="YYYY atau YYYY-MM" value="{{ old('period_key') }}" required pattern="^\d{4}(-\d{2}(-\d{2})?)?$">
-                                <div class="invalid-feedback" id="period_key_help" aria-live="polite"></div>
-                            </div>
+                            
                             <div class="mb-3">
                                 <label class="form-label" for="file">File Excel/CSV (untuk Excel: sheet "HS code master")</label>
                                 <input type="file" name="file" id="file" class="form-control" accept=".xlsx,.xls,.csv" required>
