@@ -34,8 +34,8 @@
           <form method="POST" action="{{ route('admin.openpo.preview') }}" enctype="multipart/form-data" id="openpo-upload" novalidate>
             @csrf
             <div class="mb-3">
-              <label for="file" class="form-label">File Excel</label>
-              <input class="form-control" type="file" id="file" name="file" accept=".xlsx,.xls" required>
+              <label for="file" class="form-label">File Excel/CSV</label>
+              <input class="form-control" type="file" id="file" name="file" accept=".xlsx,.xls,.csv" required>
               <div class="invalid-feedback" id="file_help" aria-live="polite"></div>
             </div>
             <button type="submit" class="btn btn-primary">Upload & Preview</button>
@@ -67,8 +67,8 @@
   const fileHelp = document.getElementById('file_help');
   function validate(){
     let ok=true; file.classList.remove('is-invalid'); fileHelp.textContent='';
-    if(!file.files || file.files.length===0){ ok=false; file.classList.add('is-invalid'); fileHelp.textContent='File wajib (.xlsx/.xls, maks 10MB).'; }
-    else { const name=file.files[0].name.toLowerCase(); if(!name.endsWith('.xlsx') && !name.endsWith('.xls')){ ok=false; file.classList.add('is-invalid'); fileHelp.textContent='Tipe file salah.'; } }
+    if(!file.files || file.files.length===0){ ok=false; file.classList.add('is-invalid'); fileHelp.textContent='File wajib (.xlsx/.xls/.csv, maks 10MB).'; }
+    else { const name=file.files[0].name.toLowerCase(); if(!name.endsWith('.xlsx') && !name.endsWith('.xls') && !name.endsWith('.csv')){ ok=false; file.classList.add('is-invalid'); fileHelp.textContent='Tipe file salah (.xlsx/.xls/.csv).'; } }
     return ok;
   }
   form?.addEventListener('submit', function(e){ if(!validate()){ e.preventDefault(); e.stopPropagation(); } });

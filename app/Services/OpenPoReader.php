@@ -9,10 +9,10 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 class OpenPoReader
 {
     /**
-     * Read Excel and return normalized rows from sheet "List PO".
+     * Read Excel/CSV and return normalized rows from sheet "List PO" (or first sheet for CSV).
      * Each row is an associative array with UPPER_SNAKE_CASE headers.
      *
-     * @return array<int,array<string,mixed>> [ ['ROW' => 2, 'PO_NUMBER' => '...', ...], ... ]
+     * @return array{rows:array<int,array<string,mixed>>,model_map:array<string,string>}
      */
     public function read(string $fullPath): array
     {
@@ -25,8 +25,9 @@ class OpenPoReader
                 if (strcasecmp($ws->getTitle(), 'List PO') === 0) { $sheet = $ws; break; }
             }
         }
+        // CSV does not have sheet name; fallback to first sheet
         if (!$sheet) {
-            throw new \RuntimeException('Sheet "List PO" not found');
+            $sheet = $spreadsheet->getSheet(0);
         }
 
         $highestRow = (int) $sheet->getHighestRow();
@@ -55,7 +56,7 @@ class OpenPoReader
             $rows[] = $assoc;
         }
 
-        // Optional: read mapping sheet "mapping hs code by model"
+        // Optional: read mapping sheet "mapping hs code by model" (ignore for CSV)
         $map = [];
         $mapSheet = $spreadsheet->getSheetByName('mapping hs code by model');
         if (!$mapSheet) {
