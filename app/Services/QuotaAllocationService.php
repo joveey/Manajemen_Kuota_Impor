@@ -33,8 +33,15 @@ class QuotaAllocationService
             return $q->period_start && $q->period_end && $q->period_start->toDateString() <= $poDateStr && $q->period_end->toDateString() >= $poDateStr;
         });
 
-        $current = $ordered[0];
-        $future = $ordered[1]->filter(fn (Quota $q) => $q->period_start && $q->period_start->toDateString() > $poDateStr);
+        $width = function (Quota $q) {
+            $min = is_null($q->min_pk) ? null : (float)$q->min_pk;
+            $max = is_null($q->max_pk) ? null : (float)$q->max_pk;
+            if ($min === null || $max === null) { return INF; }
+            return max(0.0, $max - $min);
+        };
+
+        $current = $ordered[0]->sortBy($width)->values();
+        $future = $ordered[1]->filter(fn (Quota $q) => $q->period_start && $q->period_start->toDateString() > $poDateStr)->sortBy($width)->values();
 
         $queue = $current->concat($future)->values();
 
@@ -79,4 +86,3 @@ class QuotaAllocationService
         return [$allocs, $left];
     }
 }
-

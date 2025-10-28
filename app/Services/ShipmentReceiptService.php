@@ -52,28 +52,45 @@ class ShipmentReceiptService
             $receipt->notes = $payload['notes'] ?? null;
             $receipt->save();
 
-            // Lock baris Quota dan update actual_remaining
-            $quota = $shipment->purchaseOrder
-                ->quota()
-                ->lockForUpdate()
-                ->firstOrFail();
-            $quota->actual_remaining = max(0, (int)$quota->actual_remaining - $qty);
+            // Tentukan kuota berdasarkan PK & periode tanggal penerimaan (tanpa overwrite forecast)
+            $po = $shipment->purchaseOrder;
+            $product = $po?->product;
+            $date = $receipt->receipt_date ?? now()->toDateString();
 
-            // Update status quota (fallback sederhana bila updateStatus() belum ada)
-            if (method_exists($quota, 'updateStatus')) {
-                $quota->updateStatus();
-            } else {
-                $alloc = max(1, (int)$quota->total_allocation);
-                $ratio = $quota->actual_remaining / $alloc;
-                if ($ratio < 0.2) {
-                    $quota->status = 'depleted';
-                } elseif ($ratio < 0.5) {
-                    $quota->status = 'limited';
-                } else {
-                    $quota->status = 'available';
-                }
+            if (!$product) {
+                throw ValidationException::withMessages(['product' => 'Produk untuk PO tidak ditemukan.']);
             }
-            $quota->save();
+
+            $quota = \App\Models\Quota::query()
+                ->where('is_active', true)
+                ->whereDate('period_start','<=',$date)
+                ->whereDate('period_end','>=',$date)
+                ->get()
+                ->first(function ($q) use ($product) { return $q->matchesProduct($product); });
+
+            if (!$quota) {
+                throw ValidationException::withMessages(['quota' => 'Kuota yang cocok untuk periode/PK tidak ditemukan.']);
+            }
+
+            // Idempoten: hindari pengurangan berulang untuk receipt yang sama
+            $existsHist = \Illuminate\Support\Facades\DB::table('quota_histories')
+                ->where('change_type', \App\Models\QuotaHistory::TYPE_ACTUAL_DECREASE)
+                ->where('meta->receipt_id', $receipt->id)
+                ->exists();
+            if (!$existsHist) {
+                $quota->decrementActual(
+                    (int)$qty,
+                    sprintf('GR %s pada %s', (string)($po?->po_number ?? $shipment->id), (string)$date),
+                    $receipt,
+                    new \DateTimeImmutable((string)$date),
+                    $performedByUserId,
+                    [
+                        'receipt_id' => $receipt->id,
+                        'po_no' => (string)($po?->po_number ?? ''),
+                        'shipment_id' => $shipment->id,
+                    ]
+                );
+            }
 
             // Update status shipment bila seluruh quantity sudah diterima
             $totalReceived = (int) $shipment->receipts()->sum('quantity_received');

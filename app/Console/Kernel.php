@@ -14,6 +14,8 @@ class Kernel extends ConsoleKernel
     protected $commands = [
         \App\Console\Commands\AllocBackfillForecast::class,
         \App\Console\Commands\AllocBackfillActual::class,
+        \App\Console\Commands\RebuildForecast::class,
+        \App\Console\Commands\RebuildActual::class,
     ];
 
     protected function commands(): void

@@ -88,6 +88,31 @@ class AllocBackfillForecast extends Command
                 }
             });
 
+        // Safety net: ensure pivot purchase_order_quota reflects forecast histories for the same period
+        $hist = \Illuminate\Support\Facades\DB::table('quota_histories')
+            ->where('change_type', \App\Models\QuotaHistory::TYPE_FORECAST_DECREASE)
+            ->whereBetween('occurred_on', [$start->toDateString(), $end->toDateString()])
+            ->where('reference_type', \App\Models\PurchaseOrder::class)
+            ->whereNotNull('reference_id')
+            ->select('reference_id as purchase_order_id', 'quota_id', \Illuminate\Support\Facades\DB::raw('SUM(ABS(quantity_change)) as qty'))
+            ->groupBy('purchase_order_id', 'quota_id')
+            ->get();
+
+        $rows = [];
+        foreach ($hist as $h) {
+            $rows[] = [
+                'purchase_order_id' => (int) $h->purchase_order_id,
+                'quota_id' => (int) $h->quota_id,
+                'allocated_qty' => (int) round((float) $h->qty),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+        if (!empty($rows)) {
+            \Illuminate\Support\Facades\DB::table('purchase_order_quota')
+                ->upsert($rows, ['purchase_order_id','quota_id'], ['allocated_qty','updated_at']);
+        }
+
         $this->info("Processed: $processed, Allocated: $allocated, Leftover: $leftover, Skipped: $skipped");
         return Command::SUCCESS;
     }

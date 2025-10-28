@@ -1098,14 +1098,15 @@ class ImportController extends Controller
         $skippedExisting = 0; $duplicatesList = [];
         $ranAutomap = false; $automapSummary = null;
         $now = now();
+        $updateExisting = (bool) $request->boolean('update_existing', false);
 
-        DB::transaction(function () use ($import, &$applied, &$skipped, &$skippedExisting, &$duplicatesList, $now) {
+        DB::transaction(function () use ($import, &$applied, &$skipped, &$skippedExisting, &$duplicatesList, $now, $updateExisting) {
             // Process items in chunks for large files
             ImportItem::query()
                 ->where('import_id', $import->id)
                 ->where('status', 'normalized')
                 ->orderBy('id')
-                ->chunk(1000, function ($rows) use (&$applied, &$skipped, &$skippedExisting, &$duplicatesList, $now) {
+                ->chunk(1000, function ($rows) use (&$applied, &$skipped, &$skippedExisting, &$duplicatesList, $now, $updateExisting) {
                     $incoming = [];
                     foreach ($rows as $item) {
                         $raw = $item->raw_json ?? [];
@@ -1123,28 +1124,44 @@ class ImportController extends Controller
 
                     if (empty($incoming)) { return; }
 
-                    $codes = array_keys($incoming);
-                    $existing = DB::table('hs_code_pk_mappings')->whereIn('hs_code', $codes)->pluck('hs_code')->all();
-                    $existSet = array_flip(array_map('strval', $existing));
-
-                    $toInsert = [];
-                    foreach ($incoming as $code => $anchor) {
-                        if (isset($existSet[$code])) {
-                            $skippedExisting++;
-                            $duplicatesList[$code] = true;
-                            continue;
+                    if ($updateExisting) {
+                        // Upsert: update pk_capacity for existing codes
+                        $rowsUpsert = [];
+                        foreach ($incoming as $code => $anchor) {
+                            $rowsUpsert[] = [
+                                'hs_code' => $code,
+                                'pk_capacity' => $anchor,
+                                'created_at' => $now,
+                                'updated_at' => $now,
+                            ];
                         }
-                        $toInsert[] = [
-                            'hs_code' => $code,
-                            'pk_capacity' => $anchor,
-                            'created_at' => $now,
-                            'updated_at' => $now,
-                        ];
-                    }
+                        DB::table('hs_code_pk_mappings')->upsert($rowsUpsert, ['hs_code'], ['pk_capacity', 'updated_at']);
+                        $applied += count($rowsUpsert);
+                    } else {
+                        // Insert only; skip duplicates
+                        $codes = array_keys($incoming);
+                        $existing = DB::table('hs_code_pk_mappings')->whereIn('hs_code', $codes)->pluck('hs_code')->all();
+                        $existSet = array_flip(array_map('strval', $existing));
 
-                    if (!empty($toInsert)) {
-                        DB::table('hs_code_pk_mappings')->insert($toInsert);
-                        $applied += count($toInsert);
+                        $toInsert = [];
+                        foreach ($incoming as $code => $anchor) {
+                            if (isset($existSet[$code])) {
+                                $skippedExisting++;
+                                $duplicatesList[$code] = true;
+                                continue;
+                            }
+                            $toInsert[] = [
+                                'hs_code' => $code,
+                                'pk_capacity' => $anchor,
+                                'created_at' => $now,
+                                'updated_at' => $now,
+                            ];
+                        }
+
+                        if (!empty($toInsert)) {
+                            DB::table('hs_code_pk_mappings')->insert($toInsert);
+                            $applied += count($toInsert);
+                        }
                     }
                 });
 

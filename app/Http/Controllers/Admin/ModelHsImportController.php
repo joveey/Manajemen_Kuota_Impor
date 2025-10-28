@@ -61,7 +61,9 @@ class ModelHsImportController extends Controller
         $errors = 0; $valid = 0; $seen = [];
         for ($r=2; $r <= $highestRow; $r++) {
             $model = trim((string) $sheet->getCell([$colModel, $r])->getFormattedValue());
-            $hs = trim((string) $sheet->getCell([$colHs, $r])->getFormattedValue());
+            // Gunakan formatted value agar titik pada HS (mis. 8415.10.20) tetap terbaca apa adanya
+            $hsRaw = (string) $sheet->getCell([$colHs, $r])->getFormattedValue();
+            $hs = strtoupper(trim($hsRaw));
             if ($model === '' && $hs === '') { continue; }
 
             $status = 'ok';
@@ -81,11 +83,12 @@ class ModelHsImportController extends Controller
                     ->whereRaw('LOWER(sap_model) = ?', [strtolower($model)])
                     ->orWhereRaw('LOWER(code) = ?', [strtolower($model)])
                     ->first();
-                if (!$product) { $status='error'; $notes[]='Produk tidak ditemukan'; }
+                if (!$product) { $notes[]='Model belum ada; akan dibuat'; }
             }
 
             // HS must exist in hs_code_pk_mappings (has PK)
             if ($hs !== '') {
+                // Cek eksistensi HS persis seperti yang disimpan pada master (dengan/atau tanpa titik sesuai input HS→PK)
                 $existsHs = DB::table('hs_code_pk_mappings')->where('hs_code', $hs)->exists();
                 if (!$existsHs) { $status='error'; $notes[]='HS belum punya PK (import HS→PK dulu)'; }
             }
@@ -93,7 +96,7 @@ class ModelHsImportController extends Controller
             // Do not overwrite existing different HS
             if ($product && !empty($product->hs_code)) {
                 if (strcasecmp((string)$product->hs_code, $hs) !== 0) {
-                    $status='error'; $notes[]='Produk sudah punya HS berbeda (tidak di-overwrite)';
+                    $status='error'; $notes[]='Model sudah punya HS berbeda (tidak di-overwrite)';
                 } else {
                     $status = $status === 'ok' ? 'skip' : $status; // same mapping
                     $notes[]='Sama dengan HS yang sudah ada (skip)';
@@ -114,9 +117,9 @@ class ModelHsImportController extends Controller
         session(['modelhs.preview' => [
             'total' => count($rows),
             'valid' => $valid,
-            'errors' => $errors,
+            'error_count' => $errors,
             'rows' => $rows,
-        ]];
+        ]]);
 
         return redirect()->route('admin.mapping.model_hs.preview')
             ->with('status', 'Upload berhasil. Silakan tinjau hasil sebelum publish.');
@@ -126,9 +129,10 @@ class ModelHsImportController extends Controller
     {
         $data = session('modelhs.preview');
         if (!$data) {
-            return view('admin.mapping.model_hs.index')->withErrors(['file' => 'Preview tidak ditemukan. Upload file terlebih dahulu.']);
+            return redirect()->route('admin.mapping.model_hs.index')
+                ->withErrors(['file' => 'Preview tidak ditemukan. Upload file terlebih dahulu.']);
         }
-        return view('admin.mapping.model_hs.preview', $data);
+        return view('admin.mapping.model_hs.preview', ['preview' => $data]);
     }
 
     public function publish(Request $request)
@@ -139,12 +143,14 @@ class ModelHsImportController extends Controller
         }
 
         $updated = 0; $skipped = 0; $failed = 0;
+        // Secara default, buat produk baru jika belum ada (sesuai konsep: product == model)
+        $createMissing = $request->boolean('create_missing', true);
         DB::beginTransaction();
         try {
             foreach ($data['rows'] as $row) {
-                if (($row['status'] ?? 'error') !== 'ok') { $skipped++; continue; }
-                $model = (string) $row['model'];
-                $hs = (string) $row['hs_code'];
+                $model = (string) ($row['model'] ?? '');
+                // Simpan HS sesuai format aslinya (mis. 8415.10.20 atau ACC) agar konsisten dengan master dan PO
+                $hs = strtoupper(trim((string) ($row['hs_code'] ?? '')));
                 // Ensure again PK exists
                 $existsHs = DB::table('hs_code_pk_mappings')->where('hs_code', $hs)->exists();
                 if (!$existsHs) { $failed++; continue; }
@@ -153,7 +159,22 @@ class ModelHsImportController extends Controller
                     ->whereRaw('LOWER(sap_model) = ?', [strtolower($model)])
                     ->orWhereRaw('LOWER(code) = ?', [strtolower($model)])
                     ->first();
-                if (!$product) { $failed++; continue; }
+                if (!$product) {
+                    if ($createMissing) {
+                        $newId = DB::table('products')->insertGetId([
+                            'code' => $model,
+                            'name' => $model,
+                            'sap_model' => $model,
+                            'hs_code' => $hs,
+                            'is_active' => true,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                        if ($newId) { $updated++; } else { $failed++; }
+                        continue;
+                    }
+                    $failed++; continue;
+                }
                 if (!empty($product->hs_code)) { $skipped++; continue; }
 
                 DB::table('products')->where('id', $product->id)->update([
@@ -173,4 +194,3 @@ class ModelHsImportController extends Controller
             ->with('status', sprintf('Publish selesai. Updated=%d, Skipped=%d, Failed=%d', $updated, $skipped, $failed));
     }
 }
-

@@ -75,7 +75,7 @@ class FinalReportController extends Controller
      * Build dataset for the final report page & export.
      *
      * @return array{
-     *     filters: array{start_date:string,end_date:string},
+     *     filters: array{start_date:string,end_date:string,year:int},
      *     summary: array<string,float|int>,
      *     rows: array<int,array<string,mixed>>,
      *     charts: array<string,mixed>,
@@ -231,6 +231,7 @@ class FinalReportController extends Controller
             'filters' => [
                 'start_date' => $startString,
                 'end_date' => $endString,
+                'year' => (int) $start->year,
             ],
             'summary' => $summary,
             'rows' => $rows,
@@ -379,6 +380,16 @@ class FinalReportController extends Controller
      */
     private function resolveRange(Request $request): array
     {
+        // Prefer year-based range if provided
+        $year = $request->query('year');
+        if (!empty($year) && ctype_digit((string)$year)) {
+            $y = (int) $year;
+            $start = Carbon::create($y, 1, 1)->startOfDay();
+            $end = Carbon::create($y, 12, 31)->endOfDay();
+            return [$start, $end];
+        }
+
+        // Backward compatibility: accept explicit date range
         $startDate = $request->query('start_date');
         $endDate = $request->query('end_date');
 
@@ -392,4 +403,3 @@ class FinalReportController extends Controller
         return [$start, $end];
     }
 }
-

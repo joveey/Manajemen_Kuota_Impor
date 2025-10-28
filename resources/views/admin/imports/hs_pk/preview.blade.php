@@ -60,6 +60,10 @@
               <input class="form-check-input" type="checkbox" value="1" id="run_automap" name="run_automap" checked>
               <label class="form-check-label" for="run_automap">Run automapper (opsional)</label>
             </div>
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" value="1" id="update_existing" name="update_existing" checked>
+              <label class="form-check-label" for="update_existing">Update PK jika HS sudah ada (upsert)</label>
+            </div>
             <small class="text-muted d-block mb-2">Automapper akan menyelaraskan mapping Product ↔ Quota berdasarkan HS/PK.</small>
             <button class="btn btn-primary" type="submit" {{ $import->status !== 'ready' ? 'disabled' : '' }}>Publish HS & PK</button>
           </form>

@@ -129,22 +129,49 @@ class Quota extends Model
 
     public function matchesProduct(Product $product): bool
     {
-        if (is_null($product->pk_capacity)) {
-            return true;
-        }
-
-        $pattern = '/([0-9.,]+)\s*PK\s*-\s*([0-9.,]+)\s*PK/i';
-        if (preg_match($pattern, $this->government_category, $matches)) {
-            $min = (float) str_replace(',', '.', $matches[1]);
-            $max = (float) str_replace(',', '.', $matches[2]);
-
-            if ($min > $max) {
-                [$min, $max] = [$max, $min];
+        // Resolve PK from product if not explicitly set
+        $pk = $product->pk_capacity;
+        if ($pk === null) {
+            try {
+                $pk = app(\App\Services\HsCodeResolver::class)->resolveForProduct($product);
+            } catch (\Throwable $e) {
+                $pk = null;
             }
-
-            return $product->pk_capacity >= $min && $product->pk_capacity <= $max;
         }
 
+        if ($pk === null) {
+            // Without PK info we cannot decide strictly; treat as not matching to avoid wrong allocation
+            return false;
+        }
+
+        // Prefer normalized columns if present
+        $min = $this->min_pk; $max = $this->max_pk;
+        $minIncl = (bool) ($this->is_min_inclusive ?? true);
+        $maxIncl = (bool) ($this->is_max_inclusive ?? true);
+
+        // Fallback parse from label if columns are null
+        if ($min === null && $max === null && !empty($this->government_category)) {
+            try {
+                $parsed = \App\Support\PkCategoryParser::parse((string) $this->government_category);
+                $min = $parsed['min_pk'];
+                $max = $parsed['max_pk'];
+                $minIncl = (bool)($parsed['min_incl'] ?? true);
+                $maxIncl = (bool)($parsed['max_incl'] ?? true);
+            } catch (\Throwable $e) {}
+        }
+
+        // No range data means it matches all
+        if ($min === null && $max === null) { return true; }
+
+        $pk = (float) $pk;
+        if ($min !== null) {
+            $minOk = $minIncl ? ($pk >= (float)$min) : ($pk > (float)$min);
+            if (!$minOk) { return false; }
+        }
+        if ($max !== null) {
+            $maxOk = $maxIncl ? ($pk <= (float)$max) : ($pk < (float)$max);
+            if (!$maxOk) { return false; }
+        }
         return true;
     }
 }
