@@ -17,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Services\QuotaAllocationService;
+use Illuminate\Support\Facades\Schema;
 
 class OpenPoImportController extends Controller
 {
@@ -138,19 +139,62 @@ class OpenPoImportController extends Controller
 
                         $hsId = null;
                         if (!empty($hsCode)) {
-                            $row = DB::table($hsTable)->select('id')->where($hsCodeCol, $hsCode)->first();
-                            if (!$row && preg_match('/[A-Za-z]/', (string)$hsCode)) {
-                                // Create special HS code (alphabetic, e.g., 'ACC') with default pk_capacity=0
-                                DB::table($hsTable)->insert([
-                                    $hsCodeCol => $hsCode,
-                                    // add pk_capacity only if the column exists (hs_code_pk_mappings schema)
-                                    'pk_capacity' => DB::getSchemaBuilder()->hasColumn($hsTable, 'pk_capacity') ? 0 : null,
-                                    'created_at' => now(),
-                                    'updated_at' => now(),
-                                ]);
-                                $row = DB::table($hsTable)->select('id')->where($hsCodeCol, $hsCode)->first();
+                            // Determine the PO year for period-aware mapping
+                            $poYear = null;
+                            $poDateStr = $payload['po_date'] ?? null;
+                            if (!empty($poDateStr)) {
+                                try { $poYear = \Illuminate\Support\Carbon::parse((string)$poDateStr)->format('Y'); } catch (\Throwable $e) { $poYear = null; }
                             }
-                            $hsId = $row->id ?? null;
+
+                            if ($hsTable === 'hs_code_pk_mappings') {
+                                $hasPeriodCol = Schema::hasColumn($hsTable, 'period_key');
+                                if ($poYear) {
+                                    $qb = DB::table($hsTable)->select('id')->where($hsCodeCol, $hsCode);
+                                    if ($hasPeriodCol) {
+                                        $qb->where(function($q) use ($poYear){ $q->where('period_key',$poYear)->orWhere('period_key',''); })
+                                           ->orderByRaw("CASE WHEN period_key = ? THEN 0 WHEN period_key = '' THEN 1 ELSE 2 END", [$poYear]);
+                                    }
+                                    $row = $qb->first();
+                                } else {
+                                    $qb = DB::table($hsTable)->select('id')->where($hsCodeCol, $hsCode);
+                                    if ($hasPeriodCol) {
+                                        $qb->orderByRaw("CASE WHEN period_key = '' THEN 0 ELSE 1 END")
+                                           ->orderByDesc('period_key');
+                                    }
+                                    $row = $qb->first();
+                                }
+
+                                if (!$row && preg_match('/[A-Za-z]/', (string)$hsCode)) {
+                                    // Create special HS code (alphabetic, e.g., 'ACC') for this period (or legacy if no date)
+                                    $payload = [
+                                        $hsCodeCol => $hsCode,
+                                        'pk_capacity' => DB::getSchemaBuilder()->hasColumn($hsTable, 'pk_capacity') ? 0 : null,
+                                        'created_at' => now(),
+                                        'updated_at' => now(),
+                                    ];
+                                    if ($hasPeriodCol) { $payload['period_key'] = $poYear ?: ''; }
+                                    DB::table($hsTable)->insert($payload);
+
+                                    $qb2 = DB::table($hsTable)->select('id')->where($hsCodeCol, $hsCode);
+                                    if ($hasPeriodCol) {
+                                        $qb2->when($poYear, function($q) use ($poYear){ $q->where('period_key',$poYear); }, function($q){ $q->where('period_key',''); });
+                                    }
+                                    $row = $qb2->first();
+                                }
+                                $hsId = $row->id ?? null;
+                            } else {
+                                // Fallback path for other hs master schemas
+                                $row = DB::table($hsTable)->select('id')->where($hsCodeCol, $hsCode)->first();
+                                if (!$row && preg_match('/[A-Za-z]/', (string)$hsCode)) {
+                                    DB::table($hsTable)->insert([
+                                        $hsCodeCol => $hsCode,
+                                        'created_at' => now(),
+                                        'updated_at' => now(),
+                                    ]);
+                                    $row = DB::table($hsTable)->select('id')->where($hsCodeCol, $hsCode)->first();
+                                }
+                                $hsId = $row->id ?? null;
+                            }
                         }
 
                         // If hs_id still null while HS table exists and is required, stop with a clear message

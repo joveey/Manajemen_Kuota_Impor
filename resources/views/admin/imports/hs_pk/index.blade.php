@@ -108,6 +108,12 @@
                             @csrf
                             
                             <div class="mb-3">
+                                <label class="form-label" for="period_key">Periode </span></label>
+                                <input type="text" name="period_key" id="period_key" class="form-control" placeholder="yyyy" pattern="^\\d{4}$" value="{{ old('period_key') }}">
+                                <small class="text-muted">Mapping HS→PK disimpan per tahun. Kosongkan untuk mapping legacy.</small>
+                            </div>
+
+                            <div class="mb-3">
                                 <label class="form-label" for="file">File Excel/CSV (untuk Excel: sheet "HS code master")</label>
                                 <input type="file" name="file" id="file" class="form-control" accept=".xlsx,.xls,.csv" required>
                                 <div class="invalid-feedback" id="file_help" aria-live="polite"></div>
@@ -137,7 +143,9 @@
                             </div>
                         </div>
 
-                        
+                        <div class="mt-3">
+                            <a class="btn btn-sm btn-outline-secondary" href="{{ route('admin.hs_pk.manual.index') }}">Input Manual HS → PK</a>
+                        </div>
                     </div>
                 </div>
             </div>

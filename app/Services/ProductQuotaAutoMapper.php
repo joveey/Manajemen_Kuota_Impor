@@ -66,7 +66,7 @@ class ProductQuotaAutoMapper
                 ->delete();
 
             foreach ($products as $product) {
-                $pk = $resolver->resolveForProduct($product);
+                $pk = $resolver->resolveForProduct($product, (string)$periodKey);
                 if ($pk === null) {
                     $summary['unmapped']++;
                     continue;

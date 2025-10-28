@@ -33,7 +33,14 @@
         </div>
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center mb-2">
-            <div class="text-muted small">Updated: {{ optional($import->updated_at)->format('Y-m-d H:i') }}</div>
+            <div class="text-muted small">
+              Updated: {{ optional($import->updated_at)->format('Y-m-d H:i') }}
+              @if(!empty($import->period_key))
+                <span class="ms-3">Periode: <strong>{{ $import->period_key }}</strong></span>
+              @else
+                <span class="ms-3">Periode: <span class="text-muted">Legacy</span></span>
+              @endif
+            </div>
             <div>
               <button class="btn btn-outline-secondary btn-sm" id="btn-refresh">Refresh Summary</button>
             </div>
