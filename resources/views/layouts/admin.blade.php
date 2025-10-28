@@ -774,6 +774,8 @@
                     $prepActive = $showPrep && (
                         request()->routeIs('admin.imports.hs_pk.*') ||
                         request()->routeIs('admin.imports.quotas.*') ||
+                        request()->routeIs('admin.imports.invoices.*') ||
+                        request()->routeIs('admin.imports.gr.*') ||
                         request()->routeIs('admin.mapping.unmapped') ||
                         request()->routeIs('admin.mapping.unmapped.*')
                     );
