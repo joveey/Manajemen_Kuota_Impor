@@ -7,6 +7,7 @@ use App\Models\PurchaseOrder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -23,7 +24,314 @@ class PurchaseOrderController extends Controller
 
     public function index(Request $request): View
     {
-        // Show published Open PO data (po_headers + po_lines) instead of legacy purchase_orders table
+        $hasVendorNumber = Schema::hasColumn('po_headers', 'vendor_number');
+        $hasAmount = Schema::hasColumn('po_lines', 'amount');
+        $hasQtyOrdered = Schema::hasColumn('po_lines', 'qty_ordered');
+        $hasQtyReceived = Schema::hasColumn('po_lines', 'qty_received');
+        $hasSapStatus = Schema::hasColumn('po_lines', 'sap_order_status');
+
+        $qtyOrderedExprBase = $hasQtyOrdered ? 'COALESCE(pl.qty_ordered,0)' : '0';
+        $qtyReceivedExprBase = $hasQtyReceived ? 'COALESCE(pl.qty_received,0)' : '0';
+
+        $sumQtyOrderedExpr = "SUM($qtyOrderedExprBase)";
+        $sumQtyReceivedExpr = "SUM($qtyReceivedExprBase)";
+        $sumOutstandingExpr = $hasQtyReceived
+            ? "SUM(GREATEST($qtyOrderedExprBase - $qtyReceivedExprBase,0))"
+            : '0';
+
+        $statusExpr = $hasQtyReceived
+            ? sprintf(
+                "CASE WHEN %s >= %s AND %s > 0 THEN '%s' WHEN %s > 0 THEN '%s' ELSE '%s' END",
+                $sumQtyReceivedExpr,
+                $sumQtyOrderedExpr,
+                $sumQtyOrderedExpr,
+                PurchaseOrder::STATUS_COMPLETED,
+                $sumQtyReceivedExpr,
+                PurchaseOrder::STATUS_PARTIAL,
+                PurchaseOrder::STATUS_ORDERED
+            )
+            : sprintf("'%s'", PurchaseOrder::STATUS_ORDERED);
+
+        $select = [
+            DB::raw('ph.po_number as po_number'),
+            DB::raw('MIN(ph.po_date) as first_order_date'),
+            DB::raw('MAX(ph.po_date) as latest_order_date'),
+            DB::raw($hasVendorNumber ? "STRING_AGG(DISTINCT NULLIF(ph.vendor_number,''), ', ') as vendor_number" : 'NULL as vendor_number'),
+            DB::raw("STRING_AGG(DISTINCT ph.supplier, ', ') as vendor_name"),
+            DB::raw('COUNT(DISTINCT ph.id) as header_count'),
+            DB::raw('COUNT(pl.id) as total_lines'),
+            DB::raw("$sumQtyOrderedExpr as total_qty_ordered"),
+            DB::raw("$sumQtyReceivedExpr as total_qty_received"),
+            DB::raw("$sumOutstandingExpr as total_qty_outstanding"),
+            DB::raw("$statusExpr as status_key"),
+        ];
+
+        if ($hasAmount) {
+            $select[] = DB::raw('SUM(COALESCE(pl.amount,0)) as total_amount');
+        } else {
+            $select[] = DB::raw('NULL as total_amount');
+        }
+
+        if ($hasSapStatus) {
+            $select[] = DB::raw("STRING_AGG(DISTINCT NULLIF(pl.sap_order_status,''), ', ') as sap_statuses");
+        } else {
+            $select[] = DB::raw("NULL as sap_statuses");
+        }
+
+        $query = DB::table('po_headers as ph')
+            ->leftJoin('po_lines as pl', 'pl.po_header_id', '=', 'ph.id')
+            ->select($select)
+            ->groupBy('ph.po_number');
+
+        if ($request->filled('period')) {
+            $period = (string) $request->string('period');
+            if (preg_match('/^\d{4}-\d{2}$/', $period)) {
+                $query->whereRaw("to_char(ph.po_date, 'YYYY-MM') = ?", [$period]);
+            } elseif (preg_match('/^\d{4}$/', $period)) {
+                $query->whereRaw("to_char(ph.po_date, 'YYYY') = ?", [$period]);
+            }
+        }
+
+        if ($request->filled('search')) {
+            $term = '%'.$request->string('search').'%';
+            $query->where(function ($w) use ($term) {
+                $w->where('ph.po_number', 'like', $term)
+                    ->orWhere('ph.supplier', 'like', $term)
+                    ->orWhereExists(function ($sub) use ($term) {
+                        $sub->select(DB::raw('1'))
+                            ->from('po_lines as l')
+                            ->whereColumn('l.po_header_id', 'ph.id')
+                            ->where(function ($s) use ($term) {
+                                $s->where('l.model_code', 'like', $term)
+                                    ->orWhere('l.item_desc', 'like', $term);
+                            });
+                    });
+            });
+        }
+
+        if ($request->filled('status')) {
+            $statusFilter = (string) $request->string('status');
+            if ($statusFilter === PurchaseOrder::STATUS_IN_TRANSIT) {
+                $statusFilter = PurchaseOrder::STATUS_PARTIAL;
+            }
+
+            if (in_array($statusFilter, [
+                PurchaseOrder::STATUS_ORDERED,
+                PurchaseOrder::STATUS_PARTIAL,
+                PurchaseOrder::STATUS_COMPLETED,
+            ], true)) {
+                $query->havingRaw("$statusExpr = ?", [$statusFilter]);
+            }
+        }
+
+        $statsQuery = clone $query;
+
+        $query->orderByDesc('latest_order_date')->orderBy('po_number');
+
+        $purchaseOrders = $query->paginate(20)->withQueryString();
+
+        $statusCountsRow = DB::query()
+            ->fromSub($statsQuery, 'agg')
+            ->selectRaw(
+                "SUM(CASE WHEN status_key = ? THEN 1 ELSE 0 END) AS ordered,
+                 SUM(CASE WHEN status_key = ? THEN 1 ELSE 0 END) AS partial,
+                 SUM(CASE WHEN status_key = ? THEN 1 ELSE 0 END) AS completed",
+                [
+                    PurchaseOrder::STATUS_ORDERED,
+                    PurchaseOrder::STATUS_PARTIAL,
+                    PurchaseOrder::STATUS_COMPLETED,
+                ]
+            )
+            ->first();
+
+        $stats = [
+            'total_po' => (int) DB::table('po_headers')->distinct('po_number')->count('po_number'),
+            'ordered' => (int) ($statusCountsRow->ordered ?? 0),
+            'in_transit' => (int) ($statusCountsRow->partial ?? 0),
+            'completed' => (int) ($statusCountsRow->completed ?? 0),
+        ];
+
+        return view('admin.purchase_order.index', compact('purchaseOrders', 'stats'));
+    }
+
+    public function show(PurchaseOrder $purchaseOrder): View
+    {
+        $purchaseOrder->load(['product', 'quota', 'shipments.receipts']);
+
+        return view('admin.purchase_order.show', compact('purchaseOrder'));
+    }
+
+    public function showDocument(string $poNumber): View
+    {
+        $poNumber = trim($poNumber);
+
+        if ($poNumber === '') {
+            abort(404);
+        }
+
+        $hasHeaderVendorNumber = Schema::hasColumn('po_headers', 'vendor_number');
+
+        $headerSelect = [
+            'id',
+            'po_number',
+            'po_date',
+            'supplier',
+        ];
+
+        if ($hasHeaderVendorNumber) {
+            $headerSelect[] = 'vendor_number';
+        }
+
+        $resolveVendorNumber = static function (?string $explicit, ?string $supplier): ?string {
+            $explicit = is_string($explicit) ? trim($explicit) : '';
+            if ($explicit !== '') {
+                return $explicit;
+            }
+
+            if (!is_string($supplier)) {
+                return null;
+            }
+
+            $supplier = trim($supplier);
+            if ($supplier === '') {
+                return null;
+            }
+
+            $parts = preg_split('/\s*-\s*/', $supplier, 2);
+            if (!empty($parts)) {
+                $candidate = trim((string) $parts[0]);
+                if ($candidate !== '' && preg_match('/\d/', $candidate) && strlen($candidate) <= 32) {
+                    return $candidate;
+                }
+            }
+
+            if (preg_match('/\b([0-9]{4,})\b/', $supplier, $matches)) {
+                return $matches[1];
+            }
+
+            return null;
+        };
+
+        $headers = DB::table('po_headers')
+            ->select($headerSelect)
+            ->where('po_number', $poNumber)
+            ->orderBy('po_date')
+            ->get();
+
+        if ($headers->isEmpty()) {
+            abort(404);
+        }
+
+        $headers = $headers->map(function ($header) use ($resolveVendorNumber) {
+            try {
+                $displayDate = !empty($header->po_date) ? Carbon::parse($header->po_date) : null;
+            } catch (\Throwable $th) {
+                $displayDate = null;
+            }
+
+            $header->display_vendor_number = $resolveVendorNumber($header->vendor_number ?? null, $header->supplier ?? null);
+            $header->display_date = $displayDate;
+
+            return $header;
+        });
+
+        $hasWhCode = Schema::hasColumn('po_lines', 'warehouse_code');
+        $hasWhName = Schema::hasColumn('po_lines', 'warehouse_name');
+        $hasWhSource = Schema::hasColumn('po_lines', 'warehouse_source');
+        $hasSubinvCode = Schema::hasColumn('po_lines', 'subinventory_code');
+        $hasSubinvName = Schema::hasColumn('po_lines', 'subinventory_name');
+        $hasSubinvSource = Schema::hasColumn('po_lines', 'subinventory_source');
+        $hasAmount = Schema::hasColumn('po_lines', 'amount');
+        $hasCatCode = Schema::hasColumn('po_lines', 'category_code');
+        $hasCategory = Schema::hasColumn('po_lines', 'category');
+        $hasMatGrp = Schema::hasColumn('po_lines', 'material_group');
+        $hasSapStatus = Schema::hasColumn('po_lines', 'sap_order_status');
+
+        $lineQuery = DB::table('po_lines as pl')
+            ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
+            ->select(array_filter([
+                DB::raw('pl.id as line_id'),
+                DB::raw('ph.po_number'),
+                DB::raw('ph.po_date as order_date'),
+                DB::raw($hasHeaderVendorNumber ? "NULLIF(ph.vendor_number,'') as vendor_number" : 'NULL as vendor_number'),
+                DB::raw('ph.supplier as vendor_name'),
+                DB::raw("COALESCE(pl.line_no,'') as line_number"),
+                DB::raw('pl.model_code as item_code'),
+                DB::raw('pl.item_desc as item_description'),
+                DB::raw($hasWhCode ? 'pl.warehouse_code' : 'NULL as warehouse_code'),
+                DB::raw($hasWhName ? 'pl.warehouse_name' : 'NULL as warehouse_name'),
+                DB::raw($hasWhSource ? 'pl.warehouse_source' : 'NULL as warehouse_source'),
+                DB::raw($hasSubinvCode ? 'pl.subinventory_code' : 'NULL as subinventory_code'),
+                DB::raw($hasSubinvName ? 'pl.subinventory_name' : 'NULL as subinventory_name'),
+                DB::raw($hasSubinvSource ? 'pl.subinventory_source' : 'NULL as subinventory_source'),
+                DB::raw('pl.qty_ordered as quantity'),
+                DB::raw($hasAmount ? 'pl.amount as amount' : 'NULL as amount'),
+                DB::raw($hasCatCode ? 'pl.category_code' : 'NULL as category_code'),
+                DB::raw($hasCategory ? 'pl.category' : 'NULL as category'),
+                DB::raw($hasMatGrp ? 'pl.material_group' : 'NULL as material_group'),
+                DB::raw($hasSapStatus ? 'pl.sap_order_status' : 'NULL as sap_order_status'),
+            ]))
+            ->where('ph.po_number', $poNumber)
+            ->orderByDesc('ph.po_date')
+            ->orderBy('pl.line_no');
+
+        $lines = $lineQuery->get()->map(function ($line) use ($resolveVendorNumber) {
+            try {
+                $line->display_order_date = !empty($line->order_date) ? Carbon::parse($line->order_date) : null;
+            } catch (\Throwable $th) {
+                $line->display_order_date = null;
+            }
+
+            $line->vendor_number = $resolveVendorNumber($line->vendor_number ?? null, $line->vendor_name ?? null);
+
+            return $line;
+        });
+
+        $totals = [
+            'quantity' => (float) $lines->sum(fn ($line) => (float) ($line->quantity ?? 0)),
+            'amount' => $hasAmount ? (float) $lines->sum(fn ($line) => (float) ($line->amount ?? 0)) : null,
+            'count' => $lines->count(),
+        ];
+
+        $dateRange = null;
+        $dates = $headers->pluck('display_date')->filter();
+        if ($dates->isNotEmpty()) {
+            /** @var \Illuminate\Support\Carbon|null $first */
+            $first = $dates->min();
+            /** @var \Illuminate\Support\Carbon|null $last */
+            $last = $dates->max();
+
+            if ($first && $last) {
+                $dateRange = $first->equalTo($last)
+                    ? $first->format('d M Y')
+                    : $first->format('d M Y').' - '.$last->format('d M Y');
+            }
+        }
+
+        $primaryVendorName = $headers->pluck('supplier')->filter()->unique()->implode(', ');
+        $primaryVendorNumber = $headers->pluck('display_vendor_number')->filter()->unique()->implode(', ');
+
+        return view('admin.purchase_order.document', [
+            'poNumber' => $poNumber,
+            'headers' => $headers,
+            'lines' => $lines,
+            'totals' => $totals,
+            'dateRange' => $dateRange,
+            'primaryVendorName' => $primaryVendorName,
+            'primaryVendorNumber' => $primaryVendorNumber,
+        ]);
+    }
+
+    public function destroy(PurchaseOrder $purchaseOrder): RedirectResponse
+    {
+        $purchaseOrder->delete();
+
+        return redirect()->route('admin.purchase-orders.index')
+            ->with('status', 'Purchase Order berhasil dihapus');
+    }
+
+    public function export(Request $request)
+    {
         $hasVendorNumber = Schema::hasColumn('po_headers', 'vendor_number');
         $hasWhCode = Schema::hasColumn('po_lines', 'warehouse_code');
         $hasWhName = Schema::hasColumn('po_lines', 'warehouse_name');
@@ -37,84 +345,6 @@ class PurchaseOrderController extends Controller
         $hasMatGrp = Schema::hasColumn('po_lines', 'material_group');
         $hasSapStatus = Schema::hasColumn('po_lines', 'sap_order_status');
 
-        $q = DB::table('po_lines as pl')
-            ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
-            ->select(array_filter([
-                DB::raw('ph.po_number as po_number'),
-                DB::raw('ph.po_date as order_date'),
-                DB::raw($hasVendorNumber ? "COALESCE(NULLIF(ph.vendor_number,''), split_part(ph.supplier, ' - ', 1)) as vendor_number" : 'NULL as vendor_number'),
-                DB::raw('ph.supplier as vendor_name'),
-                DB::raw("COALESCE(pl.line_no,'') as line_number"),
-                DB::raw('pl.model_code as item_code'),
-                DB::raw('pl.item_desc as item_description'),
-                DB::raw($hasWhCode ? 'pl.warehouse_code' : 'NULL as warehouse_code'),
-                DB::raw($hasWhName ? 'pl.warehouse_name' : 'NULL as warehouse_name'),
-                DB::raw($hasWhSource ? 'pl.warehouse_source' : 'NULL as warehouse_source'),
-                DB::raw($hasSubinvCode ? 'pl.subinventory_code' : 'NULL as subinventory_code'),
-                DB::raw($hasSubinvName ? 'pl.subinventory_name' : 'NULL as subinventory_name'),
-                DB::raw($hasSubinvSource ? 'pl.subinventory_source' : 'NULL as subinventory_source'),
-                DB::raw('pl.qty_ordered as quantity'),
-                DB::raw($hasAmount ? 'pl.amount as amount' : 'NULL as amount'),
-                DB::raw("'ordered' as status"),
-                DB::raw($hasCatCode ? 'pl.category_code' : 'NULL as category_code'),
-                DB::raw($hasCategory ? 'pl.category' : 'NULL as category'),
-                DB::raw($hasMatGrp ? 'pl.material_group' : 'NULL as material_group'),
-                DB::raw($hasSapStatus ? 'pl.sap_order_status' : 'NULL as sap_order_status'),
-            ]))
-            ->orderByDesc('ph.po_date')
-            ->orderBy('ph.po_number')
-            ->orderBy('pl.line_no');
-
-        // Filters
-        if ($request->filled('period')) {
-            $period = (string) $request->string('period'); // YYYY or YYYY-MM
-            if (preg_match('/^\d{4}-\d{2}$/', $period)) {
-                $q->whereRaw("to_char(ph.po_date, 'YYYY-MM') = ?", [$period]);
-            } elseif (preg_match('/^\d{4}$/', $period)) {
-                $q->whereRaw("to_char(ph.po_date, 'YYYY') = ?", [$period]);
-            }
-        }
-
-        if ($request->filled('search')) {
-            $term = '%'.$request->string('search').'%';
-            $q->where(function ($w) use ($term) {
-                $w->where('ph.po_number', 'like', $term)
-                    ->orWhere('ph.supplier', 'like', $term)
-                    ->orWhere('pl.model_code', 'like', $term)
-                    ->orWhere('pl.item_desc', 'like', $term);
-            });
-        }
-
-        $purchaseOrders = $q->paginate(20)->withQueryString();
-
-        // Simple stats for header tiles
-        $stats = [
-            'total_po' => (int) DB::table('po_headers')->count(),
-            'ordered' => 0,
-            'in_transit' => 0,
-            'completed' => 0,
-        ];
-
-        return view('admin.purchase_order.index', compact('purchaseOrders', 'stats'));
-    }
-
-    public function show(PurchaseOrder $purchaseOrder): View
-    {
-        $purchaseOrder->load(['product', 'quota', 'shipments.receipts']);
-
-        return view('admin.purchase_order.show', compact('purchaseOrder'));
-    }
-
-    public function destroy(PurchaseOrder $purchaseOrder): RedirectResponse
-    {
-        $purchaseOrder->delete();
-
-        return redirect()->route('admin.purchase-orders.index')
-            ->with('status', 'Purchase Order berhasil dihapus');
-    }
-
-    public function export(Request $request)
-    {
         $query = DB::table('po_lines as pl')
             ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
             ->select(array_filter([

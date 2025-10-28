@@ -353,6 +353,13 @@
 @endpush
 
 @section('content')
+@php
+    $statusBadgeMap = [
+        \App\Models\PurchaseOrder::STATUS_ORDERED => ['label' => 'Ordered', 'class' => 'status-badge--ordered'],
+        \App\Models\PurchaseOrder::STATUS_PARTIAL => ['label' => 'In Progress', 'class' => 'status-badge--in-transit'],
+        \App\Models\PurchaseOrder::STATUS_COMPLETED => ['label' => 'Completed', 'class' => 'status-badge--completed'],
+    ];
+@endphp
 <div class="page-shell">
     <div class="page-header">
         <div>
@@ -445,81 +452,71 @@
                             <th>#</th>
                             <th>PO Doc</th>
                             <th>Created Date</th>
-                            <th>Vendor No</th>
-                            <th>Vendor Name</th>
-                            <th>Line No</th>
-                            <th>Item Code</th>
-                            <th>Item Desc</th>
-                            <th>WH Code</th>
-                            <th>WH Name</th>
-                            <th>WH Source</th>
-                            <th>Subinv Code</th>
-                            <th>Subinv Name</th>
-                            <th>Subinv Source</th>
-                            <th class="text-end">Qty</th>
-                            <th class="text-end">Amount</th>
-                            <th>Cat PO</th>
-                            <th>Cat Desc</th>
-                            <th>Mat Grp</th>
-                            <th>SAP Status</th>
+                            <th>Vendor</th>
+                            <th class="text-end">Total Line</th>
+                            <th class="text-end">Qty Ordered</th>
+                            <th class="text-end">Qty Received</th>
+                            <th class="text-end">Outstanding</th>
+                            <th>Status</th>
                             <th class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($purchaseOrders as $po)
+                            @php
+                                $orderDateLabel = '-';
+                                if (!empty($po->latest_order_date)) {
+                                    try {
+                                        $latest = \Illuminate\Support\Carbon::parse($po->latest_order_date)->format('d M Y');
+                                    } catch (\Throwable $e) {
+                                        $latest = (string) $po->latest_order_date;
+                                    }
+
+                                    $orderDateLabel = $latest;
+
+                                    if (!empty($po->first_order_date) && $po->first_order_date !== $po->latest_order_date) {
+                                        try {
+                                            $first = \Illuminate\Support\Carbon::parse($po->first_order_date)->format('d M Y');
+                                        } catch (\Throwable $e) {
+                                            $first = (string) $po->first_order_date;
+                                        }
+                                        $orderDateLabel = $first.' - '.$latest;
+                                    }
+                                }
+                                $statusMeta = $statusBadgeMap[$po->status_key] ?? ['label' => ucfirst($po->status_key ?? 'Ordered'), 'class' => 'status-badge--ordered'];
+                            @endphp
                             <tr>
                                 <td>{{ $purchaseOrders->firstItem() + $loop->index }}</td>
-                                <td><strong>{{ $po->po_number }}</strong></td>
                                 <td>
-                                    @php
-                                        $dt = $po->order_date ?? null;
-                                        try { $val = $dt ? \Illuminate\Support\Carbon::parse($dt)->format('d M Y') : null; } catch (\Throwable $e) { $val = (string) $dt; }
-                                    @endphp
-                                    {{ $val ?: '-' }}
+                                    <strong>{{ $po->po_number }}</strong>
+                                    <div class="po-table__subtext">Header: {{ (int) ($po->header_count ?? 0) }} • Vendor No: {{ $po->vendor_number ?? '-' }}</div>
                                 </td>
-                                <td>{{ $po->vendor_number ?? '-' }}</td>
-                                <td>{{ $po->vendor_name ?? '-' }}</td>
-                                <td>{{ $po->line_number ?? '-' }}</td>
-                                <td>{{ $po->item_code ?? '-' }}</td>
-                                <td class="text-nowrap">{{ \Illuminate\Support\Str::limit($po->item_description ?? '-', 36) }}</td>
-                                <td>{{ $po->warehouse_code ?? '-' }}</td>
-                                <td>{{ $po->warehouse_name ?? '-' }}</td>
-                                <td>{{ $po->warehouse_source ?? '-' }}</td>
-                                <td>{{ $po->subinventory_code ?? '-' }}</td>
-                                <td>{{ $po->subinventory_name ?? '-' }}</td>
-                                <td>{{ $po->subinventory_source ?? '-' }}</td>
-                                <td class="text-end">
-                                    {{ number_format($po->quantity) }}
+                                <td>{{ $orderDateLabel }}</td>
+                                <td>
+                                    <div>{{ $po->vendor_name ?? '-' }}</div>
+                                    @if(!empty($po->sap_statuses))
+                                        <div class="po-table__subtext">SAP: {{ $po->sap_statuses }}</div>
+                                    @endif
                                 </td>
-                                <td class="text-end">
-                                    {{ $po->amount !== null ? number_format($po->amount, 2) : '-' }}
+                                <td class="text-end">{{ number_format((int) $po->total_lines) }}</td>
+                                <td class="text-end">{{ number_format((float) $po->total_qty_ordered, 2) }}</td>
+                                <td class="text-end">{{ number_format((float) $po->total_qty_received, 2) }}</td>
+                                <td class="text-end">{{ number_format((float) $po->total_qty_outstanding, 2) }}</td>
+                                <td>
+                                    <span class="status-badge {{ $statusMeta['class'] }}">{{ $statusMeta['label'] }}</span>
                                 </td>
-                                <td>{{ $po->category_code ?? '-' }}</td>
-                                <td>{{ $po->category ?? '-' }}</td>
-                                <td>{{ $po->material_group ?? '-' }}</td>
-                                <td>{{ $po->sap_order_status ?? '-' }}</td>
                                 <td class="text-end">
                                     <div class="table-actions">
-                                        <span class="action-icon action-icon--view" title="Detail tidak tersedia untuk data Open PO">
+                                        <a href="{{ route('admin.purchase-orders.document', ['poNumber' => $po->po_number]) }}"
+                                            class="action-icon action-icon--view" title="Lihat detail PO">
                                             <i class="fas fa-eye"></i>
-                                        </span>
-                                        @can('delete purchase_orders')
-                                            @if(isset($po->id))
-                                            <form action="{{ route('admin.purchase-orders.destroy', $po->id) }}" method="POST" onsubmit="return confirm('Hapus PO ini?');" style="display: inline;">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="action-icon action-icon--delete" title="Hapus">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </form>
-                                            @endif
-                                        @endcan
+                                        </a>
                                     </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="21" class="text-center text-muted py-4">Belum ada purchase order.</td>
+                                <td colspan="10" class="text-center text-muted py-4">Belum ada purchase order.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -537,64 +534,36 @@
 @push('scripts')
 <script>
 (function(){
-    console.log('🚀 Purchase Order Table Scroll Script Initialized');
-
     const tableScroll = document.querySelector('.table-scroll');
     const scrollIndicator = document.querySelector('.scroll-indicator');
 
     if (!tableScroll) {
-        console.error('❌ Element .table-scroll tidak ditemukan!');
         return;
     }
 
-    console.log('✅ Table scroll element found');
-    console.log('📊 Dimensions:', {
-        scrollWidth: tableScroll.scrollWidth,
-        clientWidth: tableScroll.clientWidth,
-        isScrollable: tableScroll.scrollWidth > tableScroll.clientWidth
-    });
-
-    function checkScrollable() {
+    const checkScrollable = () => {
         const isScrollable = tableScroll.scrollWidth > tableScroll.clientWidth;
-        console.log('🔍 Is scrollable:', isScrollable);
-
         if (isScrollable && scrollIndicator) {
             scrollIndicator.classList.add('show');
-            console.log('👉 Showing scroll indicator');
-
-            setTimeout(() => {
-                scrollIndicator.classList.remove('show');
-                console.log('👈 Hiding scroll indicator');
-            }, 4000);
+            setTimeout(() => scrollIndicator.classList.remove('show'), 4000);
         }
-    }
+    };
 
-    window.addEventListener('load', () => {
-        console.log('📄 Page fully loaded, checking scrollability...');
-        setTimeout(checkScrollable, 300);
-    });
-
+    window.addEventListener('load', () => setTimeout(checkScrollable, 300));
     setTimeout(checkScrollable, 500);
 
     let hasScrolled = false;
-    tableScroll.addEventListener('scroll', function() {
+    tableScroll.addEventListener('scroll', () => {
         if (!hasScrolled && scrollIndicator) {
-            console.log('🖱️ User started scrolling');
             hasScrolled = true;
             scrollIndicator.classList.remove('show');
         }
-
-        if (tableScroll.scrollLeft > 0 && tableScroll.scrollLeft % 100 < 5) {
-            console.log('📍 Scroll position:', tableScroll.scrollLeft);
-        }
     });
 
-    tableScroll.addEventListener('wheel', function(e){
+    tableScroll.addEventListener('wheel', (e) => {
         if (e.shiftKey) {
             e.preventDefault();
-            const scrollAmount = e.deltaY;
-            tableScroll.scrollLeft += scrollAmount;
-            console.log('⌨️ Shift+wheel scroll:', scrollAmount);
+            tableScroll.scrollLeft += e.deltaY;
         }
     }, { passive: false });
 
@@ -602,38 +571,26 @@
     let scrollLeft = 0;
     let isDown = false;
 
-    tableScroll.addEventListener('touchstart', function(e) {
+    tableScroll.addEventListener('touchstart', (e) => {
         isDown = true;
         startX = e.touches[0].pageX - tableScroll.offsetLeft;
         scrollLeft = tableScroll.scrollLeft;
-        console.log('👆 Touch start:', startX);
     }, { passive: true });
 
-    tableScroll.addEventListener('touchend', function() {
+    tableScroll.addEventListener('touchend', () => {
         isDown = false;
-        console.log('👆 Touch end');
     }, { passive: true });
 
-    tableScroll.addEventListener('touchmove', function(e) {
+    tableScroll.addEventListener('touchmove', (e) => {
         if (!isDown) return;
         e.preventDefault();
         const x = e.touches[0].pageX - tableScroll.offsetLeft;
         const walk = (x - startX) * 2;
         tableScroll.scrollLeft = scrollLeft - walk;
     }, { passive: false });
-
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                console.log('👁️ Table is now visible in viewport');
-                setTimeout(checkScrollable, 100);
-            }
-        });
-    }, { threshold: 0.1 });
-
-    observer.observe(tableScroll);
-
-    console.log('✅ All event listeners attached successfully');
 })();
 </script>
 @endpush
+
+
+
