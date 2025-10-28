@@ -119,7 +119,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Route::resource('master-data', ProductController::class)->except(['show']);
 
     // Disable manual create form; use Import Kuota page instead
-    Route::resource('quotas', QuotaController::class)->except(['create','store']);
+    Route::resource('quotas', QuotaController::class)->except(['create','store','show']);
     Route::get('quotas/export/csv', [QuotaController::class, 'export'])->name('quotas.export');
     Route::get('kuota', [QuotaController::class, 'index'])->name('kuota.index');
     // Redirect legacy create routes to Import Kuota
@@ -134,11 +134,6 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         return redirect()->route('admin.imports.quotas.index')->with('warning','Form kuota manual dinonaktifkan. Gunakan Import Kuota.');
     })->name('kuota.store');
     Route::get('kuota/{quota}/edit', [QuotaController::class, 'edit'])->name('kuota.edit');
-    Route::post('quotas/{quota}/attach-product', [QuotaController::class, 'attachProduct'])
-        ->name('quotas.attach-product');
-    Route::delete('quotas/{quota}/detach-product/{product}', [QuotaController::class, 'detachProduct'])
-        ->name('quotas.detach-product');
-
     Route::middleware(['permission:read reports'])->group(function () {
         Route::get('reports/final', [FinalReportController::class, 'index'])->name('reports.final');
         Route::get('reports/final/export/csv', [FinalReportController::class, 'exportCsv'])->name('reports.final.export.csv');
