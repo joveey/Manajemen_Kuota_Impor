@@ -153,6 +153,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('master-data/store-hs', [ProductQuickController::class, 'store'])->name('master.quick_hs.store');
     });
 
+    Route::get('purchase-orders/doc/{poNumber}', [PurchaseOrderController::class, 'showDocument'])
+        ->name('purchase-orders.document');
+
     Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'show', 'destroy']);
     Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
 
