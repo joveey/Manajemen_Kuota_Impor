@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Product;
-use App\Models\ProductQuotaMapping;
 use App\Models\Quota;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,7 +15,7 @@ class QuotaController extends Controller
     public function __construct()
     {
         // Read-only access
-        $this->middleware('permission:read quota')->only(['index', 'show', 'export']);
+        $this->middleware('permission:read quota')->only(['index', 'export']);
         // Create
         $this->middleware('permission:create quota')->only(['create', 'store']);
         // Update
@@ -85,75 +83,6 @@ class QuotaController extends Controller
             ->with('status', 'Kuota berhasil ditambahkan');
     }
 
-    public function show(Quota $quota): View
-    {
-        $quota->load(['products', 'histories' => function ($query) {
-            $query->latest();
-        }]);
-
-        $availableProducts = Product::active()
-            ->whereNotIn('id', $quota->products->pluck('id'))
-            ->get()
-            ->filter(fn (Product $product) => $quota->matchesProduct($product))
-            ->sortBy('name');
-
-        // ===============
-        // PO breakdown for this quota (forecast vs actual per PO)
-        // ===============
-        $poAllocs = DB::table('purchase_order_quota as pq')
-            ->join('purchase_orders as po', 'po.id', '=', 'pq.purchase_order_id')
-            ->where('pq.quota_id', $quota->id)
-            ->groupBy('po.id', 'po.po_number', 'po.order_date', 'po.vendor_name')
-            ->get([
-                'po.id as po_id',
-                'po.po_number',
-                'po.order_date',
-                'po.vendor_name',
-                DB::raw('SUM(pq.allocated_qty) as allocated_qty'),
-            ]);
-
-        // Actual by PO number using histories meta->po_no
-        $actualByPo = DB::table('quota_histories')
-            ->where('quota_id', $quota->id)
-            ->where('change_type', \App\Models\QuotaHistory::TYPE_ACTUAL_DECREASE)
-            ->select(
-                DB::raw("COALESCE(NULLIF(meta->>'po_no',''), '') as po_no"),
-                DB::raw('SUM(ABS(quantity_change)) as qty')
-            )
-            ->groupBy(DB::raw("COALESCE(NULLIF(meta->>'po_no',''), '')"))
-            ->pluck('qty', 'po_no');
-
-        // Carry-over flag: PO using more than one quota
-        $poIds = $poAllocs->pluck('po_id')->all();
-        $carryMap = empty($poIds)
-            ? collect()
-            : DB::table('purchase_order_quota')
-                ->select('purchase_order_id', DB::raw('COUNT(DISTINCT quota_id) as c'))
-                ->whereIn('purchase_order_id', $poIds)
-                ->groupBy('purchase_order_id')
-                ->pluck('c', 'purchase_order_id');
-
-        $poStats = $poAllocs->map(function ($row) use ($actualByPo, $carryMap) {
-            $allocated = (float) ($row->allocated_qty ?? 0);
-            $actual = (float) ($actualByPo[$row->po_number] ?? 0);
-            // Clamp actual to allocated for per-quota-per-PO view
-            $actual = min($allocated, $actual);
-            $inTransit = max($allocated - $actual, 0.0);
-            $carryOver = (int) ($carryMap[$row->po_id] ?? 1) > 1;
-            return (object) [
-                'po_number' => $row->po_number,
-                'order_date' => $row->order_date,
-                'vendor_name' => $row->vendor_name,
-                'allocated' => $allocated,
-                'actual' => $actual,
-                'in_transit' => $inTransit,
-                'carry_over' => $carryOver,
-            ];
-        })->sortByDesc('order_date')->values();
-
-        return view('admin.kuota.show', compact('quota', 'availableProducts', 'poStats'));
-    }
-
     public function edit(Quota $quota): View
     {
         return view('admin.kuota.form', compact('quota'));
@@ -177,63 +106,6 @@ class QuotaController extends Controller
         return redirect()
             ->route('admin.quotas.index')
             ->with('status', 'Kuota berhasil dihapus');
-    }
-
-    public function attachProduct(Request $request, Quota $quota): RedirectResponse
-    {
-        $data = $request->validate([
-            'product_id' => ['required', Rule::exists('products', 'id')],
-            'priority' => ['required', 'integer', 'min:1'],
-            'is_primary' => ['nullable', 'boolean'],
-            'notes' => ['nullable', 'string'],
-        ]);
-
-        $product = Product::findOrFail($data['product_id']);
-
-        if (!$quota->matchesProduct($product)) {
-            return back()->withErrors([
-                'product_id' => 'Produk tidak sesuai dengan rentang kuota.',
-            ]);
-        }
-
-        DB::transaction(function () use ($request, $quota, $product, $data) {
-            $mapping = ProductQuotaMapping::firstOrNew([
-                'quota_id' => $quota->id,
-                'product_id' => $product->id,
-            ]);
-
-            $mapping->priority = $data['priority'];
-            $mapping->notes = $data['notes'] ?? null;
-            $mapping->is_primary = $request->boolean('is_primary', $mapping->is_primary);
-            $mapping->save();
-
-            if ($mapping->is_primary) {
-                ProductQuotaMapping::where('product_id', $product->id)
-                    ->where('id', '!=', $mapping->id)
-                    ->update(['is_primary' => false]);
-            } else {
-                $hasPrimary = ProductQuotaMapping::where('product_id', $product->id)
-                    ->where('id', '!=', $mapping->id)
-                    ->where('is_primary', true)
-                    ->exists();
-
-                if (!$hasPrimary) {
-                    $mapping->is_primary = true;
-                    $mapping->save();
-                }
-            }
-        });
-
-        return back()->with('status', 'Mapping produk berhasil disimpan');
-    }
-
-    public function detachProduct(Quota $quota, Product $product): RedirectResponse
-    {
-        ProductQuotaMapping::where('quota_id', $quota->id)
-            ->where('product_id', $product->id)
-            ->delete();
-
-        return back()->with('status', 'Mapping produk berhasil dihapus');
     }
 
     /**

@@ -14,9 +14,6 @@
     $periodStart = optional($q->period_start)->format('M Y') ?? '-';
     $periodEnd = optional($q->period_end)->format('M Y') ?? '-';
     $category = $q->government_category ?? $q->quota_number ?? 'Quota';
-    $detailUrl = \Illuminate\Support\Facades\Route::has('admin.quotas.show')
-        ? route('admin.quotas.show', $q)
-        : null;
 @endphp
 <div class="kpi-card">
     <div class="kpi-card__header">
@@ -24,9 +21,6 @@
             <div class="kpi-card__title">{{ $category }}</div>
             <div class="kpi-card__period">Periode: {{ $periodStart }} - {{ $periodEnd }}</div>
         </div>
-        @if($detailUrl)
-            <a href="{{ $detailUrl }}" class="kpi-card__action">Detail</a>
-        @endif
     </div>
     <div class="kpi-card__progress" aria-hidden="true">
         <div class="kpi-card__progress-fill {{ $progressClass }}" style="width: {{ $pctDisplay }}%"></div>

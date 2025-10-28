@@ -266,7 +266,7 @@
         </div>
         <div>
             <div class="info-banner__title">Informasi Kuota</div>
-            <div>Daftar kuota impor berikut akan diperbarui otomatis mengikuti realtime pemakaian. Gunakan tombol aksi untuk melihat detail, memperbarui, atau menghapus data kuota.</div>
+            <div>Daftar kuota impor berikut akan diperbarui otomatis mengikuti realtime pemakaian. Gunakan tombol aksi untuk memperbarui atau menghapus data kuota.</div>
         </div>
     </div>
 
@@ -355,9 +355,6 @@
                         </td>
                         <td class="text-end">
                             <div class="table-actions">
-                                <a href="{{ route('admin.quotas.show', $quota) }}" class="action-icon action-icon--view" title="Detail">
-                                    <i class="fas fa-eye"></i>
-                                </a>
                                 @can('update quota')
                                     <a href="{{ route('admin.quotas.edit', $quota) }}" class="action-icon action-icon--edit" title="Edit">
                                         <i class="fas fa-edit"></i>
@@ -377,7 +374,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="text-center text-muted">Belum ada data kuota.</td>
+                        <td colspan="11" class="text-center text-muted">Belum ada data kuota.</td>
                     </tr>
                 @endforelse
             </tbody>
