@@ -42,12 +42,23 @@ class OpenPoReader
         }
 
         $rows = [];
+        $allow = [
+            'PO_DOC' => true,
+            'CREATED_DATE' => true,
+            'LINE_NO' => true,
+            'ITEM_CODE' => true,
+            'ITEM_DESC' => true,
+            'QTY' => true,
+            'CURRENCY' => true,
+            // keep HS_CODE if provided explicitly in PO (optional override)
+            'HS_CODE' => true,
+        ];
         for ($row = 2; $row <= $highestRow; $row++) {
             $assoc = ['ROW' => $row];
             $allEmpty = true;
             for ($col = 1; $col <= $highestColIndex; $col++) {
                 $h = $headers[$col] ?? null;
-                if (!$h) { continue; }
+                if (!$h || !isset($allow[$h])) { continue; }
                 $val = $sheet->getCell([$col, $row])->getFormattedValue();
                 if ($val !== null && $val !== '') { $allEmpty = false; }
                 $assoc[$h] = $val;
@@ -56,38 +67,8 @@ class OpenPoReader
             $rows[] = $assoc;
         }
 
-        // Optional: read mapping sheet "mapping hs code by model" (ignore for CSV)
+        // Do not read any extra mapping sheets; rely solely on master Model→HS.
         $map = [];
-        $mapSheet = $spreadsheet->getSheetByName('mapping hs code by model');
-        if (!$mapSheet) {
-            foreach ($spreadsheet->getWorksheetIterator() as $ws) {
-                if (strcasecmp($ws->getTitle(), 'mapping hs code by model') === 0) { $mapSheet = $ws; break; }
-            }
-        }
-        if ($mapSheet) {
-            $maxRow = (int) $mapSheet->getHighestRow();
-            $maxCol = (int) Coordinate::columnIndexFromString($mapSheet->getHighestColumn());
-            $hdrs = [];
-            for ($c=1;$c<=$maxCol;$c++) {
-                $val = (string) $mapSheet->getCell([$c,1])->getValue();
-                $key = strtoupper(trim(preg_replace('/\s+/', '_', str_replace(['-',' '], '_', $val))));
-                if ($key !== '') { $hdrs[$c] = $key; }
-            }
-            $colModel = null; $colHs = null;
-            foreach ($hdrs as $c=>$h) {
-                if ($h === 'MODEL') { $colModel = $c; }
-                if ($h === 'HS_CODE') { $colHs = $c; }
-            }
-            if ($colModel && $colHs) {
-                for ($r=2;$r<=$maxRow;$r++) {
-                    $m = trim((string)$mapSheet->getCell([$colModel,$r])->getFormattedValue());
-                    $h = trim((string)$mapSheet->getCell([$colHs,$r])->getFormattedValue());
-                    if ($m === '' || $h === '') { continue; }
-                    $map[strtoupper($m)] = $h;
-                }
-            }
-        }
-
         return ['rows' => $rows, 'model_map' => $map];
     }
 }

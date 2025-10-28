@@ -113,14 +113,8 @@ class OpenPoImportController extends Controller
                         ]
                     );
 
-                    // Persist mapping from mapping sheet into products.hs_code first (ensures fallback available)
-                    foreach (($modelMap ?? []) as $model => $hs) {
-                        if (!$model || !$hs) { continue; }
-                        DB::table('products')
-                            ->where('sap_model', $model)
-                            ->orWhere('code', $model)
-                            ->update(['hs_code' => $hs, 'updated_at' => now()]);
-                    }
+                    // Tidak menulis ke master produk dari sheet mapping PO.
+                    // Mapping di sheet hanya dipakai saat resolve HS untuk line bila dibutuhkan.
 
                     // Prefetch product->hs map for models in this PO
                     $models = collect($payload['lines'])->pluck('model_code')->filter()->map(fn($m)=> (string)$m)->unique()->values()->all();

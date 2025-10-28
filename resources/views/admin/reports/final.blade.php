@@ -220,14 +220,19 @@
                 </a>
             </div>
         </div>
+        @php
+          $currentYear = (int) now()->year;
+          $selectedYear = (int) ($filters['year'] ?? $currentYear);
+          $years = range($currentYear - 5, $currentYear + 5);
+        @endphp
         <form method="GET" action="{{ route('admin.reports.final') }}" class="report-filters">
             <div class="report-filters__group">
-                <label for="start_date" class="report-filters__label">Start Date</label>
-                <input type="date" id="start_date" name="start_date" value="{{ $filters['start_date'] ?? '' }}" class="report-filters__input">
-            </div>
-            <div class="report-filters__group">
-                <label for="end_date" class="report-filters__label">End Date</label>
-                <input type="date" id="end_date" name="end_date" value="{{ $filters['end_date'] ?? '' }}" class="report-filters__input">
+                <label for="year" class="report-filters__label">Tahun</label>
+                <select id="year" name="year" class="report-filters__input">
+                    @foreach($years as $y)
+                        <option value="{{ $y }}" {{ $y === $selectedYear ? 'selected' : '' }}>{{ $y }}</option>
+                    @endforeach
+                </select>
             </div>
             <div class="report-filters__actions">
                 <button type="submit" class="btn btn-primary">

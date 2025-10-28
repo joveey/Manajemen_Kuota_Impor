@@ -16,14 +16,21 @@ class AnalyticsController extends Controller
     {
         $start = $request->query('start_date');
         $end = $request->query('end_date');
+        $year = (int) ($request->query('year', 0));
         $mode = $this->resolveMode($request->query('mode'));
 
-        $startDate = $start ? Carbon::parse($start)->toDateString() : now()->startOfMonth()->toDateString();
-        $endDate = $end ? Carbon::parse($end)->toDateString() : now()->toDateString();
+        if ($year > 0) {
+            $startDate = Carbon::create($year, 1, 1)->toDateString();
+            $endDate = Carbon::create($year, 12, 31)->toDateString();
+        } else {
+            $startDate = $start ? Carbon::parse($start)->toDateString() : now()->startOfMonth()->toDateString();
+            $endDate = $end ? Carbon::parse($end)->toDateString() : now()->toDateString();
+        }
 
         return view('analytics.index', [
             'start_date' => $startDate,
             'end_date' => $endDate,
+            'year' => $year > 0 ? $year : (int) now()->year,
             'mode' => $mode,
         ]);
     }
@@ -240,10 +247,11 @@ class AnalyticsController extends Controller
                 'total_allocation' => $totalAllocation,
                 'total_usage' => $totalUsage,
                 'total_remaining' => $totalRemaining,
-                'total_forecast_consumed' => (float) min($totalAllocation, $totalForecast),
+                // Use row values (with fallback) when mode=forecast so UI reflects current forecast even if pivot empty
+                'total_forecast_consumed' => (float) ($mode === 'forecast' ? array_sum($seriesPrimary) : min($totalAllocation, $totalForecast)),
                 'total_actual_consumed' => (float) min($totalAllocation, $totalActual),
-                'total_in_transit' => (float) max(min($totalAllocation, $totalForecast) - min($totalAllocation, $totalActual), 0.0),
-                'total_forecast_remaining' => (float) max($totalAllocation - min($totalAllocation, $totalForecast), 0.0),
+                'total_in_transit' => (float) max(((float) ($mode === 'forecast' ? array_sum($seriesPrimary) : min($totalAllocation, $totalForecast))) - min($totalAllocation, $totalActual), 0.0),
+                'total_forecast_remaining' => (float) ($mode === 'forecast' ? max($totalAllocation - array_sum($seriesPrimary), 0.0) : max($totalAllocation - min($totalAllocation, $totalForecast), 0.0)),
                 'total_actual_remaining' => (float) max($totalAllocation - min($totalAllocation, $totalActual), 0.0),
                 'usage_label' => $primaryLabel,
                 'secondary_label' => $secondaryLabel,
@@ -320,7 +328,10 @@ class AnalyticsController extends Controller
 
         return $quotas->map(function (Quota $quota) use ($alloc) {
             $allocation = (float) ($quota->total_allocation ?? 0);
-            $forecast = min($allocation, (float) ($alloc[$quota->id] ?? 0));
+            // Fallback to current remaining if pivot is empty (keeps Analytics usable even if pivot not populated yet)
+            $pivotVal = (float) ($alloc[$quota->id] ?? 0);
+            $fallback = max($allocation - (float) ($quota->forecast_remaining ?? 0), 0.0);
+            $forecast = min($allocation, $pivotVal > 0 ? $pivotVal : $fallback);
             $remaining = max($allocation - $forecast, 0.0);
             $pct = $allocation > 0 ? round(($forecast / $allocation) * 100, 2) : 0.0;
 
@@ -359,6 +370,15 @@ class AnalyticsController extends Controller
      */
     private function resolveRange(Request $request): array
     {
+        // Prefer single-year filter when provided
+        $year = $request->query('year');
+        if (!empty($year) && ctype_digit((string)$year)) {
+            $y = (int) $year;
+            $start = Carbon::create($y, 1, 1)->startOfDay();
+            $end = Carbon::create($y, 12, 31)->endOfDay();
+            return [$start, $end];
+        }
+
         $startDate = $request->query('start_date');
         $endDate = $request->query('end_date');
 

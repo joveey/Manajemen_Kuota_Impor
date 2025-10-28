@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\Quota;
 use App\Services\HsCodeResolver;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 
@@ -53,8 +54,10 @@ class MappingController extends Controller
 
         // Build unmapped list in-memory
         $items = [];
-        foreach (Product::query()->get(['id','code','name','sap_model','pk_capacity']) as $product) {
-            $hs = $product->hs_code ?? null; // property may not exist; treated as null
+        $cols = ['id','code','name','sap_model','pk_capacity'];
+        if (Schema::hasColumn('products', 'hs_code')) { $cols[] = 'hs_code'; }
+        foreach (Product::query()->get($cols) as $product) {
+            $hs = $product->getAttribute('hs_code');
             if ($hs === null || $hs === '') {
                 $reason = 'missing_hs';
                 if (!$reasonFilter || $reasonFilter === $reason) {

@@ -52,18 +52,21 @@ class DashboardController extends Controller
         // Derived per-quota KPI (quota_id-based, clamped to allocation)
         $quotaCards = collect();
         try {
-            // Show latest/active quotas for quick glance
+            // Use single-year window (align with Analytics logic)
+            $year = (int) request()->query('year', (int) now()->year);
+            $start = \Carbon\Carbon::create($year, 1, 1)->toDateString();
+            $end   = \Carbon\Carbon::create($year, 12, 31)->toDateString();
+
+            // Select quotas overlapping the chosen year
             $quotas = \App\Models\Quota::query()
-                ->where(function($q){
-                    $today = now()->toDateString();
-                    $q->whereNull('period_start')->orWhere('period_start','<=',$today);
+                ->where(function($q) use ($start, $end) {
+                    $q->whereNull('period_start')
+                      ->orWhereNull('period_end')
+                      ->orWhere(function($qq) use ($start, $end){
+                          $qq->where('period_start','<=',$end)->where('period_end','>=',$start);
+                      });
                 })
-                ->where(function($q){
-                    $today = now()->toDateString();
-                    $q->whereNull('period_end')->orWhere('period_end','>=',$today);
-                })
-                ->orderByDesc('period_start')
-                ->limit(6)
+                ->orderBy('quota_number')
                 ->get();
 
             $ids = $quotas->pluck('id')->all();
@@ -76,17 +79,23 @@ class DashboardController extends Controller
                 ->select('quota_id', \DB::raw('SUM(ABS(quantity_change)) as qty'))
                 ->where('change_type', \App\Models\QuotaHistory::TYPE_ACTUAL_DECREASE)
                 ->whereIn('quota_id', $ids)
+                ->whereBetween('occurred_on', [$start, $end])
                 ->groupBy('quota_id')
                 ->pluck('qty', 'quota_id');
 
             foreach ($quotas as $q) {
                 $alloc = (float) ($q->total_allocation ?? 0);
-                $fc = min($alloc, (float) ($forecastByQuota[$q->id] ?? 0));
+                // Forecast fallback: use allocation - forecast_remaining when pivot empty
+                $pivotFc = (float) ($forecastByQuota[$q->id] ?? 0);
+                $fallbackFc = max($alloc - (float) ($q->forecast_remaining ?? 0), 0.0);
+                $fc = min($alloc, $pivotFc > 0 ? $pivotFc : $fallbackFc);
                 $ac = min($alloc, (float) ($actualByQuota[$q->id] ?? 0));
                 $q->setAttribute('forecast_consumed', $fc);
                 $q->setAttribute('actual_consumed', $ac);
                 $q->setAttribute('forecast_remaining', max($alloc - $fc, 0));
                 $q->setAttribute('actual_remaining', max($alloc - $ac, 0));
+                $q->setAttribute('in_transit', max($fc - $ac, 0));
+                $q->setAttribute('year', $year);
             }
 
             $quotaCards = $quotas;

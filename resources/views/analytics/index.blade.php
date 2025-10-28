@@ -39,15 +39,20 @@
     </div>
 
     <section class="analytics-card analytics-card--filters">
+        @php
+            $currentYear = (int) now()->year;
+            $selectedYear = (int) ($year ?? $currentYear);
+            $years = range($currentYear - 5, $currentYear + 5);
+        @endphp
         <form method="GET" action="{{ route('analytics.index') }}" class="analytics-filters">
             <input type="hidden" name="mode" value="{{ $mode }}">
             <div class="analytics-filters__group">
-                <label for="start_date" class="analytics-filters__label">Start Date</label>
-                <input type="date" id="start_date" name="start_date" value="{{ $start_date }}" class="analytics-filters__input">
-            </div>
-            <div class="analytics-filters__group">
-                <label for="end_date" class="analytics-filters__label">End Date</label>
-                <input type="date" id="end_date" name="end_date" value="{{ $end_date }}" class="analytics-filters__input">
+                <label for="year" class="analytics-filters__label">Tahun</label>
+                <select id="year" name="year" class="analytics-filters__input">
+                    @foreach($years as $y)
+                        <option value="{{ $y }}" {{ $y === $selectedYear ? 'selected' : '' }}>{{ $y }}</option>
+                    @endforeach
+                </select>
             </div>
             <button type="submit" class="analytics-filters__submit">
                 <i class="fas fa-filter me-2"></i>Terapkan

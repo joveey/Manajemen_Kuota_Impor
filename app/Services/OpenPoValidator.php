@@ -61,12 +61,16 @@ class OpenPoValidator
             $errors = [];
 
             if ($po === '') { $errors[] = 'Kolom PO_DOC kosong'; }
-            if ($supplier === '') { $errors[] = 'Kolom VENDOR_NAME kosong'; }
             if ($model === '') { $errors[] = 'Kolom ITEM_CODE kosong'; }
 
             // date parse
             $poDateNorm = null; $etaNorm = null;
-            try { $poDateNorm = Carbon::parse($poDate)->toDateString(); } catch (\Throwable $e) { $errors[] = 'CREATED_DATE tidak valid (gunakan YYYY-MM-DD)'; }
+            if ($poDate !== '') {
+                try { $poDateNorm = Carbon::parse($poDate)->toDateString(); } catch (\Throwable $e) { $errors[] = 'CREATED_DATE tidak valid (gunakan YYYY-MM-DD)'; }
+            } else {
+                // tolerate missing date; leave null
+                $poDateNorm = null;
+            }
             if ($eta !== '') {
                 try { $etaNorm = Carbon::parse($eta)->toDateString(); } catch (\Throwable $e) { $errors[] = 'ETA_DATE tidak valid (gunakan YYYY-MM-DD)'; }
             }
