@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\MappingPageController;
 use App\Http\Controllers\Admin\OpenPoImportController;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Admin\ProductQuickController;
+use App\Http\Controllers\Admin\HsPkManualController;
 
 /*
 |--------------------------------------------------------------------------
@@ -168,6 +169,10 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('imports/hs-pk/upload', [HsPkImportPageController::class, 'uploadForm'])->name('imports.hs_pk.upload.form');
         Route::get('imports/hs-pk/{import}', [HsPkImportPageController::class, 'preview'])->name('imports.hs_pk.preview');
         Route::post('imports/hs-pk/{import}/publish', [HsPkImportPageController::class, 'publishForm'])->name('imports.hs_pk.publish.form');
+
+        // Manual HS → PK (create + list)
+        Route::get('hs-pk/manual', [HsPkManualController::class, 'index'])->name('hs_pk.manual.index');
+        Route::post('hs-pk/manual', [HsPkManualController::class, 'store'])->name('hs_pk.manual.store');
 
         Route::get('imports/quotas', [QuotaImportPageController::class, 'index'])->name('imports.quotas.index');
         Route::post('imports/quotas/upload', [QuotaImportPageController::class, 'uploadForm'])->name('imports.quotas.upload.form');

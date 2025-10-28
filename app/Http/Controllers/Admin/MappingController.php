@@ -72,7 +72,7 @@ class MappingController extends Controller
                 continue;
             }
 
-            $pk = $resolver->resolveForProduct($product);
+            $pk = $resolver->resolveForProduct($product, $periodKey);
             if ($pk === null) {
                 $reason = 'missing_pk';
                 if (!$reasonFilter || $reasonFilter === $reason) {

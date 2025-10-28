@@ -507,6 +507,7 @@ class ImportController extends Controller
     {
         $data = $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv'],
+            'period_key' => ['nullable', 'regex:/^\d{4}$/'],
         ]);
 
         if (!class_exists(\PhpOffice\PhpSpreadsheet\IOFactory::class)) {
@@ -523,7 +524,7 @@ class ImportController extends Controller
 
         $import = Import::create([
             'type' => Import::TYPE_HS_PK,
-            'period_key' => '',
+            'period_key' => (string) ($data['period_key'] ?? ''),
             'source_filename' => $original,
             'stored_path' => $storedPath,
             'status' => Import::STATUS_VALIDATING,
@@ -1125,22 +1126,34 @@ class ImportController extends Controller
                     if (empty($incoming)) { return; }
 
                     if ($updateExisting) {
-                        // Upsert: update pk_capacity for existing codes
+                        // Upsert: update pk_capacity, schema-aware (with/without period_key)
                         $rowsUpsert = [];
+                        $period = (string) ($import->period_key ?? '');
+                        $hasPeriodCol = DB::getSchemaBuilder()->hasColumn('hs_code_pk_mappings','period_key');
                         foreach ($incoming as $code => $anchor) {
-                            $rowsUpsert[] = [
+                            $row = [
                                 'hs_code' => $code,
                                 'pk_capacity' => $anchor,
                                 'created_at' => $now,
                                 'updated_at' => $now,
                             ];
+                            if ($hasPeriodCol) { $row['period_key'] = $period; }
+                            $rowsUpsert[] = $row;
                         }
-                        DB::table('hs_code_pk_mappings')->upsert($rowsUpsert, ['hs_code'], ['pk_capacity', 'updated_at']);
+                        if ($hasPeriodCol) {
+                            DB::table('hs_code_pk_mappings')->upsert($rowsUpsert, ['hs_code','period_key'], ['pk_capacity', 'updated_at']);
+                        } else {
+                            DB::table('hs_code_pk_mappings')->upsert($rowsUpsert, ['hs_code'], ['pk_capacity', 'updated_at']);
+                        }
                         $applied += count($rowsUpsert);
                     } else {
                         // Insert only; skip duplicates
                         $codes = array_keys($incoming);
-                        $existing = DB::table('hs_code_pk_mappings')->whereIn('hs_code', $codes)->pluck('hs_code')->all();
+                        $period = (string) ($import->period_key ?? '');
+                        $hasPeriodCol = DB::getSchemaBuilder()->hasColumn('hs_code_pk_mappings','period_key');
+                        $existingQuery = DB::table('hs_code_pk_mappings')->whereIn('hs_code', $codes);
+                        if ($hasPeriodCol) { $existingQuery->where('period_key', $period); }
+                        $existing = $existingQuery->pluck('hs_code')->all();
                         $existSet = array_flip(array_map('strval', $existing));
 
                         $toInsert = [];
@@ -1150,12 +1163,14 @@ class ImportController extends Controller
                                 $duplicatesList[$code] = true;
                                 continue;
                             }
-                            $toInsert[] = [
+                            $row = [
                                 'hs_code' => $code,
                                 'pk_capacity' => $anchor,
                                 'created_at' => $now,
                                 'updated_at' => $now,
                             ];
+                            if ($hasPeriodCol) { $row['period_key'] = $period; }
+                            $toInsert[] = $row;
                         }
 
                         if (!empty($toInsert)) {
