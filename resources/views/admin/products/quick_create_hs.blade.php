@@ -173,6 +173,26 @@
                 </div>
             </form>
         </div>
+
+        @if(\Illuminate\Support\Facades\Route::has('admin.mapping.model_hs.upload'))
+        <div class="form-card mt-4">
+            <div class="form-card__title">Upload File (Excel/CSV)</div>
+            <div class="quick-hint mb-3">
+                <strong>Format:</strong> kolom <code>MODEL</code>, <code>HS_CODE</code>. HS wajib sudah ada pada HS→PK (punya PK). Baris yang konflik tidak akan di‑overwrite.
+            </div>
+            <form method="POST" action="{{ route('admin.mapping.model_hs.upload') }}" enctype="multipart/form-data" class="row g-3">
+                @csrf
+                <div class="col-md-8">
+                    <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
+                    <div class="invalid-feedback">File wajib (.xlsx/.xls/.csv)</div>
+                </div>
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-eye me-1"></i> Upload & Preview</button>
+                    <a href="{{ route('admin.mapping.model_hs.index') }}" class="btn btn-outline-secondary">Halaman Import</a>
+                </div>
+            </form>
+        </div>
+        @endif
     @endif
 </div>
 @endsection

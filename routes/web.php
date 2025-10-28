@@ -207,6 +207,11 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('mapping/unmapped', [MappingController::class, 'unmapped'])->name('mapping.unmapped');
         Route::get('mapping/unmapped/view', [MappingPageController::class, 'unmapped'])->name('mapping.unmapped.page');
         Route::get('mapping/mapped', [MappingPageController::class, 'mapped'])->name('mapping.mapped.page');
+        // Batch Import: Model -> HS (Excel/CSV)
+        Route::get('mapping/model-hs', [\App\Http\Controllers\Admin\ModelHsImportController::class, 'index'])->name('mapping.model_hs.index');
+        Route::post('mapping/model-hs/upload', [\App\Http\Controllers\Admin\ModelHsImportController::class, 'upload'])->name('mapping.model_hs.upload');
+        Route::get('mapping/model-hs/preview', [\App\Http\Controllers\Admin\ModelHsImportController::class, 'preview'])->name('mapping.model_hs.preview');
+        Route::post('mapping/model-hs/publish', [\App\Http\Controllers\Admin\ModelHsImportController::class, 'publish'])->name('mapping.model_hs.publish');
     });
 
 
