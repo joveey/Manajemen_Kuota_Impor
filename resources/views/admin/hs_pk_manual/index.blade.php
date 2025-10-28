@@ -45,12 +45,13 @@
               @csrf
               <div class="col-12">
                 <label for="hs_code" class="form-label">HS Code</label>
-                <input type="text" class="form-control" id="hs_code" name="hs_code" placeholder="(contoh : 123.1242.0)" value="{{ old('hs_code') }}">
+                <input type="text" class="form-control" id="hs_code" name="hs_code" placeholder="contoh: 123.1234.01" value="{{ old('hs_code') }}">
                 <small class="text-muted">Isikan ACC untuk Accsesories</small>
               </div>
               <div class="col-6">
-                <label for="pk_capacity" class="form-label">PK</label>
-                <input type="number" step="0.01" min="0" class="form-control" id="pk_capacity" name="pk_capacity" placeholder="mis. 8.5" required value="{{ old('pk_capacity') }}">
+                <label for="pk_value" class="form-label">PK/Range</label>
+                <input type="text" class="form-control" id="pk_value" name="pk_value" placeholder="contoh: 8-10, <8, >10, atau 8" required value="{{ old('pk_value') }}">
+                <small class="text-muted">Gunakan simbol <, >, tanda hubung (-), atau angka tunggal.</small>
               </div>
               <div class="col-6">
                 <label for="period_key" class="form-label">Periode</label>
@@ -112,4 +113,3 @@
   </div>
 </div>
 @endsection
-
