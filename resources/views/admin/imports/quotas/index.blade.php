@@ -9,198 +9,249 @@
     <li class="breadcrumb-item active">Import Kuota</li>
 @endsection
 
-@push('scripts')
-<script>
-(function(){
-  const form = document.getElementById('quota-upload-form');
-  const period = document.getElementById('period_key');
-  const periodHelp = document.getElementById('period_key_help');
-  const file = document.getElementById('file');
-  const fileHelp = document.getElementById('file_help');
-  const backendDismiss = document.getElementById('dismiss-backend-error');
-
-  backendDismiss?.addEventListener('click', function(){
-    period?.focus();
-  });
-
-  function validate() {
-    let ok = true;
-    period.classList.remove('is-invalid');
-    file.classList.remove('is-invalid');
-    periodHelp.textContent='';
-    fileHelp.textContent='';
-
-    const periodVal = (period.value||'').trim();
-    const re = /^\d{4}(-\d{2}(-\d{2})?)?$/;
-    if (!re.test(periodVal)) {
-      period.classList.add('is-invalid');
-      periodHelp.textContent = 'Gunakan format YYYY, YYYY-MM, atau YYYY-MM-DD.';
-      ok = false;
-    }
-    if (!file.files || file.files.length === 0) {
-      file.classList.add('is-invalid');
-      fileHelp.textContent = 'File wajib diunggah (.xlsx, .xls, atau .csv).';
-      ok = false;
-    } else {
-      const name = file.files[0].name.toLowerCase();
-      if (!name.endsWith('.xlsx') && !name.endsWith('.xls') && !name.endsWith('.csv')) {
-        file.classList.add('is-invalid');
-        fileHelp.textContent = 'Tipe file harus .xlsx, .xls, atau .csv.';
-        ok = false;
-      }
-    }
-    return ok;
-  }
-
-  form?.addEventListener('submit', function(e){
-    if (!validate()) {
-      e.preventDefault();
-      e.stopPropagation();
-      period.focus();
-    }
-  });
-
-  // Download Contoh (CSV) + modal-less
-  document.getElementById('btn-template-quota')?.addEventListener('click', function(){
-    const csv = [
-      'LETTER_NO,CATEGORY_LABEL,ALLOCATION,PERIOD_START,PERIOD_END',
-      'S-001,8-10,1200,2025-01-01,2025-12-31',
-      'S-002,<8,500,2025-01-01,2025-06-30',
-      'S-003,>10,750,2025-07-01,2025-12-31'
-    ].join('\n');
-    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'contoh_quota.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
-})();
-</script>
-@endpush
-
 @section('content')
+@php
+    $hsSeedOptions = $hsSeedOptions ?? [];
+    $selectedHsOption = $selectedHsOption ?? null;
+    $manualPreview = $manualPreview ?? [];
+    $manualSummary = $manualSummary ?? ['count' => 0, 'total_quantity' => 0];
+    $selectedHsCode = old('hs_code', $selectedHsOption['id'] ?? null);
+@endphp
+
 <div class="page-shell">
     <div class="page-header">
         <div>
-            <h1 class="page-header__title">Import Kuota</h1>
-            <p class="page-header__subtitle">Unggah referensi kuota terbaru dan tinjau riwayat impor periode sebelumnya.</p>
+            <h1 class="page-header__title">Input Kuota (Manual)</h1>
+            <p class="page-header__subtitle">
+                Masukkan kuota per HS secara manual, tinjau di panel preview, kemudian publish ke master kuota.
+            </p>
         </div>
     </div>
 
     <div class="container-fluid px-0">
+        @if ($errors->any())
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <ul class="mb-0">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
+        @if (session('status'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                {{ session('status') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
+
         <div class="row gy-3">
-            <div class="col-md-6">
+            <div class="col-xl-5 col-lg-6">
                 <div class="card shadow-sm">
-                    <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-                        <span>Upload Kuota</span>
-                        <div>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-template-quota">Download Contoh</button>
-                        </div>
-                    </div>
+                    <div class="card-header fw-semibold">Input Manual Kuota</div>
                     <div class="card-body">
-                        @if ($errors->any())
-                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                <ul class="mb-0">
-                                    @foreach ($errors->all() as $error)
-                                        <li>{{ $error }}</li>
-                                    @endforeach
-                                </ul>
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" id="dismiss-backend-error"></button>
-                            </div>
-                        @endif
-
-                        @if (session('status'))
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                {{ session('status') }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        @endif
-
-                        <form action="{{ route('admin.imports.quotas.upload.form') }}" method="POST" enctype="multipart/form-data" id="quota-upload-form" novalidate>
+                        <form method="POST" action="{{ route('admin.imports.quotas.manual.add') }}" class="row g-3">
                             @csrf
-                            <div class="mb-3">
-                                <label class="form-label" for="period_key">Periode</label>
-                                <input type="text" name="period_key" id="period_key" class="form-control" placeholder="YYYY atau YYYY-MM" value="{{ old('period_key') }}" required pattern="^\d{4}(-\d{2}(-\d{2})?)?$">
-                                <div class="invalid-feedback" id="period_key_help" aria-live="polite"></div>
+                            <div class="col-12">
+                                <label for="manual-hs" class="form-label">HS</label>
+                                <select
+                                    id="manual-hs"
+                                    name="hs_code"
+                                    class="form-select @error('hs_code') is-invalid @enderror"
+                                    required
+                                >
+                                    <option value="" disabled {{ $selectedHsCode ? '' : 'selected' }} hidden>Pilih HS</option>
+                                    @foreach($hsSeedOptions as $option)
+                                        <option value="{{ $option['id'] }}"
+                                            data-desc="{{ $option['desc'] }}"
+                                            @selected($selectedHsCode === $option['id'])>{{ $option['text'] }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="form-text">Daftar HS mengikuti master HS → PK.</div>
+                                @error('hs_code')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label" for="file">File Excel/CSV (untuk Excel: sheet "Quota master")</label>
-                                <input type="file" name="file" id="file" class="form-control" accept=".xlsx,.xls,.csv" required>
-                                <div class="invalid-feedback" id="file_help" aria-live="polite"></div>
+
+                            <div class="col-12">
+                                <label class="form-label">PK / Deskripsi</label>
+                                <input type="text" id="manual-hs-desc" class="form-control" value="{{ $selectedHsCode ? ($selectedHsOption['desc'] ?? '') : '' }}" readonly>
+                                <div class="form-text">Ditampilkan otomatis untuk memastikan HS yang dipilih benar.</div>
                             </div>
-                            <button class="btn btn-primary" type="submit">
-                                <i class="fas fa-upload me-2"></i>Upload
-                            </button>
+
+                            <div class="col-md-6">
+                                <label for="manual-letter" class="form-label">Letter No (opsional)</label>
+                                <input type="text" id="manual-letter" name="letter_no" value="{{ old('letter_no') }}" class="form-control @error('letter_no') is-invalid @enderror" maxlength="100">
+                                @error('letter_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="manual-quantity" class="form-label">Quantity (Allocation)</label>
+                                <input type="number" step="0.01" min="0" id="manual-quantity" name="quantity" value="{{ old('quantity') }}" class="form-control @error('quantity') is-invalid @enderror" required>
+                                @error('quantity')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="period-start" class="form-label">Periode Mulai</label>
+                                <input type="text" id="period-start" name="period_start" value="{{ old('period_start') }}" class="form-control manual-date @error('period_start') is-invalid @enderror" placeholder="YYYY-MM-DD" required>
+                                @error('period_start')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="period-end" class="form-label">Periode Selesai</label>
+                                <input type="text" id="period-end" name="period_end" value="{{ old('period_end') }}" class="form-control manual-date @error('period_end') is-invalid @enderror" placeholder="YYYY-MM-DD" required>
+                                @error('period_end')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div class="col-12 d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-plus me-1"></i> Tambah ke Preview
+                                </button>
+                                <a href="{{ route('admin.imports.quotas.index') }}" class="btn btn-outline-secondary">
+                                    Reset Form
+                                </a>
+                            </div>
                         </form>
-
-                        <hr>
-                        <div class="accordion" id="quotaFormatAccordion">
-                            <div class="accordion-item">
-                                <h2 class="accordion-header" id="headingFormat">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFormat" aria-expanded="false" aria-controls="collapseFormat">
-                                        Format yang dibutuhkan
-                                    </button>
-                                </h2>
-                                <div id="collapseFormat" class="accordion-collapse collapse" aria-labelledby="headingFormat" data-bs-parent="#quotaFormatAccordion">
-                                    <div class="accordion-body">
-                                        <ul class="mb-2">
-                                            <li>Sheet harus bernama <code>Quota master</code>.</li>
-                                            <li>Header wajib: <code>LETTER_NO</code>, <code>CATEGORY_LABEL</code>, <code>ALLOCATION</code>. Opsional: <code>PERIOD_START</code>, <code>PERIOD_END</code>.</li>
-                                            <li><strong>CATEGORY_LABEL</strong>: gunakan salah satu pola <code>8-10</code>, <code>&lt;8</code>, <code>&gt;10</code>, atau angka tunggal. Teks <em>PK</em> diabaikan. Tidak mendukung simbol ≤, ≥, atau "s/d".</li>
-                                            <li><strong>ALLOCATION</strong> harus bilangan bulat &gt; 0 (pemisah ribuan boleh, desimal tidak).</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        
                     </div>
                 </div>
             </div>
 
-            <div class="col-md-6">
-                <div class="card shadow-sm">
-                    <div class="card-header fw-semibold">Riwayat Import Kuota</div>
+            <div class="col-xl-7 col-lg-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Preview Kuota Manual</span>
+                        <div class="d-flex gap-2 align-items-center">
+                            <span class="badge bg-secondary">Item: {{ $manualSummary['count'] }}</span>
+                            <span class="badge bg-info text-dark">Total Qty: {{ number_format($manualSummary['total_quantity'], 2) }}</span>
+                        </div>
+                    </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
                             <table class="table mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>ID</th>
+                                        <th>HS</th>
+                                        <th>PK / Desc</th>
+                                        <th>Letter No</th>
+                                        <th class="text-end">Quantity</th>
                                         <th>Periode</th>
-                                        <th>Status</th>
-                                        <th>Ringkasan</th>
-                                        <th>Dibuat</th>
-                                        <th></th>
+                                        <th class="text-center" style="width: 90px;">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @forelse($recent as $imp)
+                                    @forelse ($manualPreview as $item)
                                         <tr>
-                                            <td>#{{ $imp->id }}</td>
-                                            <td>{{ $imp->period_key }}</td>
-                                            <td>{{ ucfirst(str_replace('_',' ', $imp->status)) }}</td>
-                                            <td>{{ (int)($imp->valid_rows ?? 0) }} / {{ (int)($imp->total_rows ?? 0) }} (err {{ (int)($imp->error_rows ?? 0) }})</td>
-                                            <td>{{ optional($imp->created_at)->format('d M Y H:i') ?? '-' }}</td>
+                                            <td>{{ $item['hs_code'] ?? '-' }}</td>
+                                            <td>{{ $item['hs_desc'] ?? '-' }}</td>
+                                            <td>{{ $item['letter_no'] ?? '—' }}</td>
+                                            <td class="text-end">{{ number_format($item['quantity'] ?? 0, 2) }}</td>
                                             <td>
-                                                <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.imports.quotas.preview', $imp) }}">
-                                                    Preview
-                                                </a>
+                                                {{ $item['period_start'] ?? '-' }} —
+                                                {{ $item['period_end'] ?? '-' }}
+                                            </td>
+                                            <td class="text-center">
+                                                <form method="POST" action="{{ route('admin.imports.quotas.manual.remove') }}">
+                                                    @csrf
+                                                    <input type="hidden" name="id" value="{{ $item['id'] }}">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </form>
                                             </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="6" class="text-center text-muted py-4">Belum ada data import.</td>
+                                            <td colspan="6" class="text-center text-muted py-4">
+                                                Belum ada kuota di preview. Tambahkan dari form sebelah kiri.
+                                            </td>
                                         </tr>
                                     @endforelse
                                 </tbody>
                             </table>
                         </div>
                     </div>
+                    <div class="card-footer d-flex justify-content-between flex-wrap gap-2">
+                        <form method="POST" action="{{ route('admin.imports.quotas.manual.reset') }}">
+                            @csrf
+                            <button type="submit" class="btn btn-outline-secondary btn-sm" {{ empty($manualPreview) ? 'disabled' : '' }}>
+                                <i class="fas fa-rotate-left me-1"></i> Reset Preview
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ route('admin.imports.quotas.manual.publish') }}">
+                            @csrf
+                            <button type="submit" class="btn btn-primary btn-sm" {{ empty($manualPreview) ? 'disabled' : '' }}>
+                                <i class="fas fa-cloud-upload-alt me-1"></i> Publish
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-header fw-semibold">Riwayat Import Kuota (File)</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Periode</th>
+                                <th>Status</th>
+                                <th>Ringkasan</th>
+                                <th>Dibuat</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($recent as $imp)
+                                <tr>
+                                    <td>#{{ $imp->id }}</td>
+                                    <td>{{ $imp->period_key }}</td>
+                                    <td>{{ ucfirst(str_replace('_',' ', $imp->status)) }}</td>
+                                    <td>{{ (int)($imp->valid_rows ?? 0) }} / {{ (int)($imp->total_rows ?? 0) }} (err {{ (int)($imp->error_rows ?? 0) }})</td>
+                                    <td>{{ optional($imp->created_at)->format('d M Y H:i') ?? '-' }}</td>
+                                    <td>
+                                        <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.imports.quotas.preview', $imp) }}">
+                                            Preview
+                                        </a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">Belum ada data import.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    const hsSelect = document.getElementById('manual-hs');
+    const descInput = document.getElementById('manual-hs-desc');
+
+    if (typeof flatpickr !== 'undefined') {
+        flatpickr('.manual-date', {
+            dateFormat: 'Y-m-d',
+            allowInput: true
+        });
+    }
+
+    if (hsSelect && descInput) {
+        const updateDesc = () => {
+            const option = hsSelect.selectedOptions[0];
+            descInput.value = option ? (option.dataset.desc || '') : '';
+        };
+        hsSelect.addEventListener('change', updateDesc);
+        updateDesc();
+    }
+})();
+</script>
+@endpush
