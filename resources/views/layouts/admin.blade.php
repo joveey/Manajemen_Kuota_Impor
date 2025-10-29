@@ -779,6 +779,7 @@
                         request()->routeIs('admin.mapping.unmapped') ||
                         request()->routeIs('admin.mapping.unmapped.*') ||
                         request()->routeIs('admin.mapping.mapped.page') ||
+                        request()->routeIs('admin.mapping.model_hs.*') ||
                         request()->routeIs('admin.master.quick_hs.*')
                     );
                 @endphp
@@ -841,7 +842,7 @@
                             <span>Model &gt; HS (Mapped)</span>
                         </a>
                         @if($canProductCreate)
-                            <a href="{{ route('admin.master.quick_hs.create') }}" class="nav-link {{ request()->routeIs('admin.master.quick_hs.create') ? 'active' : '' }}">
+                            <a href="{{ route('admin.master.quick_hs.index') }}" class="nav-link {{ (request()->routeIs('admin.master.quick_hs.*') || request()->routeIs('admin.mapping.model_hs.*')) ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-circle-plus"></i></span>
                                 <span>Tambah Model &gt; HS</span>
                             </a>

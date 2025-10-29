@@ -31,7 +31,7 @@
           $isGr         = request()->routeIs('admin.imports.gr.*');
           $isUnmapped   = request()->routeIs('admin.mapping.unmapped.*');
           $isMapped     = request()->routeIs('admin.mapping.mapped.page');
-          $isQuickModel = request()->routeIs('admin.master.quick_hs.create');
+          $isQuickModel = request()->routeIs('admin.master.quick_hs.*') || request()->routeIs('admin.mapping.model_hs.*');
           // pastikan grup Persiapan Data membuka saat salah satu aktif
           $operationalOpen = ($isHsPk || $isQuotas || $isGr || $isUnmapped || $isMapped || $isQuickModel || ($operationalOpen ?? false));
         @endphp
@@ -90,7 +90,7 @@
                         </li>
                         @if(auth()->user()?->can('product.create'))
                         <li class="nav-item">
-                            <a href="{{ route('admin.master.quick_hs.create') }}" class="nav-link {{ $isQuickModel ? 'active' : '' }}">
+                            <a href="{{ route('admin.master.quick_hs.index') }}" class="nav-link {{ $isQuickModel ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Tambah Model &gt; HS</p>
                             </a>
