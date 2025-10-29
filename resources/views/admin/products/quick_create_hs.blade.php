@@ -1,12 +1,12 @@
 {{-- resources/views/admin/products/quick_create_hs.blade.php --}}
 @extends('layouts.admin')
 
-@section('title', 'Tambah Model → HS')
+@section('title', 'Tambah Model > HS')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('admin.mapping.mapped.page') }}">Model → HS (Mapped)</a></li>
-    <li class="breadcrumb-item active">Tambah Model → HS</li>
+    <li class="breadcrumb-item"><a href="{{ route('admin.mapping.mapped.page') }}">Model > HS (Mapped)</a></li>
+    <li class="breadcrumb-item active">Tambah Model > HS</li>
 @endsection
 
 @push('styles')
@@ -114,7 +114,7 @@
     @else
         <div class="page-header">
             <div>
-                <h1 class="page-header__title">Tambah Model → HS</h1>
+                <h1 class="page-header__title">Tambah Model > HS</h1>
                 <p class="page-header__subtitle">
                     Tambahkan atau perbarui pemetaan model/SKU ke HS Code secara manual. Data yang tersimpan akan langsung
                     digunakan pada proses mapping dan perhitungan kuota.
@@ -128,7 +128,7 @@
         </div>
 
         <div class="form-card">
-            <div class="form-card__title">Form Model → HS</div>
+            <div class="form-card__title">Form Model > HS</div>
             <div class="quick-hint mb-4">
                 <strong>Tips:</strong> Isi minimal Model/SKU dan HS Code. Jika model sudah ada, HS Code akan diperbarui secara otomatis.
                 Masukkan kapasitas PK dan kategori bila tersedia untuk meningkatkan akurasi matching kuota.
@@ -173,26 +173,14 @@
                 </div>
             </form>
         </div>
-
-        @if(\Illuminate\Support\Facades\Route::has('admin.mapping.model_hs.upload'))
-        <div class="form-card mt-4">
-            <div class="form-card__title">Upload File (Excel/CSV)</div>
-            <div class="quick-hint mb-3">
-                <strong>Format:</strong> kolom <code>MODEL</code>, <code>HS_CODE</code>. HS wajib sudah ada pada HS→PK (punya PK). Baris yang konflik tidak akan di‑overwrite.
-            </div>
-            <form method="POST" action="{{ route('admin.mapping.model_hs.upload') }}" enctype="multipart/form-data" class="row g-3">
-                @csrf
-                <div class="col-md-8">
-                    <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
-                    <div class="invalid-feedback">File wajib (.xlsx/.xls/.csv)</div>
-                </div>
-                <div class="col-md-4 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary"><i class="fas fa-eye me-1"></i> Upload & Preview</button>
-                    <a href="{{ route('admin.mapping.model_hs.index') }}" class="btn btn-outline-secondary">Halaman Import</a>
-                </div>
-            </form>
+        <div class="alert alert-warning mt-4 d-flex align-items-center gap-2">
+            <i class="fas fa-circle-info"></i>
+            <span>Fitur import Model > HS sementara dinonaktifkan.</span>
         </div>
-        @endif
     @endif
 </div>
 @endsection
+
+
+
+
