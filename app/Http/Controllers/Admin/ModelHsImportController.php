@@ -129,7 +129,7 @@ class ModelHsImportController extends Controller
     {
         $data = session('modelhs.preview');
         if (!$data) {
-            return redirect()->route('admin.mapping.model_hs.index')
+            return redirect()->route('admin.master.quick_hs.index')
                 ->withErrors(['file' => 'Preview tidak ditemukan. Upload file terlebih dahulu.']);
         }
         return view('admin.mapping.model_hs.preview', ['preview' => $data]);
@@ -190,7 +190,7 @@ class ModelHsImportController extends Controller
         }
 
         session()->forget('modelhs.preview');
-        return redirect()->route('admin.mapping.model_hs.index')
+        return redirect()->route('admin.master.quick_hs.index')
             ->with('status', sprintf('Publish selesai. Updated=%d, Skipped=%d, Failed=%d', $updated, $skipped, $failed));
     }
 }

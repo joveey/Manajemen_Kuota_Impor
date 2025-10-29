@@ -13,6 +13,18 @@ use Illuminate\Support\Facades\Schema;
 
 class ProductQuickController extends Controller
 {
+    public function index(): View
+    {
+        $recent = Product::query()
+            ->select(['id', 'code', 'hs_code', 'pk_capacity', 'updated_at'])
+            ->whereNotNull('hs_code')
+            ->orderByDesc('updated_at')
+            ->limit(10)
+            ->get();
+
+        return view('admin.products.quick_index_hs', compact('recent'));
+    }
+
     public function create(Request $request): View
     {
         $model = trim((string) $request->query('model', ''));
