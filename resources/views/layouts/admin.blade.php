@@ -761,7 +761,9 @@
                     $operationalActive = (
                         request()->routeIs('admin.openpo.*') ||
                         request()->routeIs('admin.po_progress.index') ||
-                        ($canPORead && (request()->is('admin/purchase-orders*') || request()->routeIs('admin.mapping.mapped.page') || request()->routeIs('admin.master.quick_hs.*')))
+                        request()->routeIs('admin.imports.invoices.*') ||
+                        request()->routeIs('admin.imports.gr.*') ||
+                        ($canPORead && request()->is('admin/purchase-orders*'))
                     );
 
                     $quotaActive = $canQuota && (request()->is('admin/quotas*') || request()->is('admin/kuota*'));
@@ -774,10 +776,10 @@
                     $prepActive = $showPrep && (
                         request()->routeIs('admin.imports.hs_pk.*') ||
                         request()->routeIs('admin.imports.quotas.*') ||
-                        request()->routeIs('admin.imports.invoices.*') ||
-                        request()->routeIs('admin.imports.gr.*') ||
                         request()->routeIs('admin.mapping.unmapped') ||
-                        request()->routeIs('admin.mapping.unmapped.*')
+                        request()->routeIs('admin.mapping.unmapped.*') ||
+                        request()->routeIs('admin.mapping.mapped.page') ||
+                        request()->routeIs('admin.master.quick_hs.*')
                     );
                 @endphp
 
@@ -834,14 +836,16 @@
                             <span class="nav-icon"><i class="fas fa-puzzle-piece"></i></span>
                             <span>Produk Unmapped</span>
                         </a>
-                        <a href="{{ route('admin.imports.invoices.index') }}" class="nav-link {{ request()->routeIs('admin.imports.invoices.*') ? 'active' : '' }}">
-                            <span class="nav-icon"><i class="fas fa-file-invoice"></i></span>
-                            <span>Import Invoice (opsional)</span>
+                        <a href="{{ route('admin.mapping.mapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.mapped.page') ? 'active' : '' }}">
+                            <span class="nav-icon"><i class="fas fa-link"></i></span>
+                            <span>Model &gt; HS (Mapped)</span>
                         </a>
-                        <a href="{{ route('admin.imports.gr.index') }}" class="nav-link {{ request()->routeIs('admin.imports.gr.*') ? 'active' : '' }}">
-                            <span class="nav-icon"><i class="fas fa-receipt"></i></span>
-                            <span>Import GR</span>
-                        </a>
+                        @if($canProductCreate)
+                            <a href="{{ route('admin.master.quick_hs.create') }}" class="nav-link {{ request()->routeIs('admin.master.quick_hs.create') ? 'active' : '' }}">
+                                <span class="nav-icon"><i class="fas fa-circle-plus"></i></span>
+                                <span>Tambah Model &gt; HS</span>
+                            </a>
+                        @endif
                     </div>
                 </div>
                 @endif
@@ -872,16 +876,14 @@
                                     <span class="nav-icon"><i class="fas fa-truck"></i></span>
                                     <span>Pengiriman &amp; Receipt</span>
                                 </a>
-                                <a href="{{ route('admin.mapping.mapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.mapped.page') ? 'active' : '' }}">
-                                    <span class="nav-icon"><i class="fas fa-link"></i></span>
-                                    <span>Model → HS (Mapped)</span>
+                                <a href="{{ route('admin.imports.invoices.index') }}" class="nav-link {{ request()->routeIs('admin.imports.invoices.*') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-file-invoice"></i></span>
+                                    <span>Import Invoice (opsional)</span>
                                 </a>
-                                @can('product.create')
-                                    <a href="{{ route('admin.master.quick_hs.create') }}" class="nav-link {{ request()->routeIs('admin.master.quick_hs.create') ? 'active' : '' }}">
-                                        <span class="nav-icon"><i class="fas fa-circle-plus"></i></span>
-                                        <span>Tambah Model → HS</span>
-                                    </a>
-                                @endcan
+                                <a href="{{ route('admin.imports.gr.index') }}" class="nav-link {{ request()->routeIs('admin.imports.gr.*') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-receipt"></i></span>
+                                    <span>Import GR</span>
+                                </a>
                             @endif
                             {{-- Quick HS creation removed along with Product system --}}
                         </div>
@@ -1292,3 +1294,9 @@
     @stack('scripts')
 </body>
 </html>
+
+
+
+
+
+

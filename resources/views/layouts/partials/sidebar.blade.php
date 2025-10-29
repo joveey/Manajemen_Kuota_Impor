@@ -26,24 +26,26 @@
         </div>
 
         @php
-          $isHsPk     = request()->routeIs('admin.imports.hs_pk.*') || request()->routeIs('admin.hs_pk.manual.*');
-          $isQuotas   = request()->routeIs('admin.imports.quotas.*');
-          $isGr       = request()->routeIs('admin.imports.gr.*');
-          $isUnmapped = request()->routeIs('admin.mapping.unmapped.*');
-          // pastikan grup Operasional membuka saat salah satu aktif
-          $operationalOpen = ($isHsPk || $isQuotas || $isGr || $isUnmapped || ($operationalOpen ?? false));
+          $isHsPk       = request()->routeIs('admin.imports.hs_pk.*') || request()->routeIs('admin.hs_pk.manual.*');
+          $isQuotas     = request()->routeIs('admin.imports.quotas.*');
+          $isGr         = request()->routeIs('admin.imports.gr.*');
+          $isUnmapped   = request()->routeIs('admin.mapping.unmapped.*');
+          $isMapped     = request()->routeIs('admin.mapping.mapped.page');
+          $isQuickModel = request()->routeIs('admin.master.quick_hs.create');
+          // pastikan grup Persiapan Data membuka saat salah satu aktif
+          $operationalOpen = ($isHsPk || $isQuotas || $isGr || $isUnmapped || $isMapped || $isQuickModel || ($operationalOpen ?? false));
         @endphp
 
         <!-- Sidebar Menu -->
         <nav class="mt-2">
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
                 
-                <!-- Operational -->
+                <!-- Persiapan Data -->
                 <li class="nav-item {{ $operationalOpen ? 'menu-open' : '' }}">
                     <a href="#" class="nav-link {{ $operationalOpen ? 'active' : '' }}">
                         <i class="nav-icon fas fa-briefcase"></i>
                         <p>
-                            Operational
+                            Persiapan Data
                             <i class="right fas fa-angle-left"></i>
                         </p>
                     </a>
@@ -80,6 +82,20 @@
                                 <p>Produk Unmapped</p>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.mapping.mapped.page') }}" class="nav-link {{ $isMapped ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Model &gt; HS (Mapped)</p>
+                            </a>
+                        </li>
+                        @if(auth()->user()?->can('product.create'))
+                        <li class="nav-item">
+                            <a href="{{ route('admin.master.quick_hs.create') }}" class="nav-link {{ $isQuickModel ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Tambah Model &gt; HS</p>
+                            </a>
+                        </li>
+                        @endif
                     </ul>
                 </li>
 
