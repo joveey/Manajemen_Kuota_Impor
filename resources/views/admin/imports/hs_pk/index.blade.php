@@ -109,7 +109,7 @@
                             
                             <div class="mb-3">
                                 <label class="form-label" for="period_key">Periode </span></label>
-                                <input type="text" name="period_key" id="period_key" class="form-control" placeholder="yyyy" pattern="^\\d{4}$" value="{{ old('period_key') }}">
+                                <input type="text" name="period_key" id="period_key" class="form-control" placeholder="YYYY" pattern="^\\d{4}$" value="{{ old('period_key') }}">
                                 <small class="text-muted">Mapping HS→PK disimpan per tahun. Kosongkan untuk mapping legacy.</small>
                             </div>
 

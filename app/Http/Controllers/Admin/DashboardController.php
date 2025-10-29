@@ -19,9 +19,20 @@ class DashboardController extends Controller
         // Pipeline & KPI calculations (lightweight, no mapping changes)
         $metrics = [];
         try {
-            // Products mapping coverage
-            $metrics['mapped'] = \App\Models\Product::whereNotNull('hs_code')->whereNotNull('pk_capacity')->count();
-            $metrics['unmapped'] = \App\Models\Product::where(function($q){ $q->whereNull('hs_code')->orWhereNull('pk_capacity'); })->count();
+            // Products mapping coverage (using HS→PK resolver for current year)
+            $periodKey = now()->format('Y');
+            $resolver = app(\App\Services\HsCodeResolver::class);
+
+            $mapped = 0; $unmapped = 0;
+            $rows = \App\Models\Product::query()->get(['id','hs_code','pk_capacity','code','name','sap_model']);
+            foreach ($rows as $p) {
+                $hs = $p->hs_code ?? null;
+                if ($hs === null || $hs === '') { $unmapped++; continue; }
+                $pk = $resolver->resolveForProduct($p, $periodKey);
+                if ($pk === null) { $unmapped++; } else { $mapped++; }
+            }
+            $metrics['mapped'] = $mapped;
+            $metrics['unmapped'] = $unmapped;
         } catch (\Throwable $e) {
             $metrics['mapped'] = $metrics['unmapped'] = 0; // tolerate if table pruned
         }
