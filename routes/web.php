@@ -177,6 +177,11 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
         Route::get('imports/quotas', [QuotaImportPageController::class, 'index'])->name('imports.quotas.index');
         Route::post('imports/quotas/upload', [QuotaImportPageController::class, 'uploadForm'])->name('imports.quotas.upload.form');
+        Route::post('imports/quotas/manual/add', [QuotaImportPageController::class, 'addManual'])->name('imports.quotas.manual.add');
+        Route::post('imports/quotas/manual/remove', [QuotaImportPageController::class, 'removeManual'])->name('imports.quotas.manual.remove');
+        Route::post('imports/quotas/manual/reset', [QuotaImportPageController::class, 'resetManual'])->name('imports.quotas.manual.reset');
+        Route::post('imports/quotas/manual/publish', [QuotaImportPageController::class, 'publishManual'])->name('imports.quotas.manual.publish');
+        Route::get('imports/quotas/hs-options', [QuotaImportPageController::class, 'hsOptions'])->name('imports.quotas.hs-options');
         Route::get('imports/quotas/{import}', [QuotaImportPageController::class, 'preview'])->name('imports.quotas.preview');
         Route::post('imports/quotas/{import}/publish', [QuotaImportPageController::class, 'publishForm'])->name('imports.quotas.publish.form');
 
