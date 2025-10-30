@@ -50,6 +50,7 @@
           <ul class="mb-0">
             <li>Tidak <strong>overwrite</strong> HS yang sudah terisi pada produk.</li>
             <li>HS harus sudah ada di <code>hs_code_pk_mappings</code> (punya PK).</li>
+            <li>Periode (opsional) menentukan HS→PK yang dipakai untuk menampilkan PK/Kategori.</li>
             <li>Produk (MODEL) harus sudah ada di master.</li>
             <li>Baris yang melanggar aturan → <strong>error</strong> dan tidak dipublish.</li>
           </ul>
@@ -76,4 +77,3 @@
 </script>
 @endpush
 @endsection
-

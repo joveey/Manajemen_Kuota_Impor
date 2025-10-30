@@ -172,7 +172,6 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('imports/hs-pk/{import}/publish', [HsPkImportPageController::class, 'publishForm'])->name('imports.hs_pk.publish.form');
 
         // Manual HS → PK (create + list)
-        Route::get('hs-pk/manual', [HsPkManualController::class, 'index'])->name('hs_pk.manual.index');
         Route::post('hs-pk/manual', [HsPkManualController::class, 'store'])->name('hs_pk.manual.store');
 
         Route::get('imports/quotas', [QuotaImportPageController::class, 'index'])->name('imports.quotas.index');
@@ -241,3 +240,4 @@ Route::middleware(['auth', 'verified', 'permission:read reports'])->prefix('anal
     Route::get('/export/xlsx', [AnalyticsController::class, 'exportXlsx'])->name('export.xlsx');
     Route::get('/export/pdf', [AnalyticsController::class, 'exportPdf'])->name('export.pdf');
 });
+

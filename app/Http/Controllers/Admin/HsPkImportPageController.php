@@ -7,18 +7,34 @@ use App\Models\Import;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class HsPkImportPageController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $recent = Import::query()
-            ->where('type', 'hs_pk')
-            ->orderByDesc('created_at')
-            ->limit(25)
-            ->get();
+        // Tampilkan form input manual + daftar mapping pada halaman yang sama.
+        $period = trim((string) $request->query('period_key', ''));
+        $perPage = (int) min(max((int) $request->query('per_page', 25), 1), 200);
 
-        return view('admin.imports.hs_pk.index', compact('recent'));
+        $hasPeriodCol = Schema::hasColumn('hs_code_pk_mappings', 'period_key');
+        $hasDescCol = Schema::hasColumn('hs_code_pk_mappings', 'desc');
+        $select = ['id','hs_code','pk_capacity','created_at','updated_at'];
+        if ($hasPeriodCol) { $select[] = 'period_key'; } else { $select[] = DB::raw("'' as period_key"); }
+        if ($hasDescCol) { $select[] = 'desc'; }
+
+        $q = DB::table('hs_code_pk_mappings')->select($select);
+        if ($period !== '' && $hasPeriodCol) { $q->where('period_key', $period); }
+        if ($hasPeriodCol) {
+            $q->orderByRaw("CASE WHEN period_key = '' THEN 1 ELSE 0 END")
+              ->orderByDesc('period_key');
+        }
+        $q->orderBy('hs_code');
+
+        $rows = $q->paginate($perPage)->appends(['period_key' => $period]);
+
+        return view('admin.imports.hs_pk.index', compact('rows', 'period'));
     }
 
     public function uploadForm(Request $request): RedirectResponse

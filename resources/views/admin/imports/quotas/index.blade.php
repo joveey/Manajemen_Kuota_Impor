@@ -87,7 +87,7 @@
                             </div>
 
                             <div class="col-md-6">
-                                <label for="manual-quantity" class="form-label">Quantity (Allocation)</label>
+                                <label for="manual-quantity" class="form-label">Quantity</label>
                                 <input type="number" step="0.01" min="0" id="manual-quantity" name="quantity" value="{{ old('quantity') }}" class="form-control @error('quantity') is-invalid @enderror" required>
                                 @error('quantity')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>

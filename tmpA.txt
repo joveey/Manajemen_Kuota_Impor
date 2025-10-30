@@ -61,10 +61,6 @@ class HsPkManualController extends Controller
         $code = trim((string) $data['hs_code']);
         $label = trim((string) $data['pk_value']);
 
-        // ACC (Accessories) special-case: anchor = 0.0, label bebas
-        if (strtoupper($code) === 'ACC') {
-            $anchor = 0.0;
-        } else {
         $parsed = PkCategoryParser::parse($label);
         $min = $parsed['min_pk'];
         $max = $parsed['max_pk'];
@@ -78,7 +74,6 @@ class HsPkManualController extends Controller
             elseif ($min !== null && $max === null) { $anchor = (float)$min + 0.01; }
         }
 
-        }
         if ($anchor === null || !is_numeric($anchor) || $anchor < 0) {
             return back()->withErrors(['pk_value' => 'Format PK tidak dikenali. Gunakan 8-10, <8, >10, atau angka ≥ 0.'])->withInput();
         }
@@ -103,5 +98,4 @@ class HsPkManualController extends Controller
         return back()->with('status', 'Mapping disimpan.');
     }
 }
-
 
