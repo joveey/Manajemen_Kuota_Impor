@@ -9,45 +9,6 @@
     <li class="breadcrumb-item active">Tambah Model > HS</li>
 @endsection
 
-@push('scripts')
-<script>
-(function () {
-    const form = document.getElementById('modelhs-upload');
-    const file = document.getElementById('modelhs-file');
-    const fileHelp = document.getElementById('modelhs-file-help');
-
-    function validate() {
-        if (!file) { return true; }
-        file.classList.remove('is-invalid');
-        fileHelp.textContent = '';
-
-        if (!file.files || file.files.length === 0) {
-            file.classList.add('is-invalid');
-            fileHelp.textContent = 'File wajib diunggah (.xlsx/.xls/.csv, maks 10MB).';
-            return false;
-        }
-
-        const name = file.files[0].name.toLowerCase();
-        if (!name.endsWith('.xlsx') && !name.endsWith('.xls') && !name.endsWith('.csv')) {
-            file.classList.add('is-invalid');
-            fileHelp.textContent = 'Tipe file harus .xlsx, .xls, atau .csv.';
-            return false;
-        }
-
-        return true;
-    }
-
-    form?.addEventListener('submit', function (event) {
-        if (!validate()) {
-            event.preventDefault();
-            event.stopPropagation();
-            file?.focus();
-        }
-    });
-})();
-</script>
-@endpush
-
 @section('content')
 @php
     $canCreate = auth()->user()?->can('product.create');
@@ -55,9 +16,9 @@
 
 <div class="container-fluid px-0">
     <div class="mb-4">
-        <h1 class="h4 mb-2">Tambah Model &gt; HS</h1>
+        <h1 class="h4 mb-2">Input Manual Model &gt; HS</h1>
         <p class="text-muted mb-0">
-            Unggah referensi Model &gt; HS terbaru atau gunakan form manual untuk update cepat.
+            Tambahkan atau perbarui pemetaan model/SKU ke HS Code secara manual. Perubahan langsung tersimpan ke master produk.
         </p>
     </div>
 
@@ -69,58 +30,29 @@
     @endif
 
     <div class="row gy-3">
-        <div class="col-xl-8">
-            <div class="card shadow-sm h-100">
-                <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-                    <span>Upload Model &gt; HS</span>
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header fw-semibold">
+                    Form Input Manual
                 </div>
                 <div class="card-body">
-                    <p class="text-muted small">
-                        Format minimal: kolom <code>MODEL</code> dan <code>HS_CODE</code>. HS harus sudah punya PK pada master HS &rarr; PK. Data akan divalidasi sebelum publish.
-                    </p>
-
-                    @if($errors->has('file'))
-                        <div class="alert alert-danger">
-                            {{ $errors->first('file') }}
+                    @if (!$canCreate)
+                        <div class="alert alert-danger mb-0">
+                            Akses Ditolak (403): Anda tidak memiliki izin untuk menambahkan HS mapping.
                         </div>
-                    @endif
-
-                    <form method="POST"
-                          action="{{ route('admin.mapping.model_hs.upload') }}"
-                          enctype="multipart/form-data"
-                          id="modelhs-upload"
-                          novalidate>
-                        @csrf
-                        <div class="mb-3">
-                            <label for="modelhs-file" class="form-label">File Excel/CSV</label>
-                            <input type="file"
-                                   class="form-control @error('file') is-invalid @enderror"
-                                   id="modelhs-file"
-                                   name="file"
-                                   accept=".xlsx,.xls,.csv"
-                                   required>
-                            <div class="invalid-feedback" id="modelhs-file-help" aria-live="polite"></div>
-                        </div>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-upload me-1"></i> Upload &amp; Preview
-                        </button>
-                    </form>
-                </div>
-                <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <small class="text-muted">
-                        Aturan: tidak menimpa HS yang sudah terisi pada produk, dan model baru dapat dibuat saat publish bila diizinkan.
-                    </small>
-                    @if($canCreate)
-                        <a href="{{ route('admin.master.quick_hs.create', ['return' => route('admin.master.quick_hs.index')]) }}"
-                           class="btn btn-outline-secondary btn-sm">
-                            <i class="fas fa-pen-to-square me-1"></i> Input Manual Model &gt; HS
-                        </a>
+                    @else
+                        @include('admin.products.partials.quick_hs_manual_form', [
+                            'model' => null,
+                            'periodKey' => null,
+                            'backUrl' => route('admin.master.quick_hs.index'),
+                            'showCancel' => false,
+                        ])
                     @endif
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-4">
+        <div class="col-xl-8">
             <div class="card shadow-sm h-100">
                 <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
                     <span>Aktivitas Terakhir</span>
@@ -167,6 +99,20 @@
                 </div>
                 <div class="card-footer text-muted small">
                     Menampilkan {{ $recent->count() }} model terakhir diperbarui.
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header fw-semibold">Format yang Disarankan</div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li>Isi <code>Model/SKU</code> persis seperti kode produk di master.</li>
+                        <li>HS Code harus sudah memiliki PK di master HS &rarr; PK.</li>
+                        <li>Gunakan <code>PK Capacity</code> untuk menyimpan kapasitas numerik (opsional).</li>
+                        <li>Kolom <code>Kategori</code> membantu klasifikasi model baru.</li>
+                    </ul>
                 </div>
             </div>
         </div>
