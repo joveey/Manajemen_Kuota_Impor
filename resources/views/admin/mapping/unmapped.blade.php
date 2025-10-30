@@ -30,7 +30,6 @@
           <select name="reason" id="reason" class="form-select">
             <option value="">(All)</option>
             <option value="missing_hs" {{ $reason==='missing_hs' ? 'selected' : '' }}>Missing HS</option>
-            <option value="missing_pk" {{ $reason==='missing_pk' ? 'selected' : '' }}>Missing PK</option>
             <option value="no_matching_quota" {{ $reason==='no_matching_quota' ? 'selected' : '' }}>No Matching Quota</option>
           </select>
         </div>

@@ -120,7 +120,7 @@
             <div class="col-xl-7 col-lg-6">
                 <div class="card shadow-sm h-100">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span>Preview Kuota Manual</span>
+                        <span>Preview Kuota</span>
                         <div class="d-flex gap-2 align-items-center">
                             <span class="badge bg-secondary">Item: {{ $manualSummary['count'] }}</span>
                             <span class="badge bg-info text-dark">Total Qty: {{ number_format($manualSummary['total_quantity'], 0) }}</span>
@@ -132,7 +132,7 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th>HS_Code</th>
-                                        <th>PK / Desc</th>
+                                        <th>Desc</th>
                                         <th>Letter No</th>
                                         <th class="text-end">Quantity</th>
                                         <th>Periode</th>
@@ -219,7 +219,7 @@
                                     }
                                 @endphp
                                 <tr>
-                                    <td>{{ $quota->quota_number }}</td>
+                                    <td>{{ $loop->iteration }}</td>
                                     <td>{{ $hsDisplay !== '' ? $hsDisplay : '—' }}</td>
                                     <td>{{ $quota->government_category ?? '—' }}</td>
                                     <td>{{ $quota->source_document ?? '—' }}</td>
