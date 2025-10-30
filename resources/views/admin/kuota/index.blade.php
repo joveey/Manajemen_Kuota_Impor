@@ -294,7 +294,7 @@
                 <tr>
                     <th>#</th>
                     <th>No. Kuota</th>
-                    <th>Nama Kuota</th>
+                    {{-- Nama Kuota dihilangkan, hanya tampil nomor kuota --}}
                     <th class="text-end">Allocation</th>
                     <th class="text-end col-forecast">Consumed</th>
                     <th class="text-end col-forecast">Remaining</th>
@@ -330,7 +330,6 @@
                     <tr data-state="{{ $state }}">
                         <td>{{ $loop->iteration }}</td>
                         <td><strong>{{ $quota->display_number }}</strong></td>
-                        <td>{{ $quota->name }}</td>
                         <td class="text-end">{{ number_format($quota->total_allocation ?? 0) }}</td>
                         <td class="text-end col-forecast">{{ number_format(max(($quota->forecast_consumed ?? 0),0)) }}</td>
                         <td class="text-end col-forecast">{{ number_format(max(($quota->forecast_remaining ?? 0),0)) }}</td>
