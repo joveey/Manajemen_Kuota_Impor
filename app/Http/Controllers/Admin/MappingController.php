@@ -29,7 +29,7 @@ class MappingController extends Controller
     {
         $data = $request->validate([
             'period' => ['required'],
-            'reason' => ['nullable', 'in:missing_hs,missing_pk,no_matching_quota'],
+            'reason' => ['nullable', 'in:missing_hs,no_matching_quota'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
         ]);
 
@@ -73,19 +73,8 @@ class MappingController extends Controller
             }
 
             $pk = $resolver->resolveForProduct($product, $periodKey);
-            if ($pk === null) {
-                $reason = 'missing_pk';
-                if (!$reasonFilter || $reasonFilter === $reason) {
-                    $items[] = [
-                        'product_id' => $product->id,
-                        'model' => $product->sap_model ?? $product->code ?? $product->name,
-                        'hs_code' => $hs,
-                        'resolved_pk' => null,
-                        'reason' => $reason,
-                    ];
-                }
-                continue;
-            }
+            // Abaikan kasus missing PK (diasumsikan tidak terjadi)
+            if ($pk === null) { continue; }
 
             // Check if there exists any quota that contains this PK
             $hasCandidate = false;

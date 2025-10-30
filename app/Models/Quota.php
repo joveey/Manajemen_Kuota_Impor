@@ -84,6 +84,27 @@ class Quota extends Model
         ]);
     }
 
+    public function incrementForecast(int $quantity, ?string $description = null, ?Model $reference = null, ?\DateTimeInterface $occurredOn = null, ?int $userId = null): void
+    {
+        $newVal = (int) $this->forecast_remaining + (int) $quantity;
+        if ($this->total_allocation !== null) {
+            $newVal = min((int) $this->total_allocation, $newVal);
+        }
+        $this->forecast_remaining = max(0, $newVal);
+        $this->updateStatus();
+        $this->save();
+
+        $this->histories()->create([
+            'change_type' => QuotaHistory::TYPE_FORECAST_INCREASE,
+            'quantity_change' => (int) $quantity,
+            'occurred_on' => $occurredOn?->format('Y-m-d') ?? now()->toDateString(),
+            'description' => $description,
+            'reference_type' => $reference ? get_class($reference) : null,
+            'reference_id' => $reference?->getKey(),
+            'created_by' => $userId,
+        ]);
+    }
+
     public function decrementActual(int $quantity, ?string $description = null, ?Model $reference = null, ?\DateTimeInterface $occurredOn = null, ?int $userId = null, ?array $meta = null): void
     {
         $this->actual_remaining = max(0, $this->actual_remaining - $quantity);

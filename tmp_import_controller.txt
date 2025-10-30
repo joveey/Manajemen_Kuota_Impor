@@ -645,7 +645,6 @@ class ImportController extends Controller
                         'is_min_inclusive' => $minIncl,
                         'is_max_inclusive' => $maxIncl,
                         'pk_anchor' => $anchor,
-                        'desc' => (string) $desc,
                     ],
                     'status' => 'normalized',
                 ]);
@@ -1115,17 +1114,13 @@ class ImportController extends Controller
                         $norm = $item->normalized_json ?? [];
                         $hs = trim((string)($raw['HS_CODE'] ?? ''));
                         $anchor = $norm['pk_anchor'] ?? null;
-                        $descLabel = trim((string)($norm['desc'] ?? ($raw['DESC'] ?? '')));
 
                         if ($hs === '') { $skipped++; continue; }
                         if ($anchor === null || !is_numeric($anchor)) {
                             if (preg_match('/[A-Za-z]/', $hs)) { $anchor = 0.0; }
                             else { $skipped++; continue; }
                         }
-                        $incoming[$hs] = [
-                            'anchor' => round((float)$anchor, 2),
-                            'desc' => $descLabel,
-                        ];
+                        $incoming[$hs] = round((float)$anchor, 2);
                     }
 
                     if (empty($incoming)) { return; }
@@ -1135,24 +1130,20 @@ class ImportController extends Controller
                         $rowsUpsert = [];
                         $period = (string) ($import->period_key ?? '');
                         $hasPeriodCol = DB::getSchemaBuilder()->hasColumn('hs_code_pk_mappings','period_key');
-                        $hasDescCol = DB::getSchemaBuilder()->hasColumn('hs_code_pk_mappings','desc');
-                        foreach ($incoming as $code => $data) {
+                        foreach ($incoming as $code => $anchor) {
                             $row = [
                                 'hs_code' => $code,
-                                'pk_capacity' => $data['anchor'],
+                                'pk_capacity' => $anchor,
                                 'created_at' => $now,
                                 'updated_at' => $now,
                             ];
                             if ($hasPeriodCol) { $row['period_key'] = $period; }
-                            if ($hasDescCol && !empty($data['desc'])) { $row['desc'] = (string) $data['desc']; }
                             $rowsUpsert[] = $row;
                         }
                         if ($hasPeriodCol) {
-                            $updateCols = ['pk_capacity','updated_at']; if ($hasDescCol) { $updateCols[]='desc'; }
-                            DB::table('hs_code_pk_mappings')->upsert($rowsUpsert, ['hs_code','period_key'], $updateCols);
+                            DB::table('hs_code_pk_mappings')->upsert($rowsUpsert, ['hs_code','period_key'], ['pk_capacity', 'updated_at']);
                         } else {
-                            $updateCols = ['pk_capacity','updated_at']; if ($hasDescCol) { $updateCols[]='desc'; }
-                            DB::table('hs_code_pk_mappings')->upsert($rowsUpsert, ['hs_code'], $updateCols);
+                            DB::table('hs_code_pk_mappings')->upsert($rowsUpsert, ['hs_code'], ['pk_capacity', 'updated_at']);
                         }
                         $applied += count($rowsUpsert);
                     } else {
@@ -1166,8 +1157,7 @@ class ImportController extends Controller
                         $existSet = array_flip(array_map('strval', $existing));
 
                         $toInsert = [];
-                        $hasDescCol = DB::getSchemaBuilder()->hasColumn('hs_code_pk_mappings','desc');
-                        foreach ($incoming as $code => $data) {
+                        foreach ($incoming as $code => $anchor) {
                             if (isset($existSet[$code])) {
                                 $skippedExisting++;
                                 $duplicatesList[$code] = true;
@@ -1175,12 +1165,11 @@ class ImportController extends Controller
                             }
                             $row = [
                                 'hs_code' => $code,
-                                'pk_capacity' => $data['anchor'],
+                                'pk_capacity' => $anchor,
                                 'created_at' => $now,
                                 'updated_at' => $now,
                             ];
                             if ($hasPeriodCol) { $row['period_key'] = $period; }
-                            if ($hasDescCol && !empty($data['desc'])) { $row['desc'] = (string) $data['desc']; }
                             $toInsert[] = $row;
                         }
 
@@ -1235,3 +1224,4 @@ class ImportController extends Controller
         return response()->json($response, 201);
     }
 }
+

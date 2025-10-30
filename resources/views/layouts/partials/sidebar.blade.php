@@ -26,7 +26,7 @@
         </div>
 
         @php
-          $isHsPk       = request()->routeIs('admin.imports.hs_pk.*') || request()->routeIs('admin.hs_pk.manual.*');
+          $isHsPk       = request()->routeIs('admin.imports.hs_pk.*');
           $isQuotas     = request()->routeIs('admin.imports.quotas.*');
           $isGr         = request()->routeIs('admin.imports.gr.*');
           $isUnmapped   = request()->routeIs('admin.mapping.unmapped.*');
@@ -57,12 +57,7 @@
                                 <p>Import HS -> PK</p>
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a href="{{ route('admin.hs_pk.manual.index') }}" class="nav-link {{ request()->routeIs('admin.hs_pk.manual.*') ? 'active' : '' }}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>HS -> PK Manual</p>
-                            </a>
-                        </li>
+                        
                         <li class="nav-item">
                             <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ $isQuotas ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>

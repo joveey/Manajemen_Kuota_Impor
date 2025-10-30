@@ -22,9 +22,9 @@
 <div class="page-shell">
     <div class="page-header">
         <div>
-            <h1 class="page-header__title">Input Kuota (Manual)</h1>
+            <h1 class="page-header__title">Input Kuota</h1>
             <p class="page-header__subtitle">
-                Masukkan kuota per HS secara manual, tinjau di panel preview, kemudian publish ke master kuota.
+               Kuota berdasarkan HS akan dipublish ke master kuota.
             </p>
         </div>
     </div>
@@ -51,12 +51,12 @@
         <div class="row gy-3">
             <div class="col-xl-5 col-lg-6">
                 <div class="card shadow-sm">
-                    <div class="card-header fw-semibold">Input Manual Kuota</div>
+                    <div class="card-header fw-semibold">Input Kuota</div>
                     <div class="card-body">
                         <form method="POST" action="{{ route('admin.imports.quotas.manual.add') }}" class="row g-3">
                             @csrf
                             <div class="col-12">
-                                <label for="manual-hs" class="form-label">HS</label>
+                                <label for="manual-hs" class="form-label">HS_Code</label>
                                 <select
                                     id="manual-hs"
                                     name="hs_code"
@@ -75,9 +75,9 @@
                             </div>
 
                             <div class="col-12">
-                                <label class="form-label">PK / Deskripsi</label>
+                                <label class="form-label">Deskripsi</label>
                                 <input type="text" id="manual-hs-desc" class="form-control" value="{{ $selectedHsCode ? ($selectedHsOption['desc'] ?? '') : '' }}" readonly>
-                                <div class="form-text">Ditampilkan otomatis untuk memastikan HS yang dipilih benar.</div>
+                                <div class="form-text">Deskripsi otomatis berdasarkan HS.</div>
                             </div>
 
                             <div class="col-md-6">
@@ -87,8 +87,8 @@
                             </div>
 
                             <div class="col-md-6">
-                                <label for="manual-quantity" class="form-label">Quantity (Allocation)</label>
-                                <input type="number" step="0.01" min="0" id="manual-quantity" name="quantity" value="{{ old('quantity') }}" class="form-control @error('quantity') is-invalid @enderror" required>
+                                <label for="manual-quantity" class="form-label">Quantity</label>
+                                <input type="number" step="1" min="0" id="manual-quantity" name="quantity" value="{{ old('quantity') }}" class="form-control @error('quantity') is-invalid @enderror" required>
                                 @error('quantity')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 
@@ -120,10 +120,10 @@
             <div class="col-xl-7 col-lg-6">
                 <div class="card shadow-sm h-100">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span>Preview Kuota Manual</span>
+                        <span>Preview Kuota</span>
                         <div class="d-flex gap-2 align-items-center">
                             <span class="badge bg-secondary">Item: {{ $manualSummary['count'] }}</span>
-                            <span class="badge bg-info text-dark">Total Qty: {{ number_format($manualSummary['total_quantity'], 2) }}</span>
+                            <span class="badge bg-info text-dark">Total Qty: {{ number_format($manualSummary['total_quantity'], 0) }}</span>
                         </div>
                     </div>
                     <div class="card-body p-0">
@@ -131,8 +131,8 @@
                             <table class="table mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>HS</th>
-                                        <th>PK / Desc</th>
+                                        <th>HS_Code</th>
+                                        <th>Desc</th>
                                         <th>Letter No</th>
                                         <th class="text-end">Quantity</th>
                                         <th>Periode</th>
@@ -145,7 +145,7 @@
                                             <td>{{ $item['hs_code'] ?? '-' }}</td>
                                             <td>{{ $item['hs_desc'] ?? '-' }}</td>
                                             <td>{{ $item['letter_no'] ?? '—' }}</td>
-                                            <td class="text-end">{{ number_format($item['quantity'] ?? 0, 2) }}</td>
+                                            <td class="text-end">{{ number_format($item['quantity'] ?? 0, 0) }}</td>
                                             <td>
                                                 {{ $item['period_start'] ?? '-' }} —
                                                 {{ $item['period_end'] ?? '-' }}
@@ -189,49 +189,11 @@
             </div>
         </div>
 
-        <div class="card shadow-sm mt-4">
-            <div class="card-header fw-semibold">Riwayat Import Kuota (File)</div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>ID</th>
-                                <th>Periode</th>
-                                <th>Status</th>
-                                <th>Ringkasan</th>
-                                <th>Dibuat</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($recent as $imp)
-                                <tr>
-                                    <td>#{{ $imp->id }}</td>
-                                    <td>{{ $imp->period_key }}</td>
-                                    <td>{{ ucfirst(str_replace('_',' ', $imp->status)) }}</td>
-                                    <td>{{ (int)($imp->valid_rows ?? 0) }} / {{ (int)($imp->total_rows ?? 0) }} (err {{ (int)($imp->error_rows ?? 0) }})</td>
-                                    <td>{{ optional($imp->created_at)->format('d M Y H:i') ?? '-' }}</td>
-                                    <td>
-                                        <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.imports.quotas.preview', $imp) }}">
-                                            Preview
-                                        </a>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">Belum ada data import.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        {{-- Riwayat Import Kuota (File) dihapus sesuai permintaan --}}
 
         <div class="card shadow-sm mt-4">
             <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-                <span>Riwayat Kuota Manual</span>
+                <span>Riwayat Kuota</span>
                 <span class="badge bg-secondary">Menampilkan {{ $manualQuotas->count() }} entri terbaru</span>
             </div>
             <div class="card-body p-0">
@@ -240,7 +202,7 @@
                         <thead class="table-light">
                             <tr>
                                 <th>#</th>
-                                <th>HS</th>
+                                <th>HS_Code</th>
                                 <th>Desc</th>
                                 <th>Letter No</th>
                                 <th class="text-end">Quantity</th>
@@ -252,16 +214,16 @@
                             @forelse($manualQuotas as $quota)
                                 @php
                                     $hsDisplay = '';
-                                    if (!empty($quota->notes) && str_starts_with($quota->notes, 'HS ')) {
+                                    if (!empty($quota->notes) && str_starts_with($quota->notes, 'HS')) {
                                         $hsDisplay = trim(substr($quota->notes, 3));
                                     }
                                 @endphp
                                 <tr>
-                                    <td>{{ $quota->quota_number }}</td>
+                                    <td>{{ $loop->iteration }}</td>
                                     <td>{{ $hsDisplay !== '' ? $hsDisplay : '—' }}</td>
                                     <td>{{ $quota->government_category ?? '—' }}</td>
                                     <td>{{ $quota->source_document ?? '—' }}</td>
-                                    <td class="text-end">{{ number_format((float) $quota->total_allocation, 2) }}</td>
+                                    <td class="text-end">{{ number_format((float) $quota->total_allocation, 0) }}</td>
                                     <td>
                                         {{ $quota->period_start ?? '—' }}
                                         @if($quota->period_end)

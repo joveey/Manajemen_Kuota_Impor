@@ -1,0 +1,15 @@
+﻿<div class="col-md-5">
+                                <label class="form-label" for="pk_value">DESC</label>
+                                <input type="text" name="pk_value" id="pk_value" class="form-control" placeholder="8-10, <8, >10, atau 8" value="{{ old('pk_value') }}" required>
+                                <small class="text-muted">Gunakan format: 8-10, &lt;8, &gt;10, atau angka tunggal.</small>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">Simpan</button>
+                                <a class="btn btn-outline-secondary ms-2" href="{{ route('admin.hs_pk.manual.index') }}">Lihat Daftar Mapping</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card mt-3 shadow-sm">
+                    <div class="card-header fw-semibold">Format yang dibutuhkan</div>

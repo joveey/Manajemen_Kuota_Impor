@@ -172,7 +172,7 @@
         width: 100% !important;
         border-collapse: separate !important;
         border-spacing: 0 !important;
-        min-width: 2400px !important;
+        min-width: 1200px !important; /* lebih rapat, kurangi scroll horizontal */
         margin: 0;
         table-layout: auto !important;
     }
@@ -182,7 +182,7 @@
         top: 0;
         z-index: 10;
         background: #f8faff;
-        padding: 15px 18px;
+        padding: 10px 12px; /* kurangi jarak header */
         font-size: 12px;
         color: #64748b;
         text-transform: uppercase;
@@ -193,7 +193,7 @@
     }
 
     .po-table tbody td {
-        padding: 16px 18px;
+        padding: 10px 12px; /* kurangi jarak isi */
         border-bottom: 1px solid #eef2fb;
         font-size: 13px;
         color: #1f2937;
@@ -367,17 +367,6 @@
             <p class="page-header__subtitle">Pantau status purchase order, progres pengiriman, dan detail pelanggan dalam satu tampilan ringkas.</p>
         </div>
         <div class="page-header__actions">
-            @if(Route::has('admin.master.quick_hs.create') && auth()->user()?->can('product.create'))
-                <a href="{{ route('admin.master.quick_hs.create') }}" class="page-header__button">
-                    <i class="fas fa-plus"></i>
-                    Tambah Model -> HS
-                </a>
-            @else
-                <a href="{{ route('admin.imports.hs_pk.index') }}" class="page-header__button page-header__button--outline">
-                    <i class="fas fa-link"></i>
-                    HS -> PK Import
-                </a>
-            @endif
             <a href="{{ route('admin.purchase-orders.export', request()->query()) }}" class="page-header__button page-header__button--outline">
                 <i class="fas fa-file-export"></i>
                 Export CSV
@@ -452,6 +441,7 @@
                             <th>#</th>
                             <th>PO Doc</th>
                             <th>Created Date</th>
+                            <th>Deliv Date</th>
                             <th>Vendor</th>
                             <th class="text-end">Total Line</th>
                             <th class="text-end">Qty Ordered</th>
@@ -483,6 +473,16 @@
                                         $orderDateLabel = $first.' - '.$latest;
                                     }
                                 }
+                                // Delivery date label (from po_lines.eta_date min..max)
+                                $delivDateLabel = '-';
+                                if (!empty($po->latest_deliv_date)) {
+                                    try { $latestD = \Illuminate\Support\Carbon::parse($po->latest_deliv_date)->format('d M Y'); } catch (\Throwable $e) { $latestD = (string) $po->latest_deliv_date; }
+                                    $delivDateLabel = $latestD;
+                                    if (!empty($po->first_deliv_date) && $po->first_deliv_date !== $po->latest_deliv_date) {
+                                        try { $firstD = \Illuminate\Support\Carbon::parse($po->first_deliv_date)->format('d M Y'); } catch (\Throwable $e) { $firstD = (string) $po->first_deliv_date; }
+                                        $delivDateLabel = $firstD.' - '.$latestD;
+                                    }
+                                }
                                 $statusMeta = $statusBadgeMap[$po->status_key] ?? ['label' => ucfirst($po->status_key ?? 'Ordered'), 'class' => 'status-badge--ordered'];
                             @endphp
                             <tr>
@@ -492,6 +492,7 @@
                                     <div class="po-table__subtext">Header: {{ (int) ($po->header_count ?? 0) }} • Vendor No: {{ $po->vendor_number ?? '-' }}</div>
                                 </td>
                                 <td>{{ $orderDateLabel }}</td>
+                                <td>{{ $delivDateLabel }}</td>
                                 <td>
                                     <div>{{ $po->vendor_name ?? '-' }}</div>
                                     @if(!empty($po->sap_statuses))
@@ -499,9 +500,9 @@
                                     @endif
                                 </td>
                                 <td class="text-end">{{ number_format((int) $po->total_lines) }}</td>
-                                <td class="text-end">{{ number_format((float) $po->total_qty_ordered, 2) }}</td>
-                                <td class="text-end">{{ number_format((float) $po->total_qty_received, 2) }}</td>
-                                <td class="text-end">{{ number_format((float) $po->total_qty_outstanding, 2) }}</td>
+                                <td class="text-end">{{ number_format((float) $po->total_qty_ordered, 0) }}</td>
+                                <td class="text-end">{{ number_format((float) $po->total_qty_received, 0) }}</td>
+                                <td class="text-end">{{ number_format((float) $po->total_qty_outstanding, 0) }}</td>
                                 <td>
                                     <span class="status-badge {{ $statusMeta['class'] }}">{{ $statusMeta['label'] }}</span>
                                 </td>
@@ -516,7 +517,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="text-center text-muted py-4">Belum ada purchase order.</td>
+                                <td colspan="11" class="text-center text-muted py-4">Belum ada purchase order.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -591,6 +592,3 @@
 })();
 </script>
 @endpush
-
-
-

@@ -45,6 +45,7 @@ class OpenPoReader
         $allow = [
             'PO_DOC' => true,
             'CREATED_DATE' => true,
+            'DELIV_DATE' => true,
             'LINE_NO' => true,
             'ITEM_CODE' => true,
             'ITEM_DESC' => true,

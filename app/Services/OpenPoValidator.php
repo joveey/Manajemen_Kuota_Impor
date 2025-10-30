@@ -35,7 +35,8 @@ class OpenPoValidator
             $model = trim((string) ($r['ITEM_CODE'] ?? ''));
             $itemDesc = trim((string) ($r['ITEM_DESC'] ?? ''));
             $qtyRaw = $r['QTY'] ?? null;
-            $eta = trim((string) ($r['ETA_DATE'] ?? '')); // source doesn't have ETA, keep for future
+            // Delivery date (required for forecast allocation) - source provides DELIV_DATE in dd-mm-yyyy
+            $eta = trim((string) ($r['DELIV_DATE'] ?? ($r['ETA_DATE'] ?? '')));
             $uom = trim((string) ($r['UOM'] ?? '')) ?: null;
             // optional operational columns
             $whCode = trim((string) ($r['WH_CODE'] ?? '')) ?: null;
@@ -72,7 +73,13 @@ class OpenPoValidator
                 $poDateNorm = null;
             }
             if ($eta !== '') {
-                try { $etaNorm = Carbon::parse($eta)->toDateString(); } catch (\Throwable $e) { $errors[] = 'ETA_DATE tidak valid (gunakan YYYY-MM-DD)'; }
+                // Prefer strict dd-mm-yyyy per input spec; fallback to Carbon::parse for robustness
+                try {
+                    $etaNorm = Carbon::createFromFormat('d-m-Y', $eta)->toDateString();
+                } catch (\Throwable $e1) {
+                    try { $etaNorm = Carbon::parse($eta)->toDateString(); }
+                    catch (\Throwable $e2) { $errors[] = 'DELIV_DATE tidak valid (gunakan dd-mm-yyyy)'; }
+                }
             }
 
             // qty parse

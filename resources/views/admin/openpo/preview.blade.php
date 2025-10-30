@@ -79,7 +79,7 @@
               <table class="table table-sm table-striped">
                 <thead>
                   <tr>
-                    <th>#</th><th>LINE_NO</th><th>ITEM_CODE</th><th>ITEM_DESC</th><th>HS_CODE</th><th>QTY</th><th>UOM</th><th>ETA_DATE</th>
+                    <th>#</th><th>LINE_NO</th><th>ITEM_CODE</th><th>ITEM_DESC</th><th>HS_CODE</th><th>QTY</th><th>UOM</th><th>DELIV_DATE</th>
                     <th>WH_CODE</th><th>WH_NAME</th><th>WH_SOURCE</th>
                     <th>SUBINV_CODE</th><th>SUBINV_NAME</th><th>SUBINV_SOURCE</th>
                     <th>AMOUNT</th><th>CAT_PO</th><th>CAT_DESC</th><th>MAT_GRP</th><th>SAP_STATUS</th>

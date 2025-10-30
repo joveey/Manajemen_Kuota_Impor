@@ -11,6 +11,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Quota;
 
 class PurchaseOrderController extends Controller
 {
@@ -56,6 +58,8 @@ class PurchaseOrderController extends Controller
             DB::raw('ph.po_number as po_number'),
             DB::raw('MIN(ph.po_date) as first_order_date'),
             DB::raw('MAX(ph.po_date) as latest_order_date'),
+            DB::raw('MIN(pl.eta_date) as first_deliv_date'),
+            DB::raw('MAX(pl.eta_date) as latest_deliv_date'),
             DB::raw($hasVendorNumber ? "STRING_AGG(DISTINCT NULLIF(ph.vendor_number,''), ', ') as vendor_number" : 'NULL as vendor_number'),
             DB::raw("STRING_AGG(DISTINCT ph.supplier, ', ') as vendor_name"),
             DB::raw('COUNT(DISTINCT ph.id) as header_count'),
@@ -154,11 +158,10 @@ class PurchaseOrderController extends Controller
         return view('admin.purchase_order.index', compact('purchaseOrders', 'stats'));
     }
 
-    public function show(PurchaseOrder $purchaseOrder): View
+    public function show(PurchaseOrder $purchaseOrder): \Illuminate\Http\RedirectResponse
     {
-        $purchaseOrder->load(['product', 'quota', 'shipments.receipts']);
-
-        return view('admin.purchase_order.show', compact('purchaseOrder'));
+        // Unify detail page to document view using PO number
+        return redirect()->route('admin.purchase-orders.document', ['poNumber' => $purchaseOrder->po_number]);
     }
 
     public function showDocument(string $poNumber): View
@@ -253,6 +256,7 @@ class PurchaseOrderController extends Controller
                 DB::raw('pl.id as line_id'),
                 DB::raw('ph.po_number'),
                 DB::raw('ph.po_date as order_date'),
+                DB::raw('pl.eta_date as deliv_date'),
                 DB::raw($hasHeaderVendorNumber ? "NULLIF(ph.vendor_number,'') as vendor_number" : 'NULL as vendor_number'),
                 DB::raw('ph.supplier as vendor_name'),
                 DB::raw("COALESCE(pl.line_no,'') as line_number"),
@@ -311,6 +315,9 @@ class PurchaseOrderController extends Controller
         $primaryVendorName = $headers->pluck('supplier')->filter()->unique()->implode(', ');
         $primaryVendorNumber = $headers->pluck('display_vendor_number')->filter()->unique()->implode(', ');
 
+        // Try to resolve internal PO record for this PO number (if exists)
+        $internalPO = PurchaseOrder::with(['product'])->where('po_number', $poNumber)->first();
+
         return view('admin.purchase_order.document', [
             'poNumber' => $poNumber,
             'headers' => $headers,
@@ -319,6 +326,7 @@ class PurchaseOrderController extends Controller
             'dateRange' => $dateRange,
             'primaryVendorName' => $primaryVendorName,
             'primaryVendorNumber' => $primaryVendorNumber,
+            'internalPO' => $internalPO,
         ]);
     }
 
@@ -532,6 +540,123 @@ class PurchaseOrderController extends Controller
         $redir = redirect()->route('admin.purchase-orders.show', $po)
             ->with('status', 'PO dibuat & alokasi forecast diproses.');
         if ($allocationNote) { $redir->with('warning', $allocationNote); }
+        return $redir;
+    }
+
+    public function reallocateQuota(PurchaseOrder $purchaseOrder, Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'source_quota_id' => ['required', 'integer', 'exists:quotas,id'],
+            'target_quota_id' => ['required', 'integer', 'exists:quotas,id'],
+            'move_qty' => ['nullable', 'integer', 'min:1'],
+            'eta_date' => ['nullable', 'date'],
+        ]);
+
+        $po = $purchaseOrder->load(['product']);
+        $source = Quota::lockForUpdate()->findOrFail($data['source_quota_id']);
+        $target = Quota::lockForUpdate()->findOrFail($data['target_quota_id']);
+
+        if ($source->id === $target->id) {
+            return back()->withErrors(['target_quota_id' => 'Kuota tujuan harus berbeda dari kuota asal.']);
+        }
+
+        // Validate target matches product
+        if (!$target->matchesProduct($po->product)) {
+            return back()->withErrors(['target_quota_id' => 'Kuota tujuan tidak sesuai produk/PK.']);
+        }
+
+        // Validate ETA within target period if provided
+        if (!empty($data['eta_date'])) {
+            $eta = \Illuminate\Support\Carbon::parse($data['eta_date'])->toDateString();
+            if (!($target->period_start && $target->period_end && $target->period_start->toDateString() <= $eta && $target->period_end->toDateString() >= $eta)) {
+                return back()->withErrors(['eta_date' => 'Tanggal ETA baru tidak berada dalam periode kuota tujuan.']);
+            }
+        }
+
+        // Find existing allocated qty on source pivot
+        $pivot = DB::table('purchase_order_quota')
+            ->where('purchase_order_id', $po->id)
+            ->where('quota_id', $source->id)
+            ->first();
+
+        if (!$pivot || (int) $pivot->allocated_qty <= 0) {
+            return back()->withErrors(['source_quota_id' => 'Tidak ditemukan alokasi pada kuota asal untuk PO ini.']);
+        }
+
+        $requested = isset($data['move_qty']) ? (int) $data['move_qty'] : (int) $pivot->allocated_qty;
+        $requested = max(0, min($requested, (int) $pivot->allocated_qty));
+        if ($requested <= 0) {
+            return back()->withErrors(['move_qty' => 'Jumlah yang dipindahkan tidak valid.']);
+        }
+
+        $available = (int) ($target->forecast_remaining ?? 0);
+        $move = min($requested, $available);
+
+        if ($move <= 0) {
+            return back()
+                ->with('warning', 'Kuota tujuan tidak memiliki sisa kapasitas. Mohon buat kuota baru untuk periode terkait.')
+                ->withInput();
+        }
+
+        DB::transaction(function () use ($po, $source, $target, $pivot, $move, $data) {
+            $occurredOn = !empty($data['eta_date']) ? new \DateTimeImmutable($data['eta_date']) : null;
+            $userId = Auth::id();
+
+            // 1) Free forecast from source
+            $source->incrementForecast(
+                (int) $move,
+                sprintf('Realokasi forecast: kembalikan %s unit dari PO %s', number_format($move), $po->po_number),
+                $po,
+                $occurredOn,
+                $userId
+            );
+
+            // 2) Reserve forecast on target
+            $target->decrementForecast(
+                (int) $move,
+                sprintf('Realokasi forecast: pindahkan %s unit untuk PO %s', number_format($move), $po->po_number),
+                $po,
+                $occurredOn,
+                $userId
+            );
+
+            // 3) Update pivot allocations
+            $remainingOnSource = max(0, (int) $pivot->allocated_qty - (int) $move);
+            if ($remainingOnSource > 0) {
+                DB::table('purchase_order_quota')
+                    ->where('id', $pivot->id)
+                    ->update(['allocated_qty' => $remainingOnSource, 'updated_at' => now()]);
+            } else {
+                DB::table('purchase_order_quota')->where('id', $pivot->id)->delete();
+            }
+
+            $existingTarget = DB::table('purchase_order_quota')
+                ->where('purchase_order_id', $po->id)
+                ->where('quota_id', $target->id)
+                ->first();
+
+            if ($existingTarget) {
+                DB::table('purchase_order_quota')
+                    ->where('id', $existingTarget->id)
+                    ->update(['allocated_qty' => (int)$existingTarget->allocated_qty + (int)$move, 'updated_at' => now()]);
+            } else {
+                DB::table('purchase_order_quota')->insert([
+                    'purchase_order_id' => $po->id,
+                    'quota_id' => $target->id,
+                    'allocated_qty' => (int) $move,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        });
+
+        $msg = sprintf('Berhasil memindahkan %s unit dari kuota %s ke kuota %s.', number_format($move), $source->quota_number, $target->quota_number);
+        $redir = redirect()->route('admin.purchase-orders.show', $po)->with('status', $msg);
+
+        if ($move < $requested) {
+            $redir->with('warning', sprintf('Kapasitas terbatas: hanya %s dari %s yang dipindahkan. Sisa %s unit belum teralokasi di periode baru. Mohon buat kuota baru.', number_format($move), number_format($requested), number_format($requested - $move)));
+        }
+
         return $redir;
     }
 }

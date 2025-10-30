@@ -352,12 +352,14 @@ class QuotaImportPageController extends Controller
 
         return $query->limit($limit)->get()->map(function ($row) {
             $desc = $this->hsHasDesc ? ($row->desc ?? '') : '';
+            if (strtoupper((string)$row->hs_code) === 'ACC') { $desc = 'Accesory'; }
             if ($desc === '') {
                 $desc = $this->formatPkLabel($row->pk_capacity);
             }
             return [
                 'id' => $row->hs_code,
-                'text' => trim($row->hs_code.' — '.$desc),
+                // Tampilkan hanya HS code pada dropdown; desc tetap tersedia via data-desc
+                'text' => $row->hs_code,
                 'desc' => $desc,
             ];
         })->all();
@@ -385,13 +387,15 @@ class QuotaImportPageController extends Controller
         }
 
         $desc = $this->hsHasDesc ? ($row->desc ?? '') : '';
+        if (strtoupper((string)$row->hs_code) === 'ACC') { $desc = 'Accesory'; }
         if ($desc === '') {
             $desc = $this->formatPkLabel($row->pk_capacity);
         }
 
         return [
             'id' => $row->hs_code,
-            'text' => trim($row->hs_code.' — '.$desc),
+            // Dropdown menampilkan hanya HS code; desc tetap untuk tampilan pendamping
+            'text' => $row->hs_code,
             'desc' => $desc,
         ];
     }
