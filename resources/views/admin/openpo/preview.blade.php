@@ -118,9 +118,9 @@
                           $notes = strtolower((string)($ln['validation_notes'] ?? ''));
                           $needsModel = str_contains($notes, 'model_code belum punya hs mapping') || str_contains($notes, 'hs mapping');
                         @endphp
-                        @if(($ln['validation_status'] ?? '') !== 'ok' && $needsModel && auth()->user()?->can('product.create') && Route::has('admin.master.quick_hs.create'))
+                        @if(($ln['validation_status'] ?? '') !== 'ok' && $needsModel && auth()->user()?->can('product.create') && Route::has('admin.master.quick_hs.index'))
                           <div class="mt-2">
-                            <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.master.quick_hs.create', [
+                            <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.master.quick_hs.index', [
                                 'model' => $ln['model_code'],
                                 'period_key' => request()->query('period_key') ?? '',
                                 'return' => request()->fullUrl(),

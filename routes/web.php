@@ -146,7 +146,6 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Quick Product -> HS (aksi cepat)
     Route::middleware(['permission:product.create'])->group(function () {
         Route::get('master-data/model-hs', [ProductQuickController::class, 'index'])->name('master.quick_hs.index');
-        Route::get('master-data/create-hs', [ProductQuickController::class, 'create'])->name('master.quick_hs.create');
         Route::post('master-data/store-hs', [ProductQuickController::class, 'store'])->name('master.quick_hs.store');
     });
 
@@ -242,4 +241,3 @@ Route::middleware(['auth', 'verified', 'permission:read reports'])->prefix('anal
     Route::get('/export/xlsx', [AnalyticsController::class, 'exportXlsx'])->name('export.xlsx');
     Route::get('/export/pdf', [AnalyticsController::class, 'exportPdf'])->name('export.pdf');
 });
-
