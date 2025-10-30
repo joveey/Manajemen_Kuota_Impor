@@ -146,7 +146,6 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Quick Product -> HS (aksi cepat)
     Route::middleware(['permission:product.create'])->group(function () {
         Route::get('master-data/model-hs', [ProductQuickController::class, 'index'])->name('master.quick_hs.index');
-        Route::get('master-data/create-hs', [ProductQuickController::class, 'create'])->name('master.quick_hs.create');
         Route::post('master-data/store-hs', [ProductQuickController::class, 'store'])->name('master.quick_hs.store');
     });
 
@@ -159,8 +158,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
     // HS→PK Imports upload (backend only)
     Route::middleware(['permission:read quota', 'forbid-role:user'])->group(function () {
-        Route::post('imports/hs-pk', [ImportController::class, 'uploadHsPk'])->name('imports.hs_pk.upload');
-        Route::post('imports/quotas', [ImportController::class, 'uploadQuotas'])->name('imports.quotas.upload');
+        // Legacy file-upload routes removed (now manual-only)
+        // Route::post('imports/hs-pk', [ImportController::class, 'uploadHsPk'])->name('imports.hs_pk.upload');
+        // Route::post('imports/quotas', [ImportController::class, 'uploadQuotas'])->name('imports.quotas.upload');
 
         Route::get('imports/{import}/summary', [ImportController::class, 'showSummary'])->name('imports.summary');
         Route::get('imports/{import}/items', [ImportController::class, 'listItems'])->name('imports.items');
@@ -168,22 +168,22 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('imports/{import}/publish-quotas', [ImportController::class, 'publishQuotas'])->name('imports.quotas.publish');
 
         Route::get('imports/hs-pk', [HsPkImportPageController::class, 'index'])->name('imports.hs_pk.index');
-        Route::post('imports/hs-pk/upload', [HsPkImportPageController::class, 'uploadForm'])->name('imports.hs_pk.upload.form');
-        Route::get('imports/hs-pk/{import}', [HsPkImportPageController::class, 'preview'])->name('imports.hs_pk.preview');
-        Route::post('imports/hs-pk/{import}/publish', [HsPkImportPageController::class, 'publishForm'])->name('imports.hs_pk.publish.form');
+        // Route::post('imports/hs-pk/upload', [HsPkImportPageController::class, 'uploadForm'])->name('imports.hs_pk.upload.form');
+        // Route::get('imports/hs-pk/{import}', [HsPkImportPageController::class, 'preview'])->name('imports.hs_pk.preview');
+        // Route::post('imports/hs-pk/{import}/publish', [HsPkImportPageController::class, 'publishForm'])->name('imports.hs_pk.publish.form');
 
         // Manual HS → PK (create + list)
         Route::post('hs-pk/manual', [HsPkManualController::class, 'store'])->name('hs_pk.manual.store');
 
         Route::get('imports/quotas', [QuotaImportPageController::class, 'index'])->name('imports.quotas.index');
-        Route::post('imports/quotas/upload', [QuotaImportPageController::class, 'uploadForm'])->name('imports.quotas.upload.form');
+        // Route::post('imports/quotas/upload', [QuotaImportPageController::class, 'uploadForm'])->name('imports.quotas.upload.form');
         Route::post('imports/quotas/manual/add', [QuotaImportPageController::class, 'addManual'])->name('imports.quotas.manual.add');
         Route::post('imports/quotas/manual/remove', [QuotaImportPageController::class, 'removeManual'])->name('imports.quotas.manual.remove');
         Route::post('imports/quotas/manual/reset', [QuotaImportPageController::class, 'resetManual'])->name('imports.quotas.manual.reset');
         Route::post('imports/quotas/manual/publish', [QuotaImportPageController::class, 'publishManual'])->name('imports.quotas.manual.publish');
         Route::get('imports/quotas/hs-options', [QuotaImportPageController::class, 'hsOptions'])->name('imports.quotas.hs-options');
-        Route::get('imports/quotas/{import}', [QuotaImportPageController::class, 'preview'])->name('imports.quotas.preview');
-        Route::post('imports/quotas/{import}/publish', [QuotaImportPageController::class, 'publishForm'])->name('imports.quotas.publish.form');
+        // Route::get('imports/quotas/{import}', [QuotaImportPageController::class, 'preview'])->name('imports.quotas.preview');
+        // Route::post('imports/quotas/{import}/publish', [QuotaImportPageController::class, 'publishForm'])->name('imports.quotas.publish.form');
 
         // ===== New: Invoice & GR imports =====
         Route::get('imports/invoices', [\App\Http\Controllers\Admin\InvoiceImportPageController::class, 'index'])->name('imports.invoices.index');
@@ -214,10 +214,10 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('mapping/unmapped/view', [MappingPageController::class, 'unmapped'])->name('mapping.unmapped.page');
         Route::get('mapping/mapped', [MappingPageController::class, 'mapped'])->name('mapping.mapped.page');
         // Batch Import: Model -> HS (Excel/CSV)
-        Route::get('mapping/model-hs', [\App\Http\Controllers\Admin\ModelHsImportController::class, 'index'])->name('mapping.model_hs.index');
-        Route::post('mapping/model-hs/upload', [\App\Http\Controllers\Admin\ModelHsImportController::class, 'upload'])->name('mapping.model_hs.upload');
-        Route::get('mapping/model-hs/preview', [\App\Http\Controllers\Admin\ModelHsImportController::class, 'preview'])->name('mapping.model_hs.preview');
-        Route::post('mapping/model-hs/publish', [\App\Http\Controllers\Admin\ModelHsImportController::class, 'publish'])->name('mapping.model_hs.publish');
+        // Route::get('mapping/model-hs', [\App\Http\Controllers\Admin\ModelHsImportController::class, 'index'])->name('mapping.model_hs.index');
+        // Route::post('mapping/model-hs/upload', [\App\Http\Controllers\Admin\ModelHsImportController::class, 'upload'])->name('mapping.model_hs.upload');
+        // Route::get('mapping/model-hs/preview', [\App\Http\Controllers\Admin\ModelHsImportController::class, 'preview'])->name('mapping.model_hs.preview');
+        // Route::post('mapping/model-hs/publish', [\App\Http\Controllers\Admin\ModelHsImportController::class, 'publish'])->name('mapping.model_hs.publish');
     });
 
 
@@ -241,4 +241,3 @@ Route::middleware(['auth', 'verified', 'permission:read reports'])->prefix('anal
     Route::get('/export/xlsx', [AnalyticsController::class, 'exportXlsx'])->name('export.xlsx');
     Route::get('/export/pdf', [AnalyticsController::class, 'exportPdf'])->name('export.pdf');
 });
-

@@ -186,7 +186,6 @@
                             @forelse($product->quotaMappings as $mapping)
                                 <span class="quota-chip">
                                     {{ $mapping->quota->display_number }}
-                                    @if($mapping->is_primary)<small>Primary</small>@endif
                                 </span>
                             @empty
                                 <span class="text-muted">Belum dimapping</span>
