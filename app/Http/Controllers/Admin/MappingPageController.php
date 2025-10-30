@@ -83,6 +83,7 @@ class MappingPageController extends Controller
                         $label = null;
                         if ($hasDesc) { $label = (string) ($r->desc ?? ''); }
                         if ($label === '') { $label = null; }
+                        if (strtoupper((string)$r->hs_code) === 'ACC') { $label = 'Accesory'; }
                         $labelByCode[$r->hs_code] = $label;
                     }
                 }

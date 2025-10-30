@@ -245,6 +245,12 @@
                 <i class="fas fa-arrow-left"></i>
                 Kembali
             </a>
+            @if(isset($internalPO) && $internalPO)
+                <button type="button" class="page-header__button" data-bs-toggle="modal" data-bs-target="#reallocateModalDoc">
+                    <i class="fas fa-random"></i>
+                    Pindahkan Kuota
+                </button>
+            @endif
         </div>
     </div>
 
@@ -271,7 +277,7 @@
         </div>
         <div class="summary-tile">
             <div class="summary-tile__label">Total Qty</div>
-            <div class="summary-tile__value">{{ number_format($totals['quantity'], 2) }}</div>
+            <div class="summary-tile__value">{{ number_format($totals['quantity'], 0) }}</div>
         </div>
         <div class="summary-tile">
             <div class="summary-tile__label">Total Amount</div>
@@ -280,6 +286,133 @@
             </div>
         </div>
     </div>
+
+    @if(isset($internalPO) && $internalPO)
+        @php
+            $candidateQuotas = \App\Models\Quota::query()
+                ->active()
+                ->orderBy('period_start')
+                ->get()
+                ->filter(fn ($q) => $q->matchesProduct($internalPO->product));
+            $currentAllocs = $internalPO->allocatedQuotas()->get();
+            $formatQuotaNo = function($q) {
+                $num = (string) ($q->quota_number ?? '');
+                if (preg_match('/^MAN-/', $num)) {
+                    return sprintf('QUOTA-%06d', (int) $q->id);
+                }
+                return $num !== '' ? $num : sprintf('QUOTA-%06d', (int) $q->id);
+            };
+        @endphp
+
+        <div class="modal fade" id="reallocateModalDoc" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Pindahkan Kuota (Per PO Line)</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form method="POST" action="{{ route('admin.purchase-orders.reallocate_quota', $internalPO) }}">
+                        @csrf
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Kuota Asal</label>
+                                    <select name="source_quota_id" id="doc_source_quota_id" class="form-select" required>
+                                        @foreach($currentAllocs as $q)
+                                            <option value="{{ $q->id }}" data-allocated="{{ (int) $q->pivot->allocated_qty }}">
+                                                {{ $formatQuotaNo($q) }} — Alloc: {{ number_format((int) $q->pivot->allocated_qty) }} (Periode: {{ optional($q->period_start)->format('Y-m-d') }} s/d {{ optional($q->period_end)->format('Y-m-d') }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <div class="form-text">Pilih kuota yang saat ini menampung alokasi PO ini.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">ETA Baru (opsional)</label>
+                                    <input type="date" name="eta_date" id="doc_eta_date" class="form-control">
+                                    <div class="form-text">Dipakai untuk memfilter kuota tujuan sesuai periode.</div>
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label">Kuota Tujuan</label>
+                                    <select name="target_quota_id" id="doc_target_quota_id" class="form-select" required>
+                                        <option value="" disabled selected hidden>Pilih kuota</option>
+                                        @foreach($candidateQuotas as $q)
+                                            <option value="{{ $q->id }}" data-start="{{ optional($q->period_start)->format('Y-m-d') }}" data-end="{{ optional($q->period_end)->format('Y-m-d') }}" data-avail="{{ (int) $q->forecast_remaining }}">
+                                                {{ $formatQuotaNo($q) }} — Sisa: {{ number_format((int) $q->forecast_remaining) }} ({{ optional($q->period_start)->format('Y-m-d') }} s/d {{ optional($q->period_end)->format('Y-m-d') }})
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <div class="form-text">Hanya kuota dengan sisa kapasitas yang akan menerima realokasi.</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Qty Dipindahkan</label>
+                                    <input type="number" name="move_qty" id="doc_move_qty" class="form-control" min="1" step="1" placeholder="otomatis">
+                                    <div class="form-text">Kosongkan untuk memindahkan seluruh alokasi dari kuota asal.</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                            <button type="submit" class="btn btn-primary">Pindahkan</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        @push('scripts')
+        <script>
+            (function(){
+                const eta = document.getElementById('doc_eta_date');
+                const tgt = document.getElementById('doc_target_quota_id');
+                const src = document.getElementById('doc_source_quota_id');
+                const qty = document.getElementById('doc_move_qty');
+
+                function parseDate(val){
+                    if (!val) return '';
+                    const s = String(val).trim();
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // YYYY-MM-DD
+                    const m = s.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})$/); // DD/MM/YYYY or DD-MM-YYYY
+                    if (m) { return `${m[3]}-${m[2]}-${m[1]}`; }
+                    try { const d = new Date(s); if (!isNaN(d)) return d.toISOString().slice(0,10); } catch(e) {}
+                    return '';
+                }
+
+                function within(date, start, end) {
+                    const d = parseDate(date);
+                    if (!d) return true; // don't filter if invalid input
+                    if (!start || !end) return true;
+                    return start <= d && d <= end;
+                }
+
+                function filterTarget() {
+                    const d = eta.value || '';
+                    Array.from(tgt.options).forEach(function(opt){
+                        if (!opt.value) return;
+                        const s = opt.getAttribute('data-start') || '';
+                        const e = opt.getAttribute('data-end') || '';
+                        opt.hidden = !within(d, s, e);
+                    });
+                    const sel = tgt.selectedOptions[0];
+                    if (sel && sel.hidden) { tgt.selectedIndex = 0; }
+                }
+
+                function syncQtyDefault() {
+                    const selected = src.selectedOptions[0];
+                    if (!selected) return;
+                    const alloc = parseInt(selected.getAttribute('data-allocated') || '0', 10);
+                    if (!qty.value) { qty.placeholder = alloc > 0 ? String(alloc) : 'otomatis'; }
+                }
+
+                eta && eta.addEventListener('change', filterTarget);
+                src && src.addEventListener('change', syncQtyDefault);
+                document.getElementById('reallocateModalDoc')?.addEventListener('shown.bs.modal', function(){
+                    filterTarget();
+                    syncQtyDefault();
+                });
+            })();
+        </script>
+        @endpush
+    @endif
 
     @if($headers->count() > 1)
         <div class="table-shell">
@@ -318,6 +451,7 @@
                             <tr>
                                 <th>PO Doc</th>
                                 <th>Created Date</th>
+                                <th>Deliv Date</th>
                                 <th>Vendor No</th>
                                 <th>Vendor Name</th>
                                 <th>Line No</th>
@@ -342,6 +476,7 @@
                                 <tr>
                                     <td>{{ $line->po_number }}</td>
                                     <td>{{ optional($line->display_order_date)->format('d M Y') ?? '-' }}</td>
+                                    <td>{{ !empty($line->deliv_date) ? (\Illuminate\Support\Carbon::hasTestNow() ? \Illuminate\Support\Carbon::parse($line->deliv_date)->format('d M Y') : (\Illuminate\Support\Carbon::parse($line->deliv_date)->format('d M Y'))) : '-' }}</td>
                                     <td>{{ $line->vendor_number ?? '-' }}</td>
                                     <td>{{ $line->vendor_name ?? '-' }}</td>
                                     <td>{{ $line->line_number !== '' ? $line->line_number : '-' }}</td>
@@ -353,7 +488,7 @@
                                     <td>{{ $line->subinventory_code ?? '-' }}</td>
                                     <td>{{ $line->subinventory_name ?? '-' }}</td>
                                     <td>{{ $line->subinventory_source ?? '-' }}</td>
-                                    <td class="text-end">{{ number_format((float) ($line->quantity ?? 0), 2) }}</td>
+                                    <td class="text-end">{{ number_format((float) ($line->quantity ?? 0), 0) }}</td>
                                     <td class="text-end">
                                         @if(!is_null($line->amount))
                                             {{ number_format((float) $line->amount, 2) }}

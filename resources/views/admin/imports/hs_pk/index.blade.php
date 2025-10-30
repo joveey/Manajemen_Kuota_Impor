@@ -70,6 +70,7 @@
                         <ul class="mb-2">
                             <li>Input kolom: <code>Periode (YYYY)</code>, <code>HS_CODE</code>, <code>DESC</code>.</li>
                             <li>Aturan parsing <code>DESC</code> (kategori PK): gunakan <code>8-10</code>, <code>&lt;8</code>, <code>&gt;10</code>, atau angka tunggal.</li>
+                            <li>Untuk Model ACC Input <code>ACC</code> pada kolom : <code> HS_CODE </code> dan Input <code> Accesory </code> pada kolom : <code> DESC </code> </li>
                         </ul>
                     </div>
                 </div>

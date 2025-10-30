@@ -352,6 +352,7 @@ class QuotaImportPageController extends Controller
 
         return $query->limit($limit)->get()->map(function ($row) {
             $desc = $this->hsHasDesc ? ($row->desc ?? '') : '';
+            if (strtoupper((string)$row->hs_code) === 'ACC') { $desc = 'Accesory'; }
             if ($desc === '') {
                 $desc = $this->formatPkLabel($row->pk_capacity);
             }
@@ -386,6 +387,7 @@ class QuotaImportPageController extends Controller
         }
 
         $desc = $this->hsHasDesc ? ($row->desc ?? '') : '';
+        if (strtoupper((string)$row->hs_code) === 'ACC') { $desc = 'Accesory'; }
         if ($desc === '') {
             $desc = $this->formatPkLabel($row->pk_capacity);
         }

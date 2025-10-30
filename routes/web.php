@@ -155,6 +155,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
     Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'show', 'destroy']);
     Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
+    Route::post('purchase-orders/{purchaseOrder}/reallocate-quota', [PurchaseOrderController::class, 'reallocateQuota'])->name('purchase-orders.reallocate_quota');
 
     // HS→PK Imports upload (backend only)
     Route::middleware(['permission:read quota', 'forbid-role:user'])->group(function () {

@@ -271,11 +271,12 @@ class OpenPoImportController extends Controller
                             ]
                         );
 
-                        // Allocate per line quantity (pivot aggregates per PO). Mark line processed to avoid duplicates.
+                        // Allocate per line quantity (pivot aggregates per PO) based on delivery date.
                         $lineQty = (int) ($line['qty_ordered'] ?? 0);
                         if ($lineQty > 0 && (empty($poLine->forecast_allocated_at))) {
+                            $allocDate = $line['eta_date'] ?? ($payload['po_date'] ?? $po->order_date ?? now()->toDateString());
                             [$allocs, $left] = app(QuotaAllocationService::class)
-                                ->allocateForecast($product->id, $lineQty, $po->order_date, $po);
+                                ->allocateForecast($product->id, $lineQty, $allocDate, $po);
                             $leftoverAll += (int) $left;
                             // mark line allocated to avoid re-run duplication
                             PoLine::where('id', $poLine->id)->update(['forecast_allocated_at' => now()]);
