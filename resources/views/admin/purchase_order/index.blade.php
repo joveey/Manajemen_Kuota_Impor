@@ -1,11 +1,11 @@
 {{-- resources/views/admin/purchase_order/index.blade.php --}}
 @extends('layouts.admin')
 
-@section('title', 'Daftar Purchase Order')
+@section('title', 'Purchase Orders')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-    <li class="breadcrumb-item active">Daftar Purchase Order</li>
+    <li class="breadcrumb-item active">Purchase Orders</li>
 @endsection
 
 @push('styles')
@@ -363,8 +363,8 @@
 <div class="page-shell">
     <div class="page-header">
         <div>
-            <h1 class="page-header__title">Daftar Purchase Order</h1>
-            <p class="page-header__subtitle">Pantau status purchase order, progres pengiriman, dan detail pelanggan dalam satu tampilan ringkas.</p>
+            <h1 class="page-header__title">Purchase Orders</h1>
+            <p class="page-header__subtitle">Track purchase order status, shipment progress, and customer details in one concise view.</p>
         </div>
         <div class="page-header__actions">
             <a href="{{ route('admin.purchase-orders.export', request()->query()) }}" class="page-header__button page-header__button--outline">
@@ -376,7 +376,7 @@
 
     <div class="summary-grid">
         <div class="summary-tile">
-            <span class="summary-tile__label">Total PO</span>
+            <span class="summary-tile__label">Total POs</span>
             <span class="summary-tile__value">{{ number_format($stats['total_po']) }}</span>
         </div>
         <div class="summary-tile">
@@ -384,24 +384,24 @@
             <span class="summary-tile__value">{{ number_format($stats['ordered']) }}</span>
         </div>
         <div class="summary-tile">
-            <span class="summary-tile__label">Sedang Dikirim</span>
+            <span class="summary-tile__label">In Transit</span>
             <span class="summary-tile__value">{{ number_format($stats['in_transit']) }}</span>
         </div>
         <div class="summary-tile">
-            <span class="summary-tile__label">Selesai</span>
+            <span class="summary-tile__label">Completed</span>
             <span class="summary-tile__value">{{ number_format($stats['completed']) }}</span>
         </div>
     </div>
 
     <form method="GET" class="filter-panel">
         <div class="filter-panel__control">
-            <label class="form-label text-muted small mb-1">Periode</label>
+            <label class="form-label text-muted small mb-1">Period</label>
             <input type="text" name="period" value="{{ request('period') }}" class="form-control" placeholder="YYYY-MM">
         </div>
         <div class="filter-panel__control">
             <label class="form-label text-muted small mb-1">Status</label>
             <select name="status" class="form-select">
-                <option value="">Semua Status</option>
+                <option value="">All Statuses</option>
                 @foreach([
                     \App\Models\PurchaseOrder::STATUS_ORDERED => 'Ordered',
                     \App\Models\PurchaseOrder::STATUS_IN_TRANSIT => 'In Transit',
@@ -413,13 +413,13 @@
             </select>
         </div>
         <div class="filter-panel__control" style="flex:2">
-            <label class="form-label text-muted small mb-1">Pencarian</label>
-            <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Cari nomor PO, vendor, atau item">
+            <label class="form-label text-muted small mb-1">Search</label>
+            <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="Search PO number, vendor, or item">
         </div>
         <div class="filter-panel__buttons">
             <button class="filter-button filter-button--apply" type="submit">
                 <i class="fas fa-filter"></i>
-                Terapkan
+                Apply
             </button>
             <a href="{{ route('admin.purchase-orders.index') }}" class="filter-button filter-button--reset">
                 <i class="fas fa-sync"></i>
@@ -432,7 +432,7 @@
         <div class="table-shell">
             <div class="scroll-indicator" id="scrollIndicator">
                 <i class="fas fa-arrows-alt-h"></i>
-                <span>Geser ke samping untuk melihat lebih banyak</span>
+                <span>Scroll sideways to see more</span>
             </div>
             <div class="table-scroll" id="tableScroll">
                 <table class="po-table">
@@ -448,7 +448,7 @@
                             <th class="text-end">Qty Received</th>
                             <th class="text-end">Outstanding</th>
                             <th>Status</th>
-                            <th class="text-end">Aksi</th>
+                            <th class="text-end">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -509,7 +509,7 @@
                                 <td class="text-end">
                                     <div class="table-actions">
                                         <a href="{{ route('admin.purchase-orders.document', ['poNumber' => $po->po_number]) }}"
-                                            class="action-icon action-icon--view" title="Lihat detail PO">
+                                            class="action-icon action-icon--view" title="View PO details">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                     </div>
@@ -517,7 +517,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="text-center text-muted py-4">Belum ada purchase order.</td>
+                                <td colspan="11" class="text-center text-muted py-4">No purchase orders yet.</td>
                             </tr>
                         @endforelse
                     </tbody>

@@ -36,9 +36,9 @@
             <div class="text-muted small">
               Updated: {{ optional($import->updated_at)->format('Y-m-d H:i') }}
               @if(!empty($import->period_key))
-                <span class="ms-3">Periode: <strong>{{ $import->period_key }}</strong></span>
+                <span class="ms-3">Period: <strong>{{ $import->period_key }}</strong></span>
               @else
-                <span class="ms-3">Periode: <span class="text-muted">Legacy</span></span>
+                <span class="ms-3">Period: <span class="text-muted">Legacy</span></span>
               @endif
             </div>
             <div>
@@ -47,9 +47,9 @@
           </div>
           @if((int)($import->total_rows ?? 0) === 0)
             <div class="alert alert-warning" role="alert">
-              <div class="fw-semibold mb-1">Tidak ada baris terdeteksi.</div>
-              <div>Pastikan sheet ‘HS code master’, header HS_CODE dan DESC ada di baris pertama. Jika file dari generator/script, coba buka di Excel lalu Save As (.xlsx).</div>
-              <div class="mt-2"><a href="{{ route('admin.imports.hs_pk.index') }}" class="btn btn-sm btn-outline-primary">Kembali ke Upload</a></div>
+              <div class="fw-semibold mb-1">No rows detected.</div>
+              <div>Ensure the sheet <em>HS code master</em> has HS_CODE and DESC headers on the first row. If the file comes from a generator or script, open it in Excel and save it as (.xlsx).</div>
+              <div class="mt-2"><a href="{{ route('admin.imports.hs_pk.index') }}" class="btn btn-sm btn-outline-primary">Back to Upload</a></div>
             </div>
           @endif
           @if(!empty($import->notes))
@@ -65,13 +65,13 @@
             @csrf
             <div class="form-check mb-2">
               <input class="form-check-input" type="checkbox" value="1" id="run_automap" name="run_automap" checked>
-              <label class="form-check-label" for="run_automap">Run automapper (opsional)</label>
+              <label class="form-check-label" for="run_automap">Run automapper (optional)</label>
             </div>
             <div class="form-check mb-2">
               <input class="form-check-input" type="checkbox" value="1" id="update_existing" name="update_existing" checked>
-              <label class="form-check-label" for="update_existing">Update PK jika HS sudah ada (upsert)</label>
+              <label class="form-check-label" for="update_existing">Update PK when HS already exists (upsert)</label>
             </div>
-            <small class="text-muted d-block mb-2">Automapper akan menyelaraskan mapping Product ↔ Quota berdasarkan HS/PK.</small>
+            <small class="text-muted d-block mb-2">The automapper will align Product -> Quota mappings based on HS/PK.</small>
             <button class="btn btn-primary" type="submit" {{ $import->status !== 'ready' ? 'disabled' : '' }}>Publish HS & PK</button>
           </form>
         </div>
@@ -79,7 +79,7 @@
 
       <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-          <span>Data Hasil Import</span>
+          <span>Import Results</span>
           <div>
             <button class="btn btn-sm btn-outline-secondary" id="btn-copy">Copy Summary</button>
             <button class="btn btn-sm btn-outline-secondary" id="btn-download-errors">Download Errors (CSV)</button>
@@ -96,7 +96,7 @@
           </ul>
           <div class="tab-content pt-3">
             <div class="tab-pane fade show active" id="errors-pane" role="tabpanel" aria-labelledby="errors-tab">
-              <div id="errors-empty" class="text-muted" aria-live="polite" style="display:none;">Tidak ada error pada import ini.</div>
+              <div id="errors-empty" class="text-muted" aria-live="polite" style="display:none;">No errors in this import.</div>
               <div class="table-responsive">
                 <table class="table table-sm" id="errors-table">
                   <thead>
@@ -116,7 +116,7 @@
               </div>
             </div>
             <div class="tab-pane fade" id="valid-pane" role="tabpanel" aria-labelledby="valid-tab">
-              <div id="valid-empty" class="text-muted" aria-live="polite" style="display:none;">Tidak ada data valid.</div>
+              <div id="valid-empty" class="text-muted" aria-live="polite" style="display:none;">No valid data.</div>
               <div class="table-responsive">
                 <table class="table table-sm" id="valid-table">
                   <thead>
@@ -209,7 +209,7 @@
 
   document.getElementById('btn-copy')?.addEventListener('click', function(){
     const summary = `Valid: ${sumValid.textContent} / Error: ${sumError.textContent} / Total: ${sumTotal.textContent}`;
-    navigator.clipboard.writeText(summary).then(()=> alert('Summary disalin.'));
+    navigator.clipboard.writeText(summary).then(()=> alert('Summary copied.'));
   });
 
   let errPage=1, errLast=1, valPage=1, valLast=1;

@@ -1,12 +1,12 @@
 {{-- resources/views/admin/reports/final.blade.php --}}
 @extends('layouts.admin')
 
-@section('title', 'Laporan Gabungan')
-@section('page-title', 'Laporan Gabungan')
+@section('title', 'Combined Report')
+@section('page-title', 'Combined Report')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-    <li class="breadcrumb-item active">Laporan Gabungan</li>
+    <li class="breadcrumb-item active">Combined Report</li>
 @endsection
 
 @php
@@ -209,9 +209,9 @@
     <div class="report-card report-card--flat">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div>
-                <h1 class="report-card__title mb-1">Laporan Gabungan</h1>
+                <h1 class="report-card__title mb-1">Combined Report</h1>
                 <p class="report-card__subtitle mb-0">
-                    Ikhtisar PO dan realisasi Good Receipt dari pipeline PO header/line dan GR terbaru.
+                    Overview of POs and Good Receipt realization from the PO header/line pipeline and the latest GR.
                 </p>
             </div>
             <div class="report-filters__actions">
@@ -227,7 +227,7 @@
         @endphp
         <form method="GET" action="{{ route('admin.reports.final') }}" class="report-filters">
             <div class="report-filters__group">
-                <label for="year" class="report-filters__label">Tahun</label>
+                <label for="year" class="report-filters__label">Year</label>
                 <select id="year" name="year" class="report-filters__input">
                     @foreach($years as $y)
                         <option value="{{ $y }}" {{ $y === $selectedYear ? 'selected' : '' }}>{{ $y }}</option>
@@ -236,7 +236,7 @@
             </div>
             <div class="report-filters__actions">
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-filter me-2"></i>Terapkan
+                    <i class="fas fa-filter me-2"></i>Apply
                 </button>
                 <a href="{{ route('admin.reports.final') }}" class="btn btn-outline-secondary">Reset</a>
             </div>
@@ -247,34 +247,34 @@
         <div class="report-summary__item">
             <span class="report-summary__label">Total PO</span>
             <span class="report-summary__value">{{ $formatInt($summary['po_total'] ?? 0) }}</span>
-            <span class="report-summary__meta">Qty dipesan {{ $formatQty($summary['po_ordered_total'] ?? 0) }}</span>
+            <span class="report-summary__meta">Qty ordered {{ $formatQty($summary['po_ordered_total'] ?? 0) }}</span>
         </div>
         <div class="report-summary__item">
             <span class="report-summary__label">Outstanding PO</span>
             <span class="report-summary__value">{{ $formatQty($summary['po_outstanding_total'] ?? 0) }}</span>
-            <span class="report-summary__meta">Belum direalisasi (GR)</span>
+            <span class="report-summary__meta">Not yet realized (GR)</span>
         </div>
         <div class="report-summary__item">
-            <span class="report-summary__label">Qty GR</span>
+            <span class="report-summary__label">GR Quantity</span>
             <span class="report-summary__value">{{ $formatQty($summary['gr_total_qty'] ?? 0) }}</span>
-            <span class="report-summary__meta">Dalam rentang tanggal</span>
+            <span class="report-summary__meta">Within date range</span>
         </div>
         <div class="report-summary__item">
-            <span class="report-summary__label">Dokumen GR</span>
+            <span class="report-summary__label">GR Documents</span>
             <span class="report-summary__value">{{ $formatInt($summary['gr_document_total'] ?? 0) }}</span>
-            <span class="report-summary__meta">Unik (GR Unique/PO-Line-Date)</span>
+            <span class="report-summary__meta">Unique (GR Unique/PO-Line-Date)</span>
         </div>
         <div class="report-summary__item">
-            <span class="report-summary__label">Kuota (Total vs Sisa)</span>
+            <span class="report-summary__label">Quota (Total vs Remaining)</span>
             <span class="report-summary__value">{{ $formatQty($summary['quota_total_allocation'] ?? 0) }}</span>
-            <span class="report-summary__meta">Sisa aktual {{ $formatQty($summary['quota_total_remaining'] ?? 0) }}</span>
+            <span class="report-summary__meta">Actual remaining {{ $formatQty($summary['quota_total_remaining'] ?? 0) }}</span>
         </div>
     </div>
 
     <div class="report-grid">
         <div class="report-card">
             <div class="d-flex justify-content-between align-items-start">
-                <h2 class="report-card__title">Kuota: Total vs Remaining</h2>
+                <h2 class="report-card__title">Quota: Total vs Remaining</h2>
                 <span class="report-card__meta">Bar Chart</span>
             </div>
             <div id="report-quota-bar" class="chart-container"></div>
@@ -291,7 +291,7 @@
     <div class="report-grid">
         <div class="report-card">
             <div class="d-flex justify-content-between align-items-start">
-                <h2 class="report-card__title">Tren GR Bulanan</h2>
+                <h2 class="report-card__title">Monthly GR Trend</h2>
                 <span class="report-card__meta">Area Chart</span>
             </div>
             <div id="report-gr-trend" class="chart-container"></div>
@@ -299,10 +299,10 @@
         <div class="report-card">
             <div class="d-flex justify-content-between align-items-start">
                 <h2 class="report-card__title mb-0">Status PO (SAP)</h2>
-                <span class="report-card__meta">Ringkasan</span>
+                <span class="report-card__meta">Summary</span>
             </div>
             @if(empty($poStatusLabels))
-                <p class="text-muted mb-0">Belum ada status yang tercatat.</p>
+                <p class="text-muted mb-0">No statuses recorded.</p>
             @else
                 <ul class="status-list">
                     @foreach($poStatusLabels as $index => $label)
@@ -319,11 +319,11 @@
 
     <div class="report-card">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-            <h2 class="report-card__title mb-0">Outstanding Terbesar (PO Line)</h2>
-            <span class="text-muted small">{{ count($outstanding ?? []) }} catatan</span>
+            <h2 class="report-card__title mb-0">Top Outstanding (PO Line)</h2>
+            <span class="text-muted small">{{ count($outstanding ?? []) }} records</span>
         </div>
         @if(empty($outstanding))
-            <p class="text-muted mb-0">Seluruh line PO dalam periode ini telah direalisasikan.</p>
+            <p class="text-muted mb-0">All PO lines in this period have been fulfilled.</p>
         @else
             <ul class="outstanding-list">
                 @foreach($outstanding as $item)
@@ -434,3 +434,4 @@
 })();
 </script>
 @endpush
+

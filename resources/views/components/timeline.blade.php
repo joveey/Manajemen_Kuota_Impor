@@ -21,7 +21,7 @@
                 @endif
             </li>
         @empty
-            <li class="text-sm text-slate-500">Tidak ada data.</li>
+            <li class="text-sm text-slate-500">No data.</li>
         @endforelse
     </ol>
 </div>

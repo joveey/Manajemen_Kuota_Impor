@@ -9,8 +9,8 @@
     $isForecast = $mode === 'forecast';
     $modeLabel = $isForecast ? 'Forecast' : 'Actual';
     $primaryLabel = $isForecast ? 'Forecast (Consumption)' : 'Actual (Good Receipt)';
-    $secondaryLabel = $isForecast ? 'Sisa Forecast' : 'Sisa Kuota';
-    $percentageLabel = $isForecast ? 'Penggunaan Forecast %' : 'Pemakaian Actual %';
+    $secondaryLabel = $isForecast ? 'Remaining Forecast' : 'Remaining Quota';
+    $percentageLabel = $isForecast ? 'Forecast Usage %' : 'Actual Usage %';
     $query = request()->query();
     $forecastUrl = route('analytics.index', array_merge($query, ['mode' => 'forecast']));
     $actualUrl = route('analytics.index', array_merge($query, ['mode' => 'actual']));
@@ -22,7 +22,7 @@
         <div>
             <h1 class="page-header__title">Analytics</h1>
             <p class="page-header__subtitle">
-                Lihat perbandingan kuota terhadap realisasi pengiriman dan status forecast untuk tiap periode.
+                Compare quota against shipment realization and forecast status for each period.
             </p>
         </div>
         <div class="page-header__actions">
@@ -47,7 +47,7 @@
         <form method="GET" action="{{ route('analytics.index') }}" class="analytics-filters">
             <input type="hidden" name="mode" value="{{ $mode }}">
             <div class="analytics-filters__group">
-                <label for="year" class="analytics-filters__label">Tahun</label>
+                <label for="year" class="analytics-filters__label">Year</label>
                 <select id="year" name="year" class="analytics-filters__input">
                     @foreach($years as $y)
                         <option value="{{ $y }}" {{ $y === $selectedYear ? 'selected' : '' }}>{{ $y }}</option>
@@ -55,7 +55,7 @@
                 </select>
             </div>
             <button type="submit" class="analytics-filters__submit">
-                <i class="fas fa-filter me-2"></i>Terapkan
+                <i class="fas fa-filter me-2"></i>Apply
             </button>
         </form>
         <div class="analytics-mode">
@@ -66,7 +66,7 @@
 
     <section class="analytics-card">
         <header class="analytics-card__header">
-            <h2 class="analytics-card__title">KPI Kuota</h2>
+            <h2 class="analytics-card__title">Quota KPIs</h2>
             <span class="analytics-card__badge analytics-card__badge--muted">Summary</span>
         </header>
         <div class="row g-3">
@@ -84,7 +84,7 @@
     <section class="analytics-grid">
         <article class="analytics-card">
             <header class="analytics-card__header">
-                <h2 class="analytics-card__title">Perbandingan Kuota vs {{ $modeLabel }}</h2>
+                <h2 class="analytics-card__title">Quota vs {{ $modeLabel }} Comparison</h2>
                 <span class="analytics-card__badge">{{ $modeLabel }} Based</span>
             </header>
             <div id="analyticsBar" class="analytics-card__chart"></div>
@@ -92,7 +92,7 @@
 
         <article class="analytics-card">
             <header class="analytics-card__header">
-                <h2 class="analytics-card__title">Proporsi Pemakaian {{ $modeLabel }}</h2>
+                <h2 class="analytics-card__title">{{ $modeLabel }} Usage Proportion</h2>
                 <span class="analytics-card__badge analytics-card__badge--muted">Donut</span>
             </header>
             <div id="analyticsDonut" class="analytics-card__chart"></div>
@@ -102,7 +102,7 @@
     <section class="analytics-card">
         <header class="analytics-card__header">
             <div>
-                <h2 class="analytics-card__title">Detail {{ $modeLabel }} per Kuota</h2>
+                <h2 class="analytics-card__title">{{ $modeLabel }} Details per Quota</h2>
                 <p class="analytics-card__subtitle">Angka-angka berikut memudahkan tim operasional memantau sisa kuota dan realisasi shipment.</p>
             </div>
             <span class="analytics-card__badge analytics-card__badge--muted">{{ $modeLabel }} data</span>
@@ -111,9 +111,9 @@
             <table class="analytics-table">
                 <thead>
                     <tr>
-                        <th>Nomor Kuota</th>
-                        <th>Range PK</th>
-                        <th class="text-end">Kuota Awal</th>
+                        <th>Quota Number</th>
+                        <th>PK Range</th>
+                        <th class="text-end">Initial Quota</th>
                         <th class="text-end">{{ $primaryLabel }}</th>
                         <th class="text-end">{{ $secondaryLabel }}</th>
                         <th class="text-end">{{ $percentageLabel }}</th>

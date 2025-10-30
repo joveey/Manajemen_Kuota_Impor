@@ -5,7 +5,7 @@
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('admin.purchase-orders.index') }}">Daftar Purchase Order</a></li>
+    <li class="breadcrumb-item"><a href="{{ route('admin.purchase-orders.index') }}">Purchase Orders</a></li>
     <li class="breadcrumb-item active">PO {{ $poNumber }}</li>
 @endsection
 
@@ -238,7 +238,7 @@
     <div class="page-header">
         <div>
             <h1 class="page-header__title">Detail PO {{ $poNumber }}</h1>
-            <p class="page-header__subtitle">Ringkasan dan detail line dari Purchase Order SAP.</p>
+            <p class="page-header__subtitle">Summary and line details from SAP Purchase Order.</p>
         </div>
         <div class="page-header__actions">
             <a href="{{ route('admin.purchase-orders.index') }}" class="page-header__button">
@@ -497,7 +497,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="19" class="text-center text-muted py-4">Tidak ada data line untuk PO ini.</td>
+                                    <td colspan="19" class="text-center text-muted py-4">No line data for this PO.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -571,3 +571,4 @@
 })();
 </script>
 @endpush
+

@@ -766,7 +766,7 @@
                         ($canPORead && request()->is('admin/purchase-orders*'))
                     );
 
-                    $quotaActive = $canQuota && (request()->is('admin/quotas*') || request()->is('admin/kuota*'));
+                    $quotaActive = $canQuota && (request()->is('admin/quotas*') || request()->is('admin/Quota*'));
 
                     $reportsActive = $canReports && (request()->is('admin/reports*') || request()->is('analytics*'));
 
@@ -801,16 +801,16 @@
                         @if($hasMasterDataIndex && $currentUser?->can('read master_data'))
                             <a href="{{ route('admin.master-data.index') }}" class="nav-link {{ request()->is('admin/master-data*') ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-boxes"></i></span>
-                                <span>Produk</span>
+                                <span>Products</span>
                             </a>
                             @if($hasMasterDataCreate && $currentUser?->can('create master_data'))
                                 <a href="{{ route('admin.master-data.create') }}" class="nav-link {{ request()->routeIs('admin.master-data.create') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-circle-plus"></i></span>
-                                    <span>Tambah Produk</span>
+                                    <span>Tambah Products</span>
                                 </a>
                             @endif
                         @endif
-                        {{-- Produk & Tambah Produk removed per request --}}
+                        {{-- Products & Tambah Products removed per request --}}
                     </div>
                 </div>
 
@@ -821,7 +821,7 @@
                             data-nav-toggle
                             aria-expanded="{{ $prepActive ? 'true' : 'false' }}"
                             aria-controls="nav-group-prep">
-                        <span class="nav-title">Persiapan Data</span>
+                        <span class="nav-title">Data Preparation</span>
                         <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
                     </button>
                     <div class="nav-group__body" id="nav-group-prep">
@@ -831,11 +831,11 @@
                         </a>
                         <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
                             <span class="nav-icon"><i class="fas fa-file-import"></i></span>
-                            <span>Import Kuota</span>
+                            <span>Import Quota</span>
                         </a>
                         <a href="{{ route('admin.mapping.unmapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.unmapped') || request()->routeIs('admin.mapping.unmapped.*') ? 'active' : '' }}">
                             <span class="nav-icon"><i class="fas fa-puzzle-piece"></i></span>
-                            <span>Produk Unmapped</span>
+                            <span>Products Unmapped</span>
                         </a>
                         <a href="{{ route('admin.mapping.mapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.mapped.page') ? 'active' : '' }}">
                             <span class="nav-icon"><i class="fas fa-link"></i></span>
@@ -844,7 +844,7 @@
                         @if($canProductCreate)
                             <a href="{{ route('admin.master.quick_hs.index') }}" class="nav-link {{ (request()->routeIs('admin.master.quick_hs.*') || request()->routeIs('admin.mapping.model_hs.*')) ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-circle-plus"></i></span>
-                                <span>Tambah Model &gt; HS</span>
+                                <span>Add Model &gt; HS</span>
                             </a>
                         @endif
                     </div>
@@ -858,7 +858,7 @@
                                 data-nav-toggle
                                 aria-expanded="{{ $operationalActive ? 'true' : 'false' }}"
                                 aria-controls="nav-group-operational">
-                            <span class="nav-title">Operasional</span>
+                            <span class="nav-title">Operations</span>
                             <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
                         </button>
                         <div class="nav-group__body" id="nav-group-operational">
@@ -871,15 +871,15 @@
                             @if($canPORead)
                                 <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
-                                    <span>Daftar Purchase Order</span>
+                                    <span>Purchase Orders</span>
                                 </a>
                                 <a href="{{ route('admin.po_progress.index') }}" class="nav-link {{ request()->routeIs('admin.po_progress.index') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-truck"></i></span>
-                                    <span>Pengiriman &amp; Receipt</span>
+                                    <span>Shipments &amp; Receipts</span>
                                 </a>
                                 <a href="{{ route('admin.imports.invoices.index') }}" class="nav-link {{ request()->routeIs('admin.imports.invoices.*') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-file-invoice"></i></span>
-                                    <span>Import Invoice (opsional)</span>
+                                    <span>Import Invoice (optional)</span>
                                 </a>
                                 <a href="{{ route('admin.imports.gr.index') }}" class="nav-link {{ request()->routeIs('admin.imports.gr.*') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-receipt"></i></span>
@@ -898,13 +898,13 @@
                                 data-nav-toggle
                                 aria-expanded="{{ ($quotaActive ?? false) ? 'true' : 'false' }}"
                                 aria-controls="nav-group-quota">
-                            <span class="nav-title">Kuota</span>
+                            <span class="nav-title">Quota</span>
                             <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
                         </button>
                         <div class="nav-group__body" id="nav-group-quota">
-                            <a href="{{ route('admin.quotas.index') }}" class="nav-link {{ request()->is('admin/quotas*') || request()->is('admin/kuota*') ? 'active' : '' }}">
+                            <a href="{{ route('admin.quotas.index') }}" class="nav-link {{ request()->is('admin/quotas*') || request()->is('admin/Quota*') ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-percentage"></i></span>
-                                <span>Manajemen Kuota</span>
+                                <span>Quota Management</span>
                             </a>
                         </div>
                     </div>
@@ -917,7 +917,7 @@
                                 data-nav-toggle
                                 aria-expanded="{{ $reportsActive ? 'true' : 'false' }}"
                                 aria-controls="nav-group-reports">
-                            <span class="nav-title">Laporan</span>
+                            <span class="nav-title">Reports</span>
                             <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
                         </button>
                         <div class="nav-group__body" id="nav-group-reports">
@@ -927,7 +927,7 @@
                             </a>
                             <a href="{{ route('admin.reports.final') }}" class="nav-link {{ request()->routeIs('admin.reports.final') ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-file-alt"></i></span>
-                                <span>Laporan Gabungan</span>
+                                <span>Combined Report</span>
                             </a>
                         </div>
                     </div>
@@ -940,7 +940,7 @@
                                 data-nav-toggle
                                 aria-expanded="{{ $adminActive ? 'true' : 'false' }}"
                                 aria-controls="nav-group-administration">
-                            <span class="nav-title">Administrasi</span>
+                            <span class="nav-title">Administration</span>
                             <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
                         </button>
                         <div class="nav-group__body" id="nav-group-administration">
@@ -987,7 +987,7 @@
                 </div>
                 <a href="{{ route('profile.edit') }}" class="nav-link nav-link-muted">
                     <span class="nav-icon"><i class="fas fa-user-cog"></i></span>
-                    <span>Pengaturan Akun</span>
+                    <span>Account Settings</span>
                 </a>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
@@ -1295,6 +1295,7 @@
     @stack('scripts')
 </body>
 </html>
+
 
 
 

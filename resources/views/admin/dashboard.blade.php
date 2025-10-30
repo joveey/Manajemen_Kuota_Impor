@@ -855,10 +855,10 @@
 @section('content')
 <div class="dashboard-shell">
 
-    <!-- Pipeline Kuota -->
+    <!-- Quota Pipeline -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <strong style="font-size: 16px; font-weight: 700;">Pipeline Kuota</strong>
+            <strong style="font-size: 16px; font-weight: 700;">Quota Pipeline</strong>
             <a href="{{ route('admin.mapping.unmapped.page') }}" class="panel-modern__link">Lihat</a>
         </div>
         <div class="card-body">
@@ -870,7 +870,7 @@
                         </div>
                         <div class="stat-label">Unmapped Model</div>
                         <div class="stat-number">{{ number_format($metrics['unmapped'] ?? 0) }}</div>
-                        <p class="stat-meta">Belum punya HS/PK</p>
+                        <p class="stat-meta">No HS/PK yet</p>
                     </div>
                 </div>
                 <div class="col-12 col-md-6 col-lg">
@@ -910,7 +910,7 @@
                         </div>
                         <div class="stat-label">GR (Actual)</div>
                         <div class="stat-number">{{ number_format($metrics['gr_qty'] ?? 0) }}</div>
-                        <p class="stat-meta">Diterima</p>
+                        <p class="stat-meta">Received</p>
                     </div>
                 </div>
             </div>
@@ -924,7 +924,7 @@
                 <div class="stat-icon primary">
                     <i class="fas fa-warehouse"></i>
                 </div>
-                <div class="stat-label">Total Kuota</div>
+                <div class="stat-label">Total Quota</div>
                 <div class="stat-number">{{ number_format($quotaStats['total']) }}</div>
                 <p class="stat-meta">Available: {{ number_format($quotaStats['available']) }} | Limited: {{ number_format($quotaStats['limited']) }} | Depleted: {{ number_format($quotaStats['depleted']) }}</p>
             </div>
@@ -954,7 +954,7 @@
                 <div class="stat-icon danger">
                     <i class="fas fa-truck-loading"></i>
                 </div>
-                <div class="stat-label">Pengiriman</div>
+                <div class="stat-label">Shipments</div>
                 <div class="stat-number">{{ number_format($shipmentStats['in_transit']) }}</div>
                 <p class="stat-meta">Delivered: {{ number_format($shipmentStats['delivered']) }} | Pending Receipt: {{ number_format($shipmentStats['pending_receipt']) }}</p>
             </div>
@@ -969,7 +969,7 @@
                 <span class="activity-card__subtitle">Pantau alokasi dan konsumsi terbaru untuk setiap bucket PK.</span>
             </div>
             @if(\Illuminate\Support\Facades\Route::has('admin.quotas.index'))
-                <a href="{{ route('admin.quotas.index') }}" class="kpi-card__action">Kelola Kuota</a>
+                <a href="{{ route('admin.quotas.index') }}" class="kpi-card__action">Manage Quota</a>
             @endif
         </div>
         <div class="card-body">
@@ -982,7 +982,7 @@
             @else
                 <div class="kpi-empty">
                     <i class="fas fa-chart-pie mb-2" aria-hidden="true"></i>
-                    <div>Belum ada data kuota untuk ditampilkan.</div>
+                    <div>No quota data to display.</div>
                 </div>
             @endif
         </div>
@@ -1003,7 +1003,7 @@
                         Recent Purchase Orders
                     </h3>
                     @if(\Illuminate\Support\Facades\Route::has('admin.purchase-orders.index'))
-                        <a href="{{ route('admin.purchase-orders.index') }}" class="panel-modern__link">Lihat semua</a>
+                        <a href="{{ route('admin.purchase-orders.index') }}" class="panel-modern__link">View all</a>
                     @endif
                 </div>
                 @php $recentPurchaseOrdersEmpty = $recentPurchaseOrders->isEmpty(); @endphp
@@ -1011,7 +1011,7 @@
                     @if($recentPurchaseOrdersEmpty)
                         <div class="empty-state">
                             <span class="empty-state__icon"><i class="fas fa-file-invoice"></i></span>
-                            <p class="empty-state__text">Belum ada purchase order terbaru.</p>
+                            <p class="empty-state__text">No recent purchase orders.</p>
                         </div>
                     @else
                         <div class="data-list">
@@ -1029,7 +1029,7 @@
                                 <div class="data-row data-row--po">
                                     <div class="data-cell">
                                         <span class="data-title">{{ $po->po_number }}</span>
-                                        <span class="data-sub">{{ optional($po->po_date)->format('d M Y') ?? 'Tanpa tanggal' }}</span>
+                                        <span class="data-sub">{{ optional($po->po_date)->format('d M Y') ?? 'No date' }}</span>
                                         @if(!empty($po->supplier))
                                             <span class="data-sub">{{ $po->supplier }}</span>
                                         @endif
@@ -1039,7 +1039,7 @@
                                         @if(!empty($sapStatuses))
                                             <span class="data-sub">{{ implode(', ', $sapStatuses) }}</span>
                                         @else
-                                            <span class="data-sub text-muted">SAP status belum tersedia</span>
+                                            <span class="data-sub text-muted">SAP status not available</span>
                                         @endif
                                     </div>
                                     <div class="data-cell data-cell--status">
@@ -1065,10 +1065,10 @@
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="18" height="18">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h11v7h7l-3-5h-4V7H3zM5 18a2 2 0 104 0 2 2 0 10-4 0zm10 0a2 2 0 104 0 2 2 0 10-4 0z" />
                         </svg>
-                        GR Receipt Terbaru
+                        Latest GR Receipts
                     </h3>
                     @if(\Illuminate\Support\Facades\Route::has('admin.imports.gr.index'))
-                        <a href="{{ route('admin.imports.gr.index') }}" class="panel-modern__link">Lihat semua</a>
+                        <a href="{{ route('admin.imports.gr.index') }}" class="panel-modern__link">View all</a>
                     @endif
                 </div>
                 @php $recentShipmentsEmpty = $recentShipments->isEmpty(); @endphp
@@ -1076,7 +1076,7 @@
                     @if($recentShipmentsEmpty)
                         <div class="empty-state">
                             <span class="empty-state__icon"><i class="fas fa-receipt"></i></span>
-                            <p class="empty-state__text">Belum ada GR receipt terbaru.</p>
+                            <p class="empty-state__text">No recent GR receipts.</p>
                         </div>
                     @else
                         <div class="data-list">
@@ -1084,10 +1084,10 @@
                                 <div class="data-row data-row--shipment">
                                     <div class="data-cell">
                                         <span class="data-title">{{ $shipment->po_number }}@if($shipment->line_no) <span class="text-muted"> / {{ $shipment->line_no }}</span>@endif</span>
-                                        <span class="data-sub">{{ optional($shipment->receive_date)->format('d M Y') ?? 'Tanpa tanggal' }}</span>
+                                        <span class="data-sub">{{ optional($shipment->receive_date)->format('d M Y') ?? 'No date' }}</span>
                                     </div>
                                     <div class="data-cell">
-                                        <span class="data-title">{{ $shipment->item_name ?? 'Item tidak diketahui' }}</span>
+                                        <span class="data-title">{{ $shipment->item_name ?? 'Unknown item' }}</span>
                                         @if($shipment->vendor_name)
                                             <span class="data-sub">{{ $shipment->vendor_name }}</span>
                                         @endif
@@ -1104,7 +1104,7 @@
                                     </div>
                                     <div class="data-cell data-cell--qty">
                                         <span class="data-qty">{{ fmt_qty($shipment->quantity) }}</span>
-                                        <span class="data-sub">Unit diterima</span>
+                                        <span class="data-sub">Units received</span>
                                     </div>
                                 </div>
                             @endforeach

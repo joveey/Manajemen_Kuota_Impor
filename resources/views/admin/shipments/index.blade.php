@@ -1,11 +1,11 @@
 {{-- resources/views/admin/shipments/index.blade.php --}}
 @extends('layouts.admin')
 
-@section('title', 'Pengiriman (Shipment)')
+@section('title', 'Shipments')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-    <li class="breadcrumb-item active">Pengiriman (Shipment)</li>
+    <li class="breadcrumb-item active">Shipments</li>
 @endsection
 
 @push('styles')
@@ -90,8 +90,8 @@
 <div class="page-shell">
     <div class="page-header">
         <div>
-            <h1 class="page-header__title">Pengiriman (Shipment)</h1>
-            <p class="page-header__subtitle">Lacak seluruh pengiriman, status penerimaan, dan ETA dalam satu dashboard modern.</p>
+            <h1 class="page-header__title">Shipments</h1>
+            <p class="page-header__subtitle">Track shipments, receipt statuses, and ETAs in a single modern dashboard.</p>
         </div>
         <div class="page-header__actions">
             <a href="{{ route('admin.shipments.export') }}" class="page-header__button page-header__button--outline">
@@ -101,7 +101,7 @@
             @can('create purchase_orders')
                 <a href="{{ route('admin.shipments.create') }}" class="page-header__button page-header__button--primary">
                     <i class="fas fa-plus"></i>
-                    Buat Shipment
+                    Create Shipment
                 </a>
             @endcan
         </div>
@@ -109,19 +109,19 @@
 
     <div class="summary-grid">
         <div class="summary-card">
-            <span class="summary-card__label">Total Pengiriman</span>
+            <span class="summary-card__label">Total Shipments</span>
             <span class="summary-card__value">{{ number_format($summary['total']) }}</span>
         </div>
         <div class="summary-card">
-            <span class="summary-card__label">Dalam Perjalanan</span>
+            <span class="summary-card__label">In Transit</span>
             <span class="summary-card__value">{{ number_format($summary['in_transit']) }}</span>
         </div>
         <div class="summary-card">
-            <span class="summary-card__label">Sudah Diterima</span>
+            <span class="summary-card__label">Delivered</span>
             <span class="summary-card__value">{{ number_format($summary['delivered']) }}</span>
         </div>
         <div class="summary-card">
-            <span class="summary-card__label">Total Unit Dikirim</span>
+            <span class="summary-card__label">Total Units Shipped</span>
             <span class="summary-card__value">{{ number_format($summary['quantity_total']) }}</span>
         </div>
     </div>
@@ -131,24 +131,24 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>No. Pengiriman</th>
+                    <th>Shipment No.</th>
                     <th>PO Number</th>
-                    <th>Produk</th>
-                    <th class="text-end">Qty Dikirim</th>
-                    <th class="text-end">Qty Diterima</th>
-                    <th>Tgl Kirim</th>
+                    <th>Product</th>
+                    <th class="text-end">Qty Shipped</th>
+                    <th class="text-end">Qty Received</th>
+                    <th>Ship Date</th>
                     <th>ETA</th>
                     <th>Status</th>
-                    <th class="text-end">Status Konfirmasi SAP</th>
+                    <th class="text-end">SAP Confirmation Status</th>
                 </tr>
             </thead>
             <tbody>
                 @php
                     $statusNameMap = [
-                        \App\Models\Shipment::STATUS_PENDING => 'Menunggu',
-                        \App\Models\Shipment::STATUS_IN_TRANSIT => 'Dalam Perjalanan',
-                        \App\Models\Shipment::STATUS_PARTIAL => 'Parsial',
-                        \App\Models\Shipment::STATUS_DELIVERED => 'Selesai',
+                        \App\Models\Shipment::STATUS_PENDING => 'Pending',
+                        \App\Models\Shipment::STATUS_IN_TRANSIT => 'In Transit',
+                        \App\Models\Shipment::STATUS_PARTIAL => 'Partial',
+                        \App\Models\Shipment::STATUS_DELIVERED => 'Delivered',
                     ];
                     $statusVariantMap = [
                         \App\Models\Shipment::STATUS_PENDING => 'neutral',
@@ -194,10 +194,10 @@
                             ->all();
 
                         $confirmationMessage = match($shipment->status) {
-                            \App\Models\Shipment::STATUS_DELIVERED => 'Selesai oleh SAP',
-                            \App\Models\Shipment::STATUS_PARTIAL => 'Parsial, menunggu SAP',
-                            \App\Models\Shipment::STATUS_IN_TRANSIT => 'Dalam proses konfirmasi SAP',
-                            default => 'Menunggu konfirmasi SAP',
+                            \App\Models\Shipment::STATUS_DELIVERED => 'Completed by SAP',
+                            \App\Models\Shipment::STATUS_PARTIAL => 'Partial, awaiting SAP',
+                            \App\Models\Shipment::STATUS_IN_TRANSIT => 'Awaiting SAP confirmation',
+                            default => 'Waiting for SAP confirmation',
                         };
                     @endphp
                     <tr>
@@ -210,7 +210,7 @@
                         </td>
                         <td>
                             <strong>{{ $shipment->purchaseOrder->po_number }}</strong>
-                            <span class="shipment-table__subtext">Qty PO: {{ number_format($shipment->purchaseOrder->quantity) }}</span>
+                            <span class="shipment-table__subtext">PO Qty: {{ number_format($shipment->purchaseOrder->quantity) }}</span>
                         </td>
                         <td>
                             <div class="fw-semibold">{{ $shipment->purchaseOrder->product->code }}</div>
@@ -231,20 +231,20 @@
                         <td colspan="10">
                             <div class="status-history-card">
                                 <div class="status-history-header">
-                                    <span class="status-history-title">Riwayat Status</span>
-                                    <span class="status-history-badge">{{ $shipment->statusLogs->count() }} catatan</span>
+                                    <span class="status-history-title">Status History</span>
+                                    <span class="status-history-badge">{{ $shipment->statusLogs->count() }} records</span>
                                 </div>
                                 @if(!empty($historyItems))
                                     <x-timeline :items="$historyItems" class="mb-0" />
                                 @else
-                                    <div class="status-history-empty">Belum ada riwayat status untuk shipment ini.</div>
+                                    <div class="status-history-empty">No status history available for this shipment.</div>
                                 @endif
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="13" class="text-center text-muted">Belum ada pengiriman.</td>
+                        <td colspan="13" class="text-center text-muted">No shipments found.</td>
                     </tr>
                 @endforelse
             </tbody>

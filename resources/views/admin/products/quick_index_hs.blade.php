@@ -1,12 +1,12 @@
 {{-- resources/views/admin/products/quick_index_hs.blade.php --}}
 @extends('layouts.admin')
 
-@section('title', 'Tambah Model > HS')
-@section('page-title', 'Tambah Model > HS')
+@section('title', 'Add Model > HS')
+@section('page-title', 'Add Model > HS')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-    <li class="breadcrumb-item active">Tambah Model > HS</li>
+    <li class="breadcrumb-item active">Add Model > HS</li>
 @endsection
 
 @section('content')
@@ -16,9 +16,9 @@
 
 <div class="container-fluid px-0">
     <div class="mb-4">
-        <h1 class="h4 mb-2">Input Manual Model &gt; HS</h1>
+        <h1 class="h4 mb-2">Manual Model &gt; HS Entry</h1>
         <p class="text-muted mb-0">
-            Tambahkan atau perbarui pemetaan model/SKU ke HS Code secara manual. Perubahan langsung tersimpan ke master produk.
+            Add or update model/SKU to HS Code mappings manually. Changes are saved directly to the product master.
         </p>
     </div>
 
@@ -38,7 +38,7 @@
                 <div class="card-body">
                     @if (!$canCreate)
                         <div class="alert alert-danger mb-0">
-                            Akses Ditolak (403): Anda tidak memiliki izin untuk menambahkan HS mapping.
+                            Access Denied (403): You do not have permission to add HS mappings.
                         </div>
                     @else
                         @include('admin.products.partials.quick_hs_manual_form', [
@@ -56,9 +56,9 @@
         <div class="col-xl-8">
             <div class="card shadow-sm h-100">
                 <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-                    <span>Aktivitas Terakhir</span>
+                    <span>Recent Activity</span>
                     <a href="{{ route('admin.mapping.mapped.page') }}" class="btn btn-sm btn-outline-secondary">
-                        <i class="fas fa-table-list me-1"></i> Lihat Mapping
+                        <i class="fas fa-table-list me-1"></i> View Mapping
                     </a>
                 </div>
                 <div class="card-body p-0">
@@ -91,7 +91,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="text-center text-muted py-4">Belum ada model dengan HS Code.</td>
+                                        <td colspan="4" class="text-center text-muted py-4">No models have an HS Code yet.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -99,20 +99,20 @@
                     </div>
                 </div>
                 <div class="card-footer text-muted small">
-                    Menampilkan {{ $recent->count() }} model terakhir diperbarui.
+                    Showing {{ $recent->count() }} most recently updated models.
                 </div>
             </div>
         </div>
 
         <div class="col-xl-4">
             <div class="card shadow-sm h-100">
-                <div class="card-header fw-semibold">Format yang Disarankan</div>
+                <div class="card-header fw-semibold">Suggested Format</div>
                 <div class="card-body">
                     <ul class="mb-0">
-                        <li>Isi <code>Model/SKU</code> persis seperti kode produk di master.</li>
-                        <li>HS Code harus sudah memiliki PK di master HS &rarr; PK.</li>
-                        <li>Gunakan <code>PK Capacity</code> untuk menyimpan kapasitas numerik (opsional).</li>
-                        <li>Kolom <code>Kategori</code> membantu klasifikasi model baru.</li>
+                        <li>Enter <code>Model/SKU</code> exactly as it appears in the product master.</li>
+                        <li>The HS Code must already have a PK in the HS &rarr; PK master.</li>
+                        <li>Use <code>PK Capacity</code> to store a numeric capacity (optional).</li>
+                        <li>The <code>Category</code> field helps classify new models.</li>
                     </ul>
                 </div>
             </div>

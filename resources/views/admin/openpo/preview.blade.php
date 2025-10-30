@@ -16,7 +16,7 @@
     <div class="col-md-8">
       <div class="card shadow-sm">
         <div class="card-header d-flex justify-content-between">
-          <div>Ringkasan</div>
+          <div>Summary</div>
           <div>
             <span class="badge bg-secondary">PO: {{ (int)($summary['groups'] ?? 0) }}</span>
             <span class="badge bg-info text-dark">Rows: {{ (int)($summary['rows'] ?? 0) }}</span>
@@ -25,21 +25,21 @@
         </div>
         <div class="card-body">
           @if (($summary['error_count'] ?? 0) > 0)
-            <div class="alert alert-warning">Ada error pada data. Perbaiki sebelum publish.</div>
+            <div class="alert alert-warning">There are errors in the data. Fix them before publishing.</div>
           @endif
           <form method="POST" action="{{ route('admin.openpo.publish') }}" class="row g-3 align-items-end">
             @csrf
             <div class="col-md-4">
-              <label class="form-label">Mode Publish</label>
+              <label class="form-label">Publish Mode</label>
               <select name="publish_mode" class="form-select">
                 <option value="insert" {{ old('publish_mode')==='insert' ? 'selected' : '' }}>Insert add</option>
                 <option value="replace" {{ old('publish_mode')==='replace' ? 'selected' : '' }}>Replace</option>
               </select>
-              <small class="text-muted">Insert add: hanya menambah baris baru. Replace: hapus baris lama untuk PO di file, lalu tulis ulang sesuai file.</small>
+              <small class="text-muted">Insert add: only adds new rows. Replace: deletes old rows for POs in the file, then rewrites according to the file.</small>
             </div>
             <div class="col-md-8 d-flex gap-2">
-              <button class="btn btn-primary" type="submit" {{ (($summary['error_count'] ?? 0) > 0) ? 'disabled' : '' }} title="{{ (($summary['error_count'] ?? 0) > 0) ? 'Perbaiki error sebelum publish' : '' }}">Publish</button>
-              <a href="{{ route('admin.openpo.form') }}" class="btn btn-outline-secondary">Kembali</a>
+              <button class="btn btn-primary" type="submit" {{ (($summary['error_count'] ?? 0) > 0) ? 'disabled' : '' }} title="{{ (($summary['error_count'] ?? 0) > 0) ? 'Fix errors before publishing' : '' }}">Publish</button>
+              <a href="{{ route('admin.openpo.form') }}" class="btn btn-outline-secondary">Back</a>
             </div>
           </form>
         </div>
@@ -67,7 +67,7 @@
                 <span class="badge bg-secondary">Lines: {{ count($lines) }}</span>
                 <span class="badge bg-info text-dark">Qty: {{ (float)$totalQty }}</span>
                 @if($errorCount > 0)
-                  <span class="badge bg-danger" title="Jumlah baris dengan error">Err: {{ $errorCount }}</span>
+                  <span class="badge bg-danger" title="Number of rows with errors">Err: {{ $errorCount }}</span>
                 @endif
               </div>
             </div>
@@ -125,12 +125,12 @@
                                 'period_key' => request()->query('period_key') ?? '',
                                 'return' => request()->fullUrl(),
                               ]) }}">
-                              Tambah Model -> HS
+                              Add Model -> HS
                             </a>
                           </div>
                         @elseif(($ln['validation_status'] ?? '') !== 'ok' && $needsModel)
                           <div class="mt-2">
-                            <a class="btn btn-sm btn-outline-secondary" href="{{ route('admin.imports.hs_pk.index') }}">Buka Import HS -> PK</a>
+                            <a class="btn btn-sm btn-outline-secondary" href="{{ route('admin.imports.hs_pk.index') }}">Open Import HS -> PK</a>
                           </div>
                         @endif
                       </td>

@@ -1,11 +1,11 @@
 {{-- resources/views/admin/kuota/index.blade.php --}}
 @extends('layouts.admin')
 
-@section('title', 'Manajemen Kuota')
+@section('title', 'Quota Management')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-    <li class="breadcrumb-item active">Manajemen Kuota</li>
+    <li class="breadcrumb-item active">Quota Management</li>
 @endsection
 
 @push('styles')
@@ -231,8 +231,8 @@
 <div class="quota-page">
     <div class="quota-header">
         <div>
-            <h1 class="quota-header__title">Manajemen Kuota Impor</h1>
-            <p class="quota-header__subtitle">Kelola alokasi kuota impor, pantau status forecast dan actual, serta ambil tindakan yang diperlukan.</p>
+            <h1 class="quota-header__title">Quota Management</h1>
+            <p class="quota-header__subtitle">Manage import quotas, monitor forecast and actual statuses, and take action as needed.</p>
         </div>
         <div class="quota-actions">
             <a href="{{ route('admin.quotas.export') }}" class="action-pill action-pill--outline">
@@ -242,7 +242,7 @@
             @can('create quota')
                 <a href="{{ route('admin.imports.quotas.index') }}" class="action-pill action-pill--primary">
                     <i class="fas fa-file-import"></i>
-                    Import Kuota
+                    Import Quota
                 </a>
             @endcan
         </div>
@@ -254,7 +254,7 @@
                 <i class="fas fa-check"></i>
             </div>
             <div>
-                <div class="info-banner__title" style="color:#047857;">Berhasil</div>
+                <div class="info-banner__title" style="color:#047857;">Success</div>
                 <div style="color:#065f46;">{{ session('status') }}</div>
             </div>
         </div>
@@ -265,8 +265,8 @@
             <i class="fas fa-info"></i>
         </div>
         <div>
-            <div class="info-banner__title">Informasi Kuota</div>
-            <div>Daftar kuota impor berikut akan diperbarui otomatis mengikuti realtime pemakaian. Gunakan tombol aksi untuk memperbarui atau menghapus data kuota.</div>
+            <div class="info-banner__title">Quota Information</div>
+            <div>The list of import quotas below updates automatically based on real-time consumption. Use the action buttons to update or delete quota data.</div>
         </div>
     </div>
 
@@ -274,7 +274,7 @@
         <div class="p-3 border-bottom">
             <div class="flex gap-2 mb-0">
                 @php
-                    $filters = ['all'=>'Semua','safe'=>'Aman','warn'=>'Warning','zero'=>'Habis'];
+                    $filters = ['all'=>'All','safe'=>'SAFE','warn'=>'WARNING','zero'=>'DEPLETED'];
                 @endphp
                 @foreach ($filters as $k=>$label)
                     <button type="button" data-filter="{{ $k }}" class="filter-pill px-3 py-1 rounded-full text-sm bg-slate-100 hover:bg-slate-200 border border-slate-200">
@@ -293,16 +293,16 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>No. Kuota</th>
-                    <th>Nama Kuota</th>
+                    <th>Quota No.</th>
+                    <th>Quota Name</th>
                     <th class="text-end">Allocation</th>
                     <th class="text-end col-forecast">Consumed</th>
                     <th class="text-end col-forecast">Remaining</th>
                     <th class="text-end col-actual d-none">Consumed</th>
                     <th class="text-end col-actual d-none">Remaining</th>
-                    <th>Periode</th>
+                    <th>Period</th>
                     <th>Status</th>
-                    <th class="text-end">Aksi</th>
+                    <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -310,9 +310,9 @@
                     @php
                         // Original status styling (kept)
                         $statusMapLegacy = [
-                            \App\Models\Quota::STATUS_AVAILABLE => ['label' => 'Tersedia', 'class' => 'status-chip--available'],
-                            \App\Models\Quota::STATUS_LIMITED => ['label' => 'Hampir Habis', 'class' => 'status-chip--limited'],
-                            \App\Models\Quota::STATUS_DEPLETED => ['label' => 'Habis', 'class' => 'status-chip--depleted'],
+                            \App\Models\Quota::STATUS_AVAILABLE => ['label' => 'Available', 'class' => 'status-chip--available'],
+                            \App\Models\Quota::STATUS_LIMITED => ['label' => 'LIMITED', 'class' => 'status-chip--limited'],
+                            \App\Models\Quota::STATUS_DEPLETED => ['label' => 'DEPLETED', 'class' => 'status-chip--depleted'],
                         ];
                         $legacy = $statusMapLegacy[$quota->status] ?? $statusMapLegacy[\App\Models\Quota::STATUS_AVAILABLE];
 
@@ -322,10 +322,10 @@
                         $consumed = max($allocation - $forecastRemaining, 0);
                         $pct = $allocation > 0 ? round(($consumed / $allocation) * 100) : 0; // 0..100
                         $ratio = $allocation > 0 ? ($forecastRemaining / $allocation) : 0;   // 0..1
-                        if ($forecastRemaining <= 0) { $status = ['HABIS','#fee2e2','#b91c1c','#ef4444']; $state='zero'; }
+                        if ($forecastRemaining <= 0) { $status = ['DEPLETED','#fee2e2','#b91c1c','#ef4444']; $state='zero'; }
                         elseif ($ratio < 0.5 && $ratio >= 0.2) { $status = ['WARNING','#fef3c7','#92400e','#f59e0b']; $state='warn'; }
                         elseif ($ratio < 0.2) { $status = ['WARNING','#fef3c7','#92400e','#f59e0b']; $state='warn'; }
-                        else { $status = ['AMAN','#d1fae5','#047857','#10b981']; $state='safe'; }
+                        else { $status = ['SAFE','#d1fae5','#047857','#10b981']; $state='safe'; }
                     @endphp
                     <tr data-state="{{ $state }}">
                         <td>{{ $loop->iteration }}</td>
@@ -361,10 +361,10 @@
                                     </a>
                                 @endcan
                                 @can('delete quota')
-                                    <form action="{{ route('admin.quotas.destroy', $quota) }}" method="POST" onsubmit="return confirm('Hapus kuota ini?');">
+                                    <form action="{{ route('admin.quotas.destroy', $quota) }}" method="POST" onsubmit="return confirm('Delete this quota?');">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="action-icon action-icon--delete" title="Hapus">
+                                        <button type="submit" class="action-icon action-icon--delete" title="Delete">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
@@ -374,7 +374,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="11" class="text-center text-muted">Belum ada data kuota.</td>
+                        <td colspan="11" class="text-center text-muted">No quota data available.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -383,15 +383,15 @@
 
     <div class="stat-grid">
         <div class="stat-card-modern">
-            <span class="stat-card-modern__label">Total Kuota</span>
+            <span class="stat-card-modern__label">Total Quotas</span>
             <span class="stat-card-modern__value">{{ $summary['active_count'] }}</span>
         </div>
         <div class="stat-card-modern">
-            <span class="stat-card-modern__label">Total Unit Tersedia</span>
+            <span class="stat-card-modern__label">Total Units Available</span>
             <span class="stat-card-modern__value">{{ number_format($summary['total_quota']) }}</span>
         </div>
         <div class="stat-card-modern">
-            <span class="stat-card-modern__label">Unit Terpakai</span>
+            <span class="stat-card-modern__label">Units Used</span>
             <span class="stat-card-modern__value">{{ number_format($summary['total_quota'] - $summary['forecast_remaining']) }}</span>
         </div>
         <div class="stat-card-modern">
@@ -400,7 +400,7 @@
                     ? (($summary['total_quota'] - $summary['forecast_remaining']) / $summary['total_quota']) * 100
                     : 0;
             @endphp
-            <span class="stat-card-modern__label">Persentase Penggunaan</span>
+            <span class="stat-card-modern__label">Usage Percentage</span>
             <span class="stat-card-modern__value">{{ number_format($percent, 1) }}%</span>
         </div>
     </div>
@@ -444,3 +444,5 @@
 })();
 </script>
 @endpush
+
+

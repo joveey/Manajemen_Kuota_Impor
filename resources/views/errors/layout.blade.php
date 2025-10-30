@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ config('app.name', 'Import Control') }} - @yield('title', 'Halaman Error')</title>
+    <title>{{ config('app.name', 'Import Control') }} - @yield('title', 'Error Page')</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -219,11 +219,11 @@
                         </div>
                     </div>
                 @else
-                    <a href="{{ route('login') }}" class="btn btn-sm btn-outline-primary">Masuk</a>
+                    <a href="{{ route('login') }}" class="btn btn-sm btn-outline-primary">Sign In</a>
                 @endif
             </div>
             <div class="bar-left">
-                <h1>@yield('title', 'Halaman Error')</h1>
+                <h1>@yield('title', 'Error Page')</h1>
                 <div class="bar-meta">
                     <span class="meta-pill neutral">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

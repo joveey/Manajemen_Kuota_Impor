@@ -1,11 +1,11 @@
 @extends('layouts.admin')
 
-@section('title', "Preview Import Kuota #{$import->id}")
-@section('page-title', 'Preview Import Kuota')
+@section('title', "Quota Import Preview #{$import->id}")
+@section('page-title', 'Quota Import Preview')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('admin.imports.quotas.index') }}">Import Kuota</a></li>
+    <li class="breadcrumb-item"><a href="{{ route('admin.imports.quotas.index') }}">Import Quota</a></li>
     <li class="breadcrumb-item active">Preview #{{ $import->id }}</li>
 @endsection
 
@@ -38,7 +38,7 @@
           </div>
           @if((int)($import->total_rows ?? 0) === 0)
             <div class="alert alert-warning" role="alert">
-              <div class="fw-semibold mb-1">Tidak ada baris terdeteksi.</div>
+              <div class="fw-semibold mb-1">No rows detected.</div>
               <div>Pastikan sheet bernama ‘Quota master’, header baris pertama LETTER_NO, CATEGORY_LABEL, ALLOCATION (opsional PERIOD_START/END), dan period_key diisi saat upload. Jika file dari generator/script, coba buka di Excel lalu Save As (.xlsx).</div>
               <div class="mt-2"><a href="{{ route('admin.imports.quotas.index') }}" class="btn btn-sm btn-outline-primary">Kembali ke Upload</a></div>
             </div>
@@ -59,7 +59,7 @@
               <label class="form-check-label" for="run_automap">Run Automap untuk periode {{ $import->period_key }}</label>
             </div>
             <small class="text-muted d-block mb-2">Run Automap akan membuat mapping otomatis per periode; mapping manual tidak diubah.</small>
-            <button class="btn btn-primary" type="submit" {{ $import->status !== 'ready' ? 'disabled' : '' }}>Publish Kuota</button>
+            <button class="btn btn-primary" type="submit" {{ $import->status !== 'ready' ? 'disabled' : '' }}>Publish Quota</button>
           </form>
         </div>
       </div>
@@ -83,7 +83,7 @@
           </ul>
           <div class="tab-content pt-3">
             <div class="tab-pane fade show active" id="errors-pane" role="tabpanel" aria-labelledby="errors-tab">
-              <div id="errors-empty" class="text-muted" aria-live="polite" style="display:none;">Tidak ada error pada import ini.</div>
+              <div id="errors-empty" class="text-muted" aria-live="polite" style="display:none;">No errors in this import.</div>
               <div class="table-responsive">
                 <table class="table table-sm" id="errors-table">
                   <thead>
@@ -103,7 +103,7 @@
               </div>
             </div>
             <div class="tab-pane fade" id="valid-pane" role="tabpanel" aria-labelledby="valid-tab">
-              <div id="valid-empty" class="text-muted" aria-live="polite" style="display:none;">Tidak ada data valid.</div>
+              <div id="valid-empty" class="text-muted" aria-live="polite" style="display:none;">No valid data.</div>
               <div class="table-responsive">
                 <table class="table table-sm" id="valid-table">
                   <thead>
@@ -244,3 +244,4 @@
 })();
 </script>
 @endpush
+

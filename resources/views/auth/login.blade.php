@@ -48,7 +48,7 @@
             </form>
 
             @if (Route::has('register'))
-                <p class="text-center mt-4 mb-0 small text-muted">Belum punya akun?
+                <p class="text-center mt-4 mb-0 small text-muted">Don't have an account?
                     <a href="{{ route('register') }}" class="link-primary fw-semibold">Daftar</a>
                 </p>
             @endif

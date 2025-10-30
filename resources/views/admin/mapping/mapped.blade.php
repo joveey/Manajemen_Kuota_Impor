@@ -1,12 +1,12 @@
 {{-- resources/views/admin/mapping/mapped.blade.php --}}
 @extends('layouts.admin')
 
-@section('title', 'Model → HS (Mapped)')
-@section('page-title', 'Model → HS (Mapped)')
+@section('title', 'Model > HS (Mapped)')
+@section('page-title', 'Model > HS (Mapped)')
 
 @section('breadcrumb')
   <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-  <li class="breadcrumb-item active">Model → HS (Mapped)</li>
+  <li class="breadcrumb-item active">Model > HS (Mapped)</li>
 @endsection
 
 @section('content')
@@ -15,18 +15,18 @@
     <div class="card-body">
       <form method="GET" class="row g-2">
         <div class="col-md-4">
-          <input type="text" name="search" value="{{ $search ?? '' }}" class="form-control" placeholder="Cari model/kode/nama/HS...">
+          <input type="text" name="search" value="{{ $search ?? '' }}" class="form-control" placeholder="Search model/code/name/HS...">
         </div>
         <div class="col-md-3 form-check mt-1">
           <input class="form-check-input" type="checkbox" id="only_active" name="only_active" value="1" {{ !empty($onlyActive) ? 'checked' : '' }}>
-          <label class="form-check-label" for="only_active">Hanya yang Aktif</label>
+          <label class="form-check-label" for="only_active">Active Only</label>
         </div>
         <div class="col-md-5 d-flex gap-2">
-          <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Tampilkan</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Show</button>
           <a href="{{ route('admin.mapping.mapped.page') }}" class="btn btn-outline-secondary">Reset</a>
           @if(Route::has('admin.master.quick_hs.create') && auth()->user()?->can('product.create'))
             <a href="{{ route('admin.master.quick_hs.create', ['return' => request()->fullUrl()]) }}" class="btn btn-success">
-              <i class="fas fa-circle-plus"></i> Tambah Model → HS
+              <i class="fas fa-circle-plus"></i> Add Model > HS
             </a>
           @endif
         </div>
@@ -41,11 +41,11 @@
           <tr>
             <th style="width:60px">#</th>
             <th>Model/SKU</th>
-            <th>Nama</th>
+            <th>Name</th>
             <th>HS Code</th>
             <th class="text-end">PK</th>
-            <th>Kategori</th>
-            <th>Kuota Terkait</th>
+            <th>Category</th>
+            <th>Related Quotas</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -82,12 +82,12 @@
                 @endif
               </td>
               <td>
-                <span class="badge {{ $p->is_active ? 'text-bg-success' : 'text-bg-secondary' }}">{{ $p->is_active ? 'Aktif' : 'Nonaktif' }}</span>
+                <span class="badge {{ $p->is_active ? 'text-bg-success' : 'text-bg-secondary' }}">{{ $p->is_active ? 'Active' : 'Inactive' }}</span>
               </td>
             </tr>
           @empty
             <tr>
-              <td colspan="8" class="text-center text-muted">Belum ada model yang memiliki HS Code.</td>
+              <td colspan="8" class="text-center text-muted">No models have an HS Code yet.</td>
             </tr>
           @endforelse
         </tbody>

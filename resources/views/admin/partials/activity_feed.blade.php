@@ -14,10 +14,10 @@
     <div class="card-header">
         <div>
             <strong>Aktivitas (7 hari)</strong>
-            <span class="activity-card__subtitle">Riwayat import dan pembaruan terbaru.</span>
+            <span class="activity-card__subtitle">Recent import and update activity.</span>
         </div>
         @if($hasImportRoute)
-            <a href="{{ route('admin.imports.quotas.index') }}" class="kpi-card__action">Riwayat Import</a>
+            <a href="{{ route('admin.imports.quotas.index') }}" class="kpi-card__action">Import History</a>
         @endif
     </div>
     <div class="card-body">
@@ -48,7 +48,7 @@
         @else
             <div class="activity-empty">
                 <i class="fas fa-inbox mb-2" aria-hidden="true"></i>
-                <div>Tidak ada aktivitas dalam 7 hari terakhir.</div>
+                <div>No activity in the last 7 days.</div>
             </div>
         @endif
     </div>

@@ -6,7 +6,7 @@
   <div class="page-header">
     <div>
       <h1 class="page-header__title">Import Invoice</h1>
-      <p class="page-header__subtitle">Upload file SAP berisi kolom: PO_NO, LINE_NO, INVOICE_NO, INVOICE_DATE, QTY.</p>
+      <p class="page-header__subtitle">Upload SAP file with columns: PO_NO, LINE_NO, INVOICE_NO, INVOICE_DATE, QTY.</p>
     </div>
   </div>
 
@@ -25,10 +25,10 @@
   </form>
 
   <div class="card mt-3">
-    <div class="card-header">Riwayat</div>
+    <div class="card-header">History</div>
     <div class="card-body p-0">
       <table class="table mb-0">
-        <thead><tr><th>#</th><th>File</th><th>Status</th><th>Dibuat</th><th></th></tr></thead>
+        <thead><tr><th>#</th><th>File</th><th>Status</th><th>Created</th><th></th></tr></thead>
         <tbody>
           @forelse($recent as $i)
             <tr>
@@ -39,7 +39,7 @@
               <td><a href="{{ route('admin.imports.invoices.preview', $i) }}" class="btn btn-sm btn-outline-primary">Preview</a></td>
             </tr>
           @empty
-            <tr><td colspan="5" class="text-center text-muted">Belum ada import.</td></tr>
+            <tr><td colspan="5" class="text-center text-muted">No imports yet.</td></tr>
           @endforelse
         </tbody>
       </table>

@@ -9,8 +9,8 @@
 @endphp
 
 <div class="alert alert-info mb-4" role="alert">
-    <strong>Tips:</strong> Isi minimal Model/SKU dan HS Code. Jika model sudah ada, HS Code akan diperbarui.
-    Tambahkan kapasitas PK atau kategori bila tersedia untuk meningkatkan akurasi pemetaan.
+    <strong>Tip:</strong> Fill in at least the Model/SKU and HS Code. If the model already exists, its HS Code will be updated.
+    Add PK capacity or a category if available to improve mapping accuracy.
 </div>
 
 <form method="POST" action="{{ route('admin.master.quick_hs.store') }}" class="row g-3">
@@ -24,26 +24,26 @@
     <div class="col-md-6">
         <label class="form-label">HS Code</label>
         <select id="hs_code_select" name="hs_code" class="form-select @error('hs_code') is-invalid @enderror" required>
-            <option value="" disabled {{ $hsValue ? '' : 'selected' }} hidden>Pilih HS</option>
+            <option value="" disabled {{ $hsValue ? '' : 'selected' }} hidden>Select HS</option>
             @if(!empty($hsSeedOptions ?? []))
                 @foreach(($hsSeedOptions ?? []) as $opt)
                     <option value="{{ $opt['id'] }}" data-desc="{{ $opt['desc'] ?? '' }}" data-pk="{{ $opt['pk'] ?? '' }}" @selected($hsValue === ($opt['id'] ?? null))>{{ $opt['text'] }}</option>
                 @endforeach
             @endif
         </select>
-        <div class="form-text" id="hs_desc_help">Deskripsi otomatis berdasarkan HS.</div>
+        <div class="form-text" id="hs_desc_help">Description is automatically populated from the HS code.</div>
         @error('hs_code')<div class="invalid-feedback">{{ $message }}</div>@enderror
     </div>
 
     <div class="col-md-6">
-        <label class="form-label">Deskripsi PK</label>
+        <label class="form-label">PK Description</label>
         <input type="text" id="hs_desc_text" class="form-control" value="" readonly>
         <input type="hidden" name="pk_capacity" id="pk_capacity_hidden" value="{{ $pkValue }}">
         @error('pk_capacity')<div class="invalid-feedback">{{ $message }}</div>@enderror
     </div>
 
     <div class="col-md-6">
-        <label class="form-label">Deskripsi Produk (Optional)</label>
+        <label class="form-label">Product Description (optional)</label>
         <input type="text" name="category" value="{{ $categoryValue }}" class="form-control @error('category') is-invalid @enderror" maxlength="100">
         @error('category')<div class="invalid-feedback">{{ $message }}</div>@enderror
     </div>
@@ -53,11 +53,11 @@
 
     <div class="col-12 d-flex gap-2">
         <button type="submit" class="btn btn-primary">
-            <i class="fas fa-save me-1"></i> Simpan
+            <i class="fas fa-save me-1"></i> Save
         </button>
         @if($showCancel)
             <a href="{{ $backDestination }}" class="btn btn-outline-secondary">
-                <i class="fas fa-rotate-left me-1"></i> Batal
+                <i class="fas fa-rotate-left me-1"></i> Cancel
             </a>
         @endif
     </div>
@@ -77,7 +77,7 @@
             const resp = await fetch(url.toString(), { headers: { 'Accept': 'application/json' } });
             const data = await resp.json();
             const val = @json($hsValue ?? '');
-            hsSel.innerHTML = '<option value="" disabled hidden>Pilih HS</option>';
+            hsSel.innerHTML = '<option value="" disabled hidden>Select HS</option>';
             (data || []).forEach(function(opt){
                 const o = document.createElement('option');
                 o.value = opt.id; o.textContent = opt.text; o.setAttribute('data-desc', opt.desc || ''); o.setAttribute('data-pk', opt.pk ?? '');

@@ -2,12 +2,12 @@
 
 @include('admin.shipments.partials.styles')
 
-@section('title', 'Detail Shipment')
+@section('title', 'Shipment Detail')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('admin.shipments.index') }}">Pengiriman</a></li>
-    <li class="breadcrumb-item active">Detail Shipment</li>
+    <li class="breadcrumb-item"><a href="{{ route('admin.shipments.index') }}">Shipments</a></li>
+    <li class="breadcrumb-item active">Shipment Detail</li>
 @endsection
 
 @section('content')
@@ -75,17 +75,17 @@
         <div>
             <h1 class="page-header__title">{{ $shipment->shipment_number ?? "Shipment #{$shipment->id}" }}</h1>
             <p class="page-header__subtitle">
-                Ringkasan status, jadwal, dan penerimaan untuk shipment ini.
+                Summary of status, schedule, and receipts for this shipment.
             </p>
         </div>
         <div class="page-header__actions">
             <a href="{{ route('admin.shipments.index') }}" class="page-header__button page-header__button--outline">
                 <i class="fas fa-arrow-left"></i>
-                Kembali ke Daftar
+                Back to List
             </a>
             <a href="{{ route('admin.shipments.receipts.create', $shipment->id) }}" class="page-header__button page-header__button--primary">
                 <i class="fas fa-clipboard-check"></i>
-                Catat Penerimaan
+                Record Receipt
             </a>
         </div>
     </div>
@@ -100,7 +100,7 @@
     <div class="shipment-card shipment-card--padded">
         <div class="shipment-summary">
             <div class="shipment-summary__card">
-                <span class="shipment-summary__label">Status Shipment</span>
+                <span class="shipment-summary__label">Shipment Status</span>
                 <span class="shipment-summary__value">{{ $statusMeta['label'] }}</span>
                 <span class="shipment-summary__meta">
                     <span class="shipment-badge {{ $statusMeta['badge'] }}">{{ $statusMeta['label'] }}</span>
@@ -112,13 +112,13 @@
                 <div class="shipment-progress">
                     <div class="shipment-progress__bar" style="width: {{ $percentage }}%;"></div>
                 </div>
-                <span class="shipment-summary__meta">{{ $percentage }}% terpenuhi</span>
+                <span class="shipment-summary__meta">{{ $percentage }}% fulfilled</span>
             </div>
             <div class="shipment-summary__card">
-                <span class="shipment-summary__label">Jadwal</span>
+                <span class="shipment-summary__label">Schedule</span>
                 <span class="shipment-summary__value">{{ optional($shipment->ship_date)->format('d M Y') ?? '-' }}</span>
                 <span class="shipment-summary__meta">
-                    ETA: {{ optional($shipment->eta_date)->format('d M Y') ?? 'Belum ditentukan' }}
+                    ETA: {{ optional($shipment->eta_date)->format('d M Y') ?? 'Not set' }}
                 </span>
             </div>
         </div>
@@ -133,20 +133,20 @@
             </div>
 
             <div class="shipment-meta">
-                <span class="shipment-meta__label">Produk</span>
+                <span class="shipment-meta__label">Product</span>
                 <span class="shipment-meta__value">
                     {{ optional(optional($shipment->purchaseOrder)->product)->code ?? '-' }}
                 </span>
                 <span class="shipment-summary__meta">
-                    {{ optional(optional($shipment->purchaseOrder)->product)->name ?? 'Tidak ada informasi produk' }}
+                    {{ optional(optional($shipment->purchaseOrder)->product)->name ?? 'No product information' }}
                 </span>
             </div>
 
             <div class="shipment-meta">
-                <span class="shipment-meta__label">Nomor Shipment</span>
-                <span class="shipment-meta__value">{{ $shipment->shipment_number ?? 'Belum ditetapkan' }}</span>
+                <span class="shipment-meta__label">Shipment Number</span>
+                <span class="shipment-meta__value">{{ $shipment->shipment_number ?? 'Not assigned' }}</span>
                 <span class="shipment-summary__meta">
-                    Dibuat: {{ optional($shipment->created_at)->format('d M Y H:i') ?? '-' }}
+                    Created: {{ optional($shipment->created_at)->format('d M Y H:i') ?? '-' }}
                 </span>
             </div>
 
@@ -161,38 +161,38 @@
 
         @if($shipment->detail)
             <div class="shipment-message mt-4">
-                <strong>Catatan Pengiriman:</strong>
+                <strong>Shipment Notes:</strong>
                 <div class="mt-2">{{ $shipment->detail }}</div>
             </div>
         @endif
     </div>
 
     <div class="shipment-card">
-        <h2 class="shipment-section-title">Riwayat Status</h2>
+        <h2 class="shipment-section-title">Status History</h2>
         @if(!empty($statusTimeline))
             <x-timeline :items="$statusTimeline" />
         @else
-            <div class="shipment-empty">Belum ada riwayat status untuk shipment ini.</div>
+            <div class="shipment-empty">No status history for this shipment.</div>
         @endif
     </div>
 
     <div class="shipment-card">
         <div class="shipment-section-title d-flex justify-content-between align-items-center">
-            <span>Riwayat Penerimaan</span>
-            <span class="shipment-summary__meta">Total {{ $shipment->receipts->count() }} catatan</span>
+            <span>Receipt History</span>
+            <span class="shipment-summary__meta">Total {{ $shipment->receipts->count() }} records</span>
         </div>
 
         @if($shipment->receipts->isEmpty())
-            <div class="shipment-empty">Belum ada penerimaan.</div>
+            <div class="shipment-empty">No receipts yet.</div>
         @else
             <div class="shipment-table-shell">
                 <table class="shipment-table">
                     <thead>
                         <tr>
-                            <th>Tanggal</th>
+                            <th>Date</th>
                             <th>Qty</th>
-                            <th>No. Dokumen</th>
-                            <th>Catatan</th>
+                            <th>Document No.</th>
+                            <th>Notes</th>
                         </tr>
                     </thead>
                     <tbody>

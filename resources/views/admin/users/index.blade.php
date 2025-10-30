@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Manajemen Pengguna')
+@section('title', 'User Management')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
@@ -127,7 +127,7 @@
 <div class="users-page">
     <div class="users-header">
         <div>
-            <h1 class="users-title">Manajemen Pengguna</h1>
+            <h1 class="users-title">User Management</h1>
             <p class="users-subtitle">
                 Kelola akun pengguna non-admin, atur status aktif, dan tetapkan role sesuai kebutuhan operasional.
             </p>
@@ -154,7 +154,7 @@
             <div class="metric-caption">Akun yang saat ini berstatus aktif.</div>
         </div>
         <div class="metric-card">
-            <span class="metric-label">Tidak Aktif</span>
+            <span class="metric-label">Inactive</span>
             <div class="metric-value text-danger">{{ number_format($stats['inactive'] ?? 0) }}</div>
             <div class="metric-caption">Akun yang dinonaktifkan atau menunggu aktivasi.</div>
         </div>

@@ -15,7 +15,7 @@
   <div class="card shadow-sm">
     <div class="card-header d-flex justify-content-between align-items-center">
       <div>
-        <strong>Ringkasan</strong>
+        <strong>Summary</strong>
         <span class="badge bg-secondary ms-2">Total: {{ (int)($preview['total'] ?? 0) }}</span>
         <span class="badge bg-success ms-1">Valid: {{ (int)($preview['valid'] ?? 0) }}</span>
         <span class="badge bg-danger ms-1">Errors: {{ (int)($preview['error_count'] ?? 0) }}</span>
@@ -42,15 +42,15 @@
         @csrf
         <div class="form-check">
           <input class="form-check-input" type="checkbox" value="1" id="create_missing_ck" name="create_missing" checked>
-          <label class="form-check-label" for="create_missing_ck">Buat model jika belum ada</label>
+          <label class="form-check-label" for="create_missing_ck">Create model if it does not exist</label>
         </div>
-        <button id="btnPublish" type="submit" class="btn btn-primary" {{ ($blockingErrors || ($hasErrors && !$hasValid && $missingProductErrors===0)) ? 'disabled' : '' }} title="{{ $hasErrors ? 'Perbaiki error atau centang opsi buat produk' : '' }}">Publish</button>
-        <a href="{{ route('admin.mapping.model_hs.index') }}" class="btn btn-outline-secondary">Kembali</a>
+        <button id="btnPublish" type="submit" class="btn btn-primary" {{ ($blockingErrors || ($hasErrors && !$hasValid && $missingProductErrors===0)) ? 'disabled' : '' }} title="{{ $hasErrors ? 'Fix the errors or enable the create option' : '' }}">Publish</button>
+        <a href="{{ route('admin.mapping.model_hs.index') }}" class="btn btn-outline-secondary">Back</a>
       </form>
     </div>
     <div class="card-body p-0">
       @if(($preview['error_count'] ?? 0) > 0)
-        <div class="alert alert-warning m-3">Ada error pada data. Perbaiki sebelum publish.</div>
+        <div class="alert alert-warning m-3">There are errors in the data. Fix them before publishing.</div>
       @endif
       <div class="table-responsive">
         <table class="table mb-0">
@@ -60,7 +60,7 @@
               <th>MODEL</th>
               <th>HS_CODE</th>
               <th>Status</th>
-              <th>Catatan</th>
+              <th>Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -87,13 +87,13 @@
                             'model' => $r['model'] ?? '',
                             'return' => request()->fullUrl(),
                           ]) }}">
-                          Tambah Model + HS
+                          Add Model + HS
                         </a>
                       </div>
                     @endif
                     @if($needsHsPk)
                       <div class="mt-2">
-                        <a class="btn btn-sm btn-outline-secondary" href="{{ route('admin.imports.hs_pk.index') }}">Buka Import HS &rarr; PK</a>
+                        <a class="btn btn-sm btn-outline-secondary" href="{{ route('admin.imports.hs_pk.index') }}">Open HS &rarr; PK Import</a>
                       </div>
                     @endif
                   @endif
@@ -116,10 +116,10 @@
   const hasOnlyMissingProductErrors = {{ (!$blockingErrors && $missingProductErrors>0) ? 'true' : 'false' }};
   function update(){
     if(!btn) return;
-    if(blockingErrors){ btn.disabled = true; btn.title = 'Perbaiki error sebelum publish'; return; }
+    if(blockingErrors){ btn.disabled = true; btn.title = 'Fix the errors before publishing'; return; }
     const allowByCreateMissing = ck?.checked && hasOnlyMissingProductErrors;
     btn.disabled = !(allowByCreateMissing || hasValid);
-    btn.title = btn.disabled ? 'Perbaiki error atau centang opsi buat produk' : '';
+    btn.title = btn.disabled ? 'Fix the errors or enable the create option' : '';
   }
   ck?.addEventListener('change', update);
   update();

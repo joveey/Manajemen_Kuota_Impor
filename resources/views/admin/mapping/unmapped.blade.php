@@ -1,19 +1,19 @@
 @extends('layouts.admin')
 
-@section('title', 'Produk Unmapped')
-@section('page-title', 'Produk Unmapped')
+@section('title', 'Unmapped Products')
+@section('page-title', 'Unmapped Products')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-    <li class="breadcrumb-item active">Produk Unmapped</li>
+    <li class="breadcrumb-item active">Unmapped Products</li>
 @endsection
 
 @section('content')
 <div class="page-shell">
   <div class="page-header">
     <div>
-      <h1 class="page-header__title">Produk Unmapped</h1>
-      <p class="page-header__subtitle">Daftar produk yang belum memiliki relasi kuota atau data referensi.</p>
+      <h1 class="page-header__title">Unmapped Products</h1>
+      <p class="page-header__subtitle">List of products that do not have a quota relationship or reference data.</p>
     </div>
   </div>
 
@@ -73,7 +73,7 @@
           <tbody id="rows"></tbody>
         </table>
       </div>
-      <div class="p-3 d-none" id="empty">Semua produk sudah termapping pada periode ini.</div>
+      <div class="p-3 d-none" id="empty">All products have been mapped in this period.</div>
     </div>
     <div class="card-footer d-flex justify-content-between">
       <div id="pager-bottom" class="small text-muted"></div>
@@ -195,4 +195,5 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 @endsection
+
 

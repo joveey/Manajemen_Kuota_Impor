@@ -15,7 +15,6 @@ class ReceiptController extends Controller
 
         return redirect()
             ->route('admin.shipments.show', $shipmentId)
-            ->with('success', 'Penerimaan berhasil disimpan (ID: ' . $receipt->id . ').');
+            ->with('success', 'Receipt saved successfully (ID: ' . $receipt->id . ').');
     }
 }
-

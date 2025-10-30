@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Manajemen Admin')
+@section('title', 'Admin Management')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
@@ -141,7 +141,7 @@
             <div class="metric-caption">Admin dengan status aktif.</div>
         </div>
         <div class="metric-card">
-            <span class="metric-label">Tidak Aktif</span>
+            <span class="metric-label">Inactive</span>
             <div class="metric-value text-danger">{{ number_format($stats['inactive'] ?? 0) }}</div>
             <div class="metric-caption">Admin yang sedang dinonaktifkan.</div>
         </div>

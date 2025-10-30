@@ -11,10 +11,10 @@
 @php
     // Fallback dummy data for demo if variables are missing
     $kpis = $kpis ?? [
-        ['title' => 'Total Kuota', 'value' => 4, 'delta' => '+0%', 'delta_type' => null, 'helper' => 'Available: 4 | Limited: 0 | Depleted: 0', 'icon' => 'package'],
+        ['title' => 'Total Quotas', 'value' => 4, 'delta' => '+0%', 'delta_type' => null, 'helper' => 'Available: 4 | Limited: 0 | Depleted: 0', 'icon' => 'package'],
         ['title' => 'Forecast Remaining', 'value' => number_format(199000), 'delta' => '+3.2%', 'delta_type' => 'up', 'helper' => 'Actual Remaining: '.number_format(227600), 'icon' => 'percent'],
-        ['title' => 'PO Bulan Ini', 'value' => 5, 'delta' => '+1', 'delta_type' => 'up', 'helper' => 'Need Shipment: 5 | In Transit: 4', 'icon' => 'package'],
-        ['title' => 'Pengiriman', 'value' => 5, 'delta' => '-1', 'delta_type' => 'down', 'helper' => 'Delivered: 0 | Pending Receipt: 5', 'icon' => 'truck'],
+        ['title' => 'POs This Month', 'value' => 5, 'delta' => '+1', 'delta_type' => 'up', 'helper' => 'Need Shipment: 5 | In Transit: 4', 'icon' => 'package'],
+        ['title' => 'Shipments', 'value' => 5, 'delta' => '-1', 'delta_type' => 'down', 'helper' => 'Delivered: 0 | Pending Receipt: 5', 'icon' => 'truck'],
     ];
 
     $quotaBatches = $quotaBatches ?? [
@@ -80,7 +80,7 @@
 <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
     <x-card>
         <div class="flex items-center justify-between mb-3">
-            <h3 class="text-lg font-semibold">Kuota per Batch</h3>
+            <h3 class="text-lg font-semibold">Quota per Batch</h3>
             <x-badge variant="info">Consumed vs Remaining</x-badge>
         </div>
         <div id="donutQuota" class="h-64 md:h-80" data-series='@json($donutSeries)' data-labels='@json($donutLabels)'></div>
@@ -111,7 +111,7 @@
                     <x-badge :variant="$variant">{{ $qb['remaining_status'] }}</x-badge>
                 </li>
             @empty
-                <li class="text-sm text-slate-500">Tidak ada alert.</li>
+                <li class="text-sm text-slate-500">No alerts.</li>
             @endforelse
         </ul>
     </x-card>
@@ -120,7 +120,7 @@
         <x-table zebra>
             <x-slot:head>
                 <th class="px-4 py-2 text-left">PO#</th>
-                <th class="px-4 py-2 text-left">Tanggal</th>
+                <th class="px-4 py-2 text-left">Date</th>
                 <th class="px-4 py-2 text-left">Model</th>
                 <th class="px-4 py-2 text-left">Status</th>
                 <th class="px-4 py-2 text-right">Qty</th>
@@ -170,7 +170,7 @@
 {{-- Row 4: Timeline + Users --}}
 <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
     <x-card>
-        <h3 class="mb-3 text-lg font-semibold">Riwayat Kuota Terbaru</h3>
+        <h3 class="mb-3 text-lg font-semibold">Latest Quota History</h3>
         <x-timeline :items="$quotaHistory" />
     </x-card>
     <div class="grid grid-cols-1 gap-6">
@@ -235,3 +235,4 @@
     </script>
 @endpush
 @endsection
+
