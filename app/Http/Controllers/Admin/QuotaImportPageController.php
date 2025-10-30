@@ -357,7 +357,8 @@ class QuotaImportPageController extends Controller
             }
             return [
                 'id' => $row->hs_code,
-                'text' => trim($row->hs_code.' — '.$desc),
+                // Tampilkan hanya HS code pada dropdown; desc tetap tersedia via data-desc
+                'text' => $row->hs_code,
                 'desc' => $desc,
             ];
         })->all();
@@ -391,7 +392,8 @@ class QuotaImportPageController extends Controller
 
         return [
             'id' => $row->hs_code,
-            'text' => trim($row->hs_code.' — '.$desc),
+            // Dropdown menampilkan hanya HS code; desc tetap untuk tampilan pendamping
+            'text' => $row->hs_code,
             'desc' => $desc,
         ];
     }
