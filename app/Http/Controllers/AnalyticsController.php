@@ -317,21 +317,20 @@ class AnalyticsController extends Controller
             return collect();
         }
         $ids = $quotas->pluck('id')->all();
-        $alloc = [];
+        $forecastByQuota = [];
         if (!empty($ids)) {
-            $alloc = DB::table('purchase_order_quota')
-                ->select('quota_id', DB::raw('SUM(allocated_qty) as qty'))
+            $forecastByQuota = DB::table('quota_histories')
+                ->select('quota_id', DB::raw('SUM(ABS(quantity_change)) as qty'))
+                ->where('change_type', \App\Models\QuotaHistory::TYPE_FORECAST_DECREASE)
                 ->whereIn('quota_id', $ids)
+                ->whereBetween('occurred_on', [$start->toDateString(), $end->toDateString()])
                 ->groupBy('quota_id')
                 ->pluck('qty', 'quota_id');
         }
 
-        return $quotas->map(function (Quota $quota) use ($alloc) {
+        return $quotas->map(function (Quota $quota) use ($forecastByQuota) {
             $allocation = (float) ($quota->total_allocation ?? 0);
-            // Fallback to current remaining if pivot is empty (keeps Analytics usable even if pivot not populated yet)
-            $pivotVal = (float) ($alloc[$quota->id] ?? 0);
-            $fallback = max($allocation - (float) ($quota->forecast_remaining ?? 0), 0.0);
-            $forecast = min($allocation, $pivotVal > 0 ? $pivotVal : $fallback);
+            $forecast = min($allocation, (float) ($forecastByQuota[$quota->id] ?? 0));
             $remaining = max($allocation - $forecast, 0.0);
             $pct = $allocation > 0 ? round(($forecast / $allocation) * 100, 2) : 0.0;
 
