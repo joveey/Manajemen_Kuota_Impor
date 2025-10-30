@@ -14,7 +14,7 @@ class HsPkImportPageController extends Controller
 {
     public function index(Request $request): View
     {
-        // Tampilkan form input manual + daftar mapping pada halaman yang sama.
+        // Display manual input form and mapping list on the same page.
         $period = trim((string) $request->query('period_key', ''));
         $perPage = (int) min(max((int) $request->query('per_page', 25), 1), 200);
 
@@ -59,7 +59,7 @@ class HsPkImportPageController extends Controller
 
         return redirect()
             ->route('admin.imports.hs_pk.preview', ['import' => $importId])
-            ->with('status', 'Upload berhasil. Ringkasan siap ditinjau.');
+            ->with('status', 'Upload successful. Summary ready for review.');
     }
 
     public function preview(Import $import): View
@@ -77,17 +77,17 @@ class HsPkImportPageController extends Controller
         $payload = json_decode($resp->getContent(), true) ?: [];
 
         if ($resp->getStatusCode() >= 400) {
-            $msg = $payload['error'] ?? 'Publish gagal.';
+            $msg = $payload['error'] ?? 'Publish failed.';
             return back()->withErrors(['publish' => $msg]);
         }
 
-        $status = 'Publish berhasil'.(!empty($payload['ran_automap']) ? ' + automap' : '').'.';
+        $status = 'Publish successful'.(!empty($payload['ran_automap']) ? ' + automap' : '').'.';
         $warn = null;
         if (!empty($payload['skipped_existing'])) {
             $count = (int) $payload['skipped_existing'];
             $dups = $payload['duplicates'] ?? [];
             $sample = implode(', ', array_slice($dups, 0, 10));
-            $warn = $count.' HS sudah ada di master dan dilewati'.($sample ? ': '.$sample.((count($dups) > 10) ? ' …' : '') : '');
+            $warn = $count.' HS already exist in the master and were skipped'.($sample ? ': '.$sample.((count($dups) > 10) ? ' ...' : '') : '');
         }
 
         $redir = redirect()->route('admin.imports.hs_pk.preview', $import)->with('status', $status);
@@ -95,3 +95,4 @@ class HsPkImportPageController extends Controller
         return $redir;
     }
 }
+

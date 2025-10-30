@@ -5,7 +5,7 @@
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('admin.quotas.index') }}">Manajemen Kuota</a></li>
+    <li class="breadcrumb-item"><a href="{{ route('admin.quotas.index') }}">Quota Management</a></li>
     <li class="breadcrumb-item active">Form</li>
 @endsection
 

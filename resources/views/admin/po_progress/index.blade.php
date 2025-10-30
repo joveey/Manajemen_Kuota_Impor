@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Pengiriman & Receipt')
+@section('title', 'Shipments & Receipts')
 
 @section('content')
 <div class="container-fluid px-0">
@@ -8,20 +8,20 @@
         <div class="card-body py-3">
             <form method="GET" class="row g-2 align-items-center">
                 <div class="col-md-4">
-                    <input type="text" name="q" value="{{ $q }}" class="form-control" placeholder="Cari PO No atau Supplier...">
+                    <input type="text" name="q" value="{{ $q }}" class="form-control" placeholder="Search PO No or Supplier...">
                 </div>
                 <div class="col-md-3">
                     <select name="per_page" class="form-select" onchange="this.form.submit()">
                         @foreach([10,20,30,50] as $opt)
-                            <option value="{{ $opt }}" {{ (int)$perPage === $opt ? 'selected' : '' }}>{{ $opt }} per halaman</option>
+                            <option value="{{ $opt }}" {{ (int)$perPage === $opt ? 'selected' : '' }}>{{ $opt }} per page</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <button class="btn btn-primary w-100" type="submit"><i class="fas fa-search me-2"></i>Cari</button>
+                    <button class="btn btn-primary w-100" type="submit"><i class="fas fa-search me-2"></i>Search</button>
                 </div>
                 <div class="col-md-3 text-end small text-muted">
-                    Read-only: Ordered | Shipped | Received | In-Transit | Sisa
+                    Read-only: Ordered | Shipped | Received | In-Transit | Remaining
                 </div>
             </form>
         </div>
@@ -45,13 +45,13 @@
                     <div class="badge rounded-pill" style="background:#e8f0ff;color:#1d4ed8;border:1px solid #c9dcff;">Shipped <span class="ms-1 fw-semibold">{{ fmt_qty($sum['shipped_total']) }}</span></div>
                     <div class="badge rounded-pill" style="background:#e8faee;color:#15803d;border:1px solid #bbf7d0;">Received <span class="ms-1 fw-semibold">{{ fmt_qty($sum['received_total']) }}</span></div>
                     <div class="badge rounded-pill text-bg-info p-2">In-Transit <span class="ms-1 fw-semibold">{{ fmt_qty(max($sum['in_transit'],0)) }}</span></div>
-                    <div class="badge rounded-pill text-bg-warning p-2">Sisa <span class="ms-1 fw-semibold">{{ fmt_qty(max($sum['remaining'],0)) }}</span></div>
+                    <div class="badge rounded-pill text-bg-warning p-2">Remaining <span class="ms-1 fw-semibold">{{ fmt_qty(max($sum['remaining'],0)) }}</span></div>
                 </div>
             </div>
 
             <div class="card-body pt-2">
                 @if(empty($lines))
-                    <div class="text-muted fst-italic">Tidak ada line untuk PO ini.</div>
+                    <div class="text-muted fst-italic">No lines for this PO.</div>
                 @else
                     <div class="accordion" id="acc-{{ \Illuminate\Support\Str::slug($poNo) }}">
                         @foreach($lines as $idx => $ln)
@@ -68,7 +68,7 @@
                                         <span class="badge text-bg-secondary">Shipped: {{ fmt_qty($ln['shipped_total']) }}</span>
                                         <span class="badge text-bg-success">Received: {{ fmt_qty($ln['received_total']) }}</span>
                                         <span class="badge text-bg-info">In-Transit: {{ fmt_qty($ln['in_transit']) }}</span>
-                                        <span class="badge text-bg-warning">Sisa: {{ fmt_qty($ln['remaining']) }}</span>
+                                        <span class="badge text-bg-warning">Remaining: {{ fmt_qty($ln['remaining']) }}</span>
                                         <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#{{ $cid }}" aria-expanded="false" aria-controls="{{ $cid }}">
                                             Detail
                                         </button>
@@ -80,13 +80,13 @@
                                             <table class="table table-sm align-middle">
                                                 <thead class="table-light">
                                                     <tr>
-                                                        <th style="min-width:120px">Tanggal</th>
-                                                        <th style="min-width:110px">Tipe</th>
+                                                        <th style="min-width:120px">Date</th>
+                                                        <th style="min-width:110px">Type</th>
                                                         <th class="text-end" style="min-width:100px">Qty</th>
                                                         <th class="text-end" style="min-width:120px">Shipped Σ</th>
                                                         <th class="text-end" style="min-width:120px">Received Σ</th>
                                                         <th class="text-end" style="min-width:120px">In-Transit</th>
-                                                        <th class="text-end" style="min-width:120px">Sisa (Actual)</th>
+                                                        <th class="text-end" style="min-width:120px">Remaining (Actual)</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -108,7 +108,7 @@
                                                     </tr>
                                                 @empty
                                                     <tr>
-                                                        <td colspan="7" class="text-muted fst-italic">Belum ada event Shipment/GR.</td>
+                                                        <td colspan="7" class="text-muted fst-italic">No Shipment/GR events yet.</td>
                                                     </tr>
                                                 @endforelse
                                                 </tbody>
@@ -123,7 +123,7 @@
             </div>
         </div>
     @empty
-        <div class="alert alert-info">Tidak ada PO ditemukan.</div>
+        <div class="alert alert-info">No purchase orders found.</div>
     @endforelse
 
     <div class="d-flex justify-content-end">

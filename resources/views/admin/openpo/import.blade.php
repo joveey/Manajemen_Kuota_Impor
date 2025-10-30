@@ -34,7 +34,7 @@
           <form method="POST" action="{{ route('admin.openpo.preview') }}" enctype="multipart/form-data" id="openpo-upload" novalidate>
             @csrf
             <div class="mb-3">
-              <label for="file" class="form-label">File Excel/CSV</label>
+              <label for="file" class="form-label">Excel/CSV File</label>
               <input class="form-control" type="file" id="file" name="file" accept=".xlsx,.xls,.csv" required>
               <div class="invalid-feedback" id="file_help" aria-live="polite"></div>
             </div>
@@ -45,13 +45,13 @@
     </div>
     <div class="col-lg-4">
       <div class="card shadow-sm">
-        <div class="card-header fw-semibold">Format yang dibutuhkan</div>
+        <div class="card-header fw-semibold">Required Format</div>
         <div class="card-body">
           <ul>
             <li>Sheet: <code>List PO</code></li>
-            <li>Header wajib: <code>PO_DOC</code>, <code>CREATED_DATE</code>, <code>VENDOR_NO</code>, <code>VENDOR_NAME</code>, <code>LINE_NO</code>, <code>ITEM_CODE</code>, <code>ITEM_DESC</code>, <code>QTY</code></li>
-            <li>Header lain yang boleh ada: <code>WH_CODE</code>, <code>WH_NAME</code>, <code>SUBINV_CODE</code>, <code>SUBINV_NAME</code>, <code>WH_SOURCE</code>, <code>SUBINV_SOURCE</code>, <code>AMOUNT</code>, <code>CAT_PO</code>, <code>CAT_DESC</code>, <code>MAT_GRP</code>, <code>HS_CODE</code>.</li>
-            <li>HS_CODE boleh kosong; jika kosong akan diresolve dari mapping model→HS. Anda bisa sertakan sheet <code>mapping hs code by model</code> dengan header <code>MODEL</code>, <code>HS_CODE</code> untuk memperbarui mapping sekaligus dipakai saat validasi.</li>
+            <li>Required headers: <code>PO_DOC</code>, <code>CREATED_DATE</code>, <code>VENDOR_NO</code>, <code>VENDOR_NAME</code>, <code>LINE_NO</code>, <code>ITEM_CODE</code>, <code>ITEM_DESC</code>, <code>QTY</code></li>
+            <li>Optional headers: <code>WH_CODE</code>, <code>WH_NAME</code>, <code>SUBINV_CODE</code>, <code>SUBINV_NAME</code>, <code>WH_SOURCE</code>, <code>SUBINV_SOURCE</code>, <code>AMOUNT</code>, <code>CAT_PO</code>, <code>CAT_DESC</code>, <code>MAT_GRP</code>, <code>HS_CODE</code>.</li>
+            <li>HS_CODE may be empty; if empty it will be resolved from the model -> HS mapping. You can include a sheet <code>mapping hs code by model</code> with headers <code>MODEL</code>, <code>HS_CODE</code> to update the mapping while also using it during validation.</li>
           </ul>
         </div>
       </div>
@@ -67,8 +67,8 @@
   const fileHelp = document.getElementById('file_help');
   function validate(){
     let ok=true; file.classList.remove('is-invalid'); fileHelp.textContent='';
-    if(!file.files || file.files.length===0){ ok=false; file.classList.add('is-invalid'); fileHelp.textContent='File wajib (.xlsx/.xls/.csv, maks 10MB).'; }
-    else { const name=file.files[0].name.toLowerCase(); if(!name.endsWith('.xlsx') && !name.endsWith('.xls') && !name.endsWith('.csv')){ ok=false; file.classList.add('is-invalid'); fileHelp.textContent='Tipe file salah (.xlsx/.xls/.csv).'; } }
+    if(!file.files || file.files.length===0){ ok=false; file.classList.add('is-invalid'); fileHelp.textContent='File is required (.xlsx/.xls/.csv, max 10MB).'; }
+    else { const name=file.files[0].name.toLowerCase(); if(!name.endsWith('.xlsx') && !name.endsWith('.xls') && !name.endsWith('.csv')){ ok=false; file.classList.add('is-invalid'); fileHelp.textContent='Invalid file type (.xlsx/.xls/.csv).'; } }
     return ok;
   }
   form?.addEventListener('submit', function(e){ if(!validate()){ e.preventDefault(); e.stopPropagation(); } });

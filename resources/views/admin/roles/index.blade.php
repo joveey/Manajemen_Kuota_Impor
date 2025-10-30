@@ -105,7 +105,7 @@
 <div class="roles-page">
     <div class="roles-header">
         <div>
-            <h1 class="roles-title">Manajemen Roles</h1>
+            <h1 class="roles-title">Roles Management</h1>
             <p class="roles-subtitle">Kelola role dan distribusi permissions untuk mengatur akses pengguna di platform.</p>
         </div>
         <div class="roles-actions">
@@ -139,7 +139,7 @@
                             <span class="role-name-chip">{{ $role->name }}</span>
                         </td>
                         <td data-label="Deskripsi">
-                            <div class="roles-table__description">{{ $role->description ?? 'Tidak ada deskripsi' }}</div>
+                            <div class="roles-table__description">{{ $role->description ?? 'No description' }}</div>
                         </td>
                         <td data-label="Permissions" class="text-center">
                             <span class="count-pill">{{ $role->permissions_count }}</span>

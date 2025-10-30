@@ -85,7 +85,7 @@ class ShipmentController extends Controller
 
         return redirect()
             ->route('admin.shipments.index')
-            ->with('status', "Shipment {$shipment->shipment_number} berhasil dibuat");
+            ->with('status', "Shipment {$shipment->shipment_number} has been created successfully");
     }
 
     public function export()

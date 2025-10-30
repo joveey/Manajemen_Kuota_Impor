@@ -14,14 +14,14 @@
   </div>
 
   <div class="d-flex gap-2 mb-2">
-    <a class="btn btn-outline-secondary" href="{{ route('admin.imports.invoices.index') }}">Kembali</a>
+    <a class="btn btn-outline-secondary" href="{{ route('admin.imports.invoices.index') }}">Back</a>
     @if($import->status === \App\Models\Import::STATUS_READY)
       <form method="POST" action="{{ route('admin.imports.invoices.publish', $import) }}">@csrf<button class="btn btn-primary">Publish</button></form>
     @endif
   </div>
 
   <div class="card">
-    <div class="card-header">Ringkasan</div>
+    <div class="card-header">Summary</div>
     <div class="card-body">
       <div id="items">Loading...</div>
     </div>
@@ -34,7 +34,7 @@
   const res = await fetch("{{ route('admin.imports.items', $import) }}?status=error&per_page=10");
   const j = await res.json();
   const el = document.getElementById('items');
-  if (!j.total) { el.textContent = 'Tidak ada error.'; return; }
+  if (!j.total) { el.textContent = 'No errors.'; return; }
   const list = document.createElement('ul');
   (j.data||[]).forEach(it=>{
     const li = document.createElement('li');
@@ -46,4 +46,3 @@
 </script>
 @endpush
 @endsection
-

@@ -40,7 +40,7 @@ class InvoiceImportPageController extends Controller
         $importId = $payload['import_id'] ?? null;
         if (!$importId) { return back()->withErrors(['file'=>'Upload failed'])->withInput(); }
         return redirect()->route('admin.imports.invoices.preview', ['import'=>$importId])
-            ->with('status','Upload berhasil. Ringkasan siap ditinjau.');
+            ->with('status','Upload successful. Summary ready for review.');
     }
 
     public function preview(Import $import): View
@@ -56,9 +56,9 @@ class InvoiceImportPageController extends Controller
         $resp = $api->publishInvoices($request, $import);
         $payload = json_decode($resp->getContent(), true) ?: [];
         if ($resp->getStatusCode() >= 400) {
-            $msg = $payload['error'] ?? 'Publish gagal.';
+            $msg = $payload['error'] ?? 'Publish failed.';
             return back()->withErrors(['file' => $msg]);
         }
-        return redirect()->route('admin.imports.invoices.index')->with('status','Publish berhasil.');
+        return redirect()->route('admin.imports.invoices.index')->with('status','Publish successful.');
     }
 }

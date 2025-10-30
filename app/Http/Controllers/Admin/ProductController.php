@@ -53,7 +53,7 @@ class ProductController extends Controller
 
         return redirect()
             ->route('admin.master-data.index')
-            ->with('status', 'Produk berhasil ditambahkan');
+            ->with('status', 'Product has been added successfully.');
     }
 
     public function edit(Product $product): View
@@ -71,7 +71,7 @@ class ProductController extends Controller
 
         return redirect()
             ->route('admin.master-data.index')
-            ->with('status', 'Produk berhasil diperbarui');
+            ->with('status', 'Product has been updated successfully.');
     }
 
     public function destroy(Product $product): RedirectResponse
@@ -80,7 +80,7 @@ class ProductController extends Controller
 
         return redirect()
             ->route('admin.master-data.index')
-            ->with('status', 'Produk berhasil dihapus');
+            ->with('status', 'Product has been deleted successfully.');
     }
 
     /**

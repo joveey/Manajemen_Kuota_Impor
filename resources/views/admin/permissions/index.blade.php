@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Manajemen Permissions')
+@section('title', 'Permissions Management')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
@@ -131,7 +131,7 @@
 <div class="permissions-page">
     <div class="permissions-header">
         <div>
-            <h1 class="permissions-title">Manajemen Permissions</h1>
+            <h1 class="permissions-title">Permissions Management</h1>
             <p class="permissions-subtitle">
                 Atur hak akses granular untuk setiap fitur. Gunakan prefiks <code>create</code>, <code>read</code>,
                 <code>update</code>, atau <code>delete</code> agar konsisten.
@@ -166,7 +166,7 @@
         <div class="perm-metric">
             <span class="perm-metric__label">Update / Delete</span>
             <div class="perm-metric__value text-primary">{{ number_format(($stats['update'] ?? 0) + ($stats['delete'] ?? 0)) }}</div>
-            <p class="perm-metric__caption">Gabungan izin pengubahan dan penghapusan.</p>
+            <p class="perm-metric__caption">Combined permissions: update and delete.</p>
         </div>
     </div>
 
@@ -274,3 +274,4 @@ function deletePermission(id) {
 }
 </script>
 @endpush
+

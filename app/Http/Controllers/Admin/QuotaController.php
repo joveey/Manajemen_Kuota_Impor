@@ -80,7 +80,7 @@ class QuotaController extends Controller
 
         return redirect()
             ->route('admin.quotas.index')
-            ->with('status', 'Kuota berhasil ditambahkan');
+            ->with('status', 'Quota has been added successfully.');
     }
 
     public function edit(Quota $quota): View
@@ -96,7 +96,7 @@ class QuotaController extends Controller
 
         return redirect()
             ->route('admin.quotas.index')
-            ->with('status', 'Kuota berhasil diperbarui');
+            ->with('status', 'Quota has been updated successfully.');
     }
 
     public function destroy(Quota $quota): RedirectResponse
@@ -105,7 +105,7 @@ class QuotaController extends Controller
 
         return redirect()
             ->route('admin.quotas.index')
-            ->with('status', 'Kuota berhasil dihapus');
+            ->with('status', 'Quota has been deleted successfully.');
     }
 
     /**

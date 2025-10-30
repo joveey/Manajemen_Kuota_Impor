@@ -335,7 +335,7 @@ class PurchaseOrderController extends Controller
         $purchaseOrder->delete();
 
         return redirect()->route('admin.purchase-orders.index')
-            ->with('status', 'Purchase Order berhasil dihapus');
+            ->with('status', 'Purchase Order has been deleted successfully.');
     }
 
     public function export(Request $request)
@@ -504,7 +504,7 @@ class PurchaseOrderController extends Controller
         }
 
         if (!$quota) {
-            return back()->withErrors(['product_model' => 'Tidak ada Kuota aktif yang tersedia. Silakan impor/daftarkan kuota terlebih dahulu.'])->withInput();
+            return back()->withErrors(['product_model' => 'No active quota is available. Please import/register a quota first.'])->withInput();
         }
 
         $po = null;
@@ -580,7 +580,7 @@ class PurchaseOrderController extends Controller
             ->first();
 
         if (!$pivot || (int) $pivot->allocated_qty <= 0) {
-            return back()->withErrors(['source_quota_id' => 'Tidak ditemukan alokasi pada kuota asal untuk PO ini.']);
+            return back()->withErrors(['source_quota_id' => 'No allocation was found on the source quota for this PO.']);
         }
 
         $requested = isset($data['move_qty']) ? (int) $data['move_qty'] : (int) $pivot->allocated_qty;

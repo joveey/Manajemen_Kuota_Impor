@@ -158,6 +158,6 @@ class ProductQuickController extends Controller
             try { $autoMapper->sync($product); } catch (\Throwable $e) {}
         }
 
-        return redirect($return)->with('status', 'Model berhasil ditambahkan/diupdate. Silakan refresh preview.');
+        return redirect($return)->with('status', 'Model has been added/updated successfully. Please refresh the preview.');
     }
 }

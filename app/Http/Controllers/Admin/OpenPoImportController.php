@@ -37,7 +37,7 @@ class OpenPoImportController extends Controller
             $rows = $payload['rows'] ?? [];
             $modelMap = $payload['model_map'] ?? [];
         } catch (\Throwable $e) {
-            return back()->withErrors(['file' => 'Gagal membaca file: '.$e->getMessage()])->withInput();
+            return back()->withErrors(['file' => 'Failed to read file: '.$e->getMessage()])->withInput();
         }
 
         $result = $validator->validate($rows, $modelMap);
@@ -58,7 +58,7 @@ class OpenPoImportController extends Controller
     {
         $result = session('openpo.preview');
         if (!$result || !is_array($result)) {
-            return redirect()->route('admin.openpo.form')->withErrors(['file' => 'Preview tidak ditemukan. Upload ulang file.']);
+            return redirect()->route('admin.openpo.form')->withErrors(['file' => 'Preview not found. Reupload the file.']);
         }
 
         $summary = [
@@ -74,10 +74,10 @@ class OpenPoImportController extends Controller
     {
         $result = session('openpo.preview');
         if (!$result || !is_array($result)) {
-            return redirect()->route('admin.openpo.form')->withErrors(['file' => 'Preview tidak ditemukan. Upload ulang file.']);
+            return redirect()->route('admin.openpo.form')->withErrors(['file' => 'Preview not found. Reupload the file.']);
         }
         if (($result['error_count'] ?? 0) > 0) {
-            return back()->withErrors(['publish' => 'Perbaiki error sebelum publish.']);
+            return back()->withErrors(['publish' => 'Fix the errors before publishing.']);
         }
 
         $groups = $result['groups'] ?? [];
@@ -114,8 +114,8 @@ class OpenPoImportController extends Controller
                         ]
                     );
 
-                    // Tidak menulis ke master produk dari sheet mapping PO.
-                    // Mapping di sheet hanya dipakai saat resolve HS untuk line bila dibutuhkan.
+                    // Do not write to the product master from the PO mapping sheet.
+                    // Mapping in the sheet is only used when resolving HS for lines if needed.
 
                     // Prefetch product->hs map for models in this PO
                     $models = collect($payload['lines'])->pluck('model_code')->filter()->map(fn($m)=> (string)$m)->unique()->values()->all();
@@ -285,15 +285,15 @@ class OpenPoImportController extends Controller
                 }
             });
         } catch (\Throwable $e) {
-            return back()->withErrors(['publish' => 'Gagal publish: '.$e->getMessage()]);
+            return back()->withErrors(['publish' => 'Failed to publish: '.$e->getMessage()]);
         }
 
         session()->forget('openpo.preview');
         session()->forget('openpo.model_map');
-        $msg = 'Open PO berhasil dipublish. Mode: '.($mode === 'replace' ? 'Replace' : 'Insert').'. Ditambahkan: '.$inserted.'.'.($skippedExisting>0 ? ' Duplikat dilewati: '.$skippedExisting.'.' : '').($replaced>0 ? ' Header diganti: '.$replaced.'.' : '');
+        $msg = 'Open PO published successfully. Mode: '.($mode === 'replace' ? 'Replace' : 'Insert').'. Added: '.$inserted.'.'.($skippedExisting>0 ? ' Duplicates skipped: '.$skippedExisting.'.' : '').($replaced>0 ? ' Headers replaced: '.$replaced.'.' : '');
         $redir = redirect()->route('admin.openpo.form')->with('status', $msg);
         if ($leftoverAll > 0) {
-            $redir->with('warning', 'Sebagian tidak teralokasi: '.number_format($leftoverAll).' unit. Mohon lengkapi kuota periode berikutnya.');
+            $redir->with('warning', 'Some items were not allocated: '.number_format($leftoverAll).' units. Please complete the next period quota.');
         }
         return $redir;
     }

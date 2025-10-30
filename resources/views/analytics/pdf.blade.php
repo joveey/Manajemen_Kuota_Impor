@@ -18,17 +18,17 @@
         $mode = $summary['mode'] ?? 'actual';
         $title = $mode === 'forecast' ? 'Analytics Forecast Report' : 'Analytics Actual Report';
         $usageLabel = $summary['usage_label'] ?? ($mode === 'forecast' ? 'Forecast' : 'Actual');
-        $secondaryLabel = $summary['secondary_label'] ?? ($mode === 'forecast' ? 'Sisa Forecast' : 'Sisa Kuota');
-        $percentageLabel = $summary['percentage_label'] ?? ($mode === 'forecast' ? 'Penggunaan Forecast %' : 'Pemakaian Actual %');
+        $secondaryLabel = $summary['secondary_label'] ?? ($mode === 'forecast' ? 'Remaining Forecast' : 'Remaining Quota');
+        $percentageLabel = $summary['percentage_label'] ?? ($mode === 'forecast' ? 'Forecast Usage %' : 'Actual Usage %');
     @endphp
 
     <h1>{{ $title }}</h1>
-    <p class="muted">Periode: {{ $filters['start_date'] ?? '-' }} s/d {{ $filters['end_date'] ?? '-' }}</p>
+    <p class="muted">Period: {{ $filters['start_date'] ?? '-' }} to {{ $filters['end_date'] ?? '-' }}</p>
 
     <table style="margin-bottom:12px">
         <tbody>
             <tr>
-                <td>Total Kuota</td>
+                <td>Total Quota</td>
                 <td class="right">{{ number_format($summary['total_allocation'] ?? 0) }}</td>
                 <td>Total {{ $usageLabel }}</td>
                 <td class="right">{{ number_format($summary['total_usage'] ?? 0) }}</td>
@@ -41,9 +41,9 @@
     <table>
         <thead>
             <tr>
-                <th>Nomor Kuota</th>
-                <th>Range PK</th>
-                <th class="right">Kuota Awal</th>
+                <th>Quota Number</th>
+                <th>PK Range</th>
+                <th class="right">Initial Quota</th>
                 <th class="right">{{ $usageLabel }}</th>
                 <th class="right">{{ $secondaryLabel }}</th>
                 <th class="right">{{ $percentageLabel }}</th>
@@ -60,7 +60,7 @@
                 <td class="right">{{ number_format($r['percentage'], 2) }}%</td>
             </tr>
             @empty
-            <tr><td colspan="6" class="muted">Tidak ada data.</td></tr>
+            <tr><td colspan="6" class="muted">No data.</td></tr>
             @endforelse
         </tbody>
     </table>

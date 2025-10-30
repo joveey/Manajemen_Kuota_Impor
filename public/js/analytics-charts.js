@@ -7,9 +7,37 @@
 
   function q(id){ return document.getElementById(id); }
 
+  function normalizeLabel(str){
+    if(!str) return str;
+    var m = {
+      'Kuota': 'Quota',
+      'Sisa Kuota': 'Remaining Quota',
+      'Realisasi': 'Actual',
+      'Belum Direalisasi': 'Not Yet Realized',
+      'Penerimaan': 'Receipts',
+      'Pengiriman': 'Shipments'
+    };
+    return m[str] || str;
+  }
+
+  function normalizeSeries(series){
+    if(!Array.isArray(series)) return series;
+    return series.map(function(s){
+      if(s && typeof s === 'object' && 'name' in s){
+        s.name = normalizeLabel(s.name);
+      }
+      return s;
+    });
+  }
+
+  function normalizeLabels(arr){
+    if(!Array.isArray(arr)) return arr;
+    return arr.map(function(x){ return normalizeLabel(x); });
+  }
+
   function renderBar(el, data){ if(!el || !window.ApexCharts) return; new ApexCharts(el, {
       chart:{ type:'bar', height: el.clientHeight || 320, animations:{enabled:true} },
-      series: data.series || [],
+      series: normalizeSeries(data.series || []),
       xaxis: { categories: data.categories || [] },
       plotOptions: { bar: { columnWidth: '50%', endingShape: 'rounded' } },
       dataLabels: { enabled: false },
@@ -20,7 +48,7 @@
   function renderDonut(el, data){ if(!el || !window.ApexCharts) return; new ApexCharts(el, {
       chart:{ type:'donut', height: el.clientHeight || 320, animations:{enabled:true} },
       series: (data && data.series) || [0,0],
-      labels: (data && data.labels) || ['Actual','Remaining'],
+      labels: normalizeLabels((data && data.labels) || ['Actual','Remaining']),
       legend: { position: 'bottom' },
       dataLabels: { enabled:false },
       colors: ['#2563eb','#94a3b8']
@@ -48,7 +76,7 @@
       rows = tablePayload.rows;
     }
     if(!rows.length){
-      tb.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Tidak ada data.</td></tr>';
+      tb.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No data.</td></tr>';
       return;
     }
 

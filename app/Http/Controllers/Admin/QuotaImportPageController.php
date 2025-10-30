@@ -86,7 +86,7 @@ class QuotaImportPageController extends Controller
 
         return redirect()
             ->route('admin.imports.quotas.preview', ['import' => $importId])
-            ->with('status', 'Upload berhasil. Ringkasan siap ditinjau.');
+            ->with('status', 'Upload successful. Summary ready for review.');
     }
 
     public function preview(Import $import): View
@@ -104,7 +104,7 @@ class QuotaImportPageController extends Controller
         $payload = json_decode($resp->getContent(), true) ?: [];
 
         if ($resp->getStatusCode() >= 400) {
-            $msg = $payload['error'] ?? 'Publish gagal.';
+            $msg = $payload['error'] ?? 'Publish failed.';
             return back()->withErrors(['publish' => $msg]);
         }
 
@@ -112,7 +112,7 @@ class QuotaImportPageController extends Controller
         $skipped = $payload['skipped'] ?? null;
         $version = $payload['version'] ?? null;
         $extra = !empty($payload['ran_automap']) ? ' + automap' : '';
-        $msg = 'Publish berhasil'.($version !== null ? " (v$version)" : '').($applied !== null && $skipped !== null ? ": applied=$applied, skipped=$skipped" : '').$extra.'.';
+        $msg = 'Publish successful'.($version !== null ? " (v$version)" : '').($applied !== null && $skipped !== null ? ": applied=$applied, skipped=$skipped" : '').$extra.'.';
 
         return redirect()
             ->route('admin.imports.quotas.preview', $import)
@@ -213,7 +213,7 @@ class QuotaImportPageController extends Controller
     {
         $preview = session('quotas.manual.preview', []);
         if (empty($preview)) {
-            return back()->withErrors(['publish' => 'Tidak ada data di preview.'])->withInput();
+            return back()->withErrors(['publish' => 'No data in the preview.'])->withInput();
         }
 
         $applied = 0;
@@ -307,15 +307,15 @@ class QuotaImportPageController extends Controller
                     app(\App\Services\ProductQuotaAutoMapper::class)->runForPeriod($y);
                     $automapRan = true;
                 } catch (\Throwable $e) {
-                    // Abaikan error automap agar publish tetap sukses
+                    // Ignore automap errors so the publish still succeeds
                 }
             }
-            $automapNotes = ' Automap kuota dijalankan untuk tahun: '.implode(', ', $years).'.';
+            $automapNotes = ' Quota automap executed for years: '.implode(', ', $years).'.';
         }
 
         session()->forget('quotas.manual.preview');
 
-        return back()->with('status', "Publish selesai. Applied={$applied}, Skipped={$skipped}.".$automapNotes);
+        return back()->with('status', "Publish completed. Applied={$applied}, Skipped={$skipped}.".$automapNotes);
     }
 
     protected function buildPreviewSummary(array $preview): array
@@ -386,7 +386,7 @@ class QuotaImportPageController extends Controller
             }
             return [
                 'id' => $row->hs_code,
-                // Tampilkan hanya HS code pada dropdown; desc tetap tersedia via data-desc
+                // Show only the HS code in the dropdown; desc remains available via data-desc
                 'text' => $row->hs_code,
                 'desc' => $desc,
                 'pk' => $row->pk_capacity,
@@ -423,7 +423,7 @@ class QuotaImportPageController extends Controller
 
         return [
             'id' => $row->hs_code,
-            // Dropdown menampilkan hanya HS code; desc tetap untuk tampilan pendamping
+            // The dropdown shows only the HS code; desc remains for supplemental display
             'text' => $row->hs_code,
             'desc' => $desc,
         ];

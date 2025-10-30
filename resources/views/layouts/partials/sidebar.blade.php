@@ -32,7 +32,7 @@
           $isUnmapped   = request()->routeIs('admin.mapping.unmapped.*');
           $isMapped     = request()->routeIs('admin.mapping.mapped.page');
           $isQuickModel = request()->routeIs('admin.master.quick_hs.*') || request()->routeIs('admin.mapping.model_hs.*');
-          // pastikan grup Persiapan Data membuka saat salah satu aktif
+          // pastikan grup Data Preparation membuka saat salah satu aktif
           $operationalOpen = ($isHsPk || $isQuotas || $isGr || $isUnmapped || $isMapped || $isQuickModel || ($operationalOpen ?? false));
         @endphp
 
@@ -40,12 +40,12 @@
         <nav class="mt-2">
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
                 
-                <!-- Persiapan Data -->
+                <!-- Data Preparation -->
                 <li class="nav-item {{ $operationalOpen ? 'menu-open' : '' }}">
                     <a href="#" class="nav-link {{ $operationalOpen ? 'active' : '' }}">
                         <i class="nav-icon fas fa-briefcase"></i>
                         <p>
-                            Persiapan Data
+                            Data Preparation
                             <i class="right fas fa-angle-left"></i>
                         </p>
                     </a>
@@ -61,7 +61,7 @@
                         <li class="nav-item">
                             <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ $isQuotas ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Import Kuota</p>
+                                <p>Import Quota</p>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -74,7 +74,7 @@
                         <li class="nav-item">
                             <a href="{{ route('admin.mapping.unmapped.page') }}" class="nav-link {{ $isUnmapped ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Produk Unmapped</p>
+                                <p>Unmapped Products</p>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -87,7 +87,7 @@
                         <li class="nav-item">
                             <a href="{{ route('admin.master.quick_hs.index') }}" class="nav-link {{ $isQuickModel ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Tambah Model &gt; HS</p>
+                                <p>Add Model &gt; HS</p>
                             </a>
                         </li>
                         @endif
@@ -137,7 +137,7 @@
                         <li class="nav-item">
                             <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Import Kuota</p>
+                                <p>Import Quota</p>
                             </a>
                         </li>
                     </ul>
@@ -227,7 +227,7 @@
                     <a href="#" class="nav-link {{ request()->routeIs('admin.shipments.*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-truck"></i>
                         <p>
-                            Pengiriman &amp; Receipt
+                            Shipments &amp; Receipts
                             <i class="right fas fa-angle-left"></i>
                         </p>
                     </a>
@@ -235,14 +235,14 @@
                         <li class="nav-item">
                             <a href="{{ route('admin.shipments.index') }}" class="nav-link {{ request()->routeIs('admin.shipments.index') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Daftar Pengiriman</p>
+                                <p>Shipment List</p>
                             </a>
                         </li>
                         @if(Route::has('admin.shipments.create') && Auth::user()->hasPermission('create purchase_orders'))
                         <li class="nav-item">
                             <a href="{{ route('admin.shipments.create') }}" class="nav-link {{ request()->routeIs('admin.shipments.create') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Buat Pengiriman</p>
+                                <p>Create Shipment</p>
                             </a>
                         </li>
                         @endif
@@ -250,14 +250,14 @@
                 </li>
                 @endif
 
-                <!-- Laporan -->
+                <!-- Reports -->
                 @can('read reports')
                 @php $repOpen = request()->routeIs('analytics.*') || request()->routeIs('admin.reports.final'); @endphp
                 <li class="nav-item {{ $repOpen ? 'menu-open' : '' }}">
                     <a href="#" class="nav-link {{ $repOpen ? 'active' : '' }}">
                         <i class="nav-icon fas fa-chart-bar"></i>
                         <p>
-                            Laporan
+                            Reports
                             <i class="right fas fa-angle-left"></i>
                         </p>
                     </a>
@@ -271,7 +271,7 @@
                         <li class="nav-item">
                             <a href="{{ route('admin.reports.final') }}" class="nav-link {{ request()->routeIs('admin.reports.final') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Laporan Gabungan</p>
+                                <p>Combined Report</p>
                             </a>
                         </li>
                     </ul>
@@ -335,11 +335,11 @@
                 </li>
                 @endif
 
-                <!-- Administrasi: Pengaturan Akun -->
+                <!-- Administrasi: Account Settings -->
                 <li class="nav-item">
                     <a href="{{ route('profile.edit') }}" class="nav-link {{ request()->routeIs('profile.edit') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-user-cog"></i>
-                        <p>Pengaturan Akun</p>
+                        <p>Account Settings</p>
                     </a>
                 </li>
 
@@ -347,3 +347,4 @@
         </nav>
     </div>
 </aside>
+

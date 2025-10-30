@@ -1,17 +1,17 @@
 @extends('errors.layout')
 
-@section('title', 'Halaman Tidak Ditemukan')
+@section('title', 'Page Not Found')
 
 @section('content')
     <div class="empty-state">
         <div class="empty-state__icon">
             <i class="fas fa-compass"></i>
         </div>
-        <h1 class="empty-state__title">Halaman Tidak Ditemukan</h1>
-        <p class="empty-state__subtitle">Kami tidak menemukan halaman yang Anda cari.</p>
+        <h1 class="empty-state__title">Page Not Found</h1>
+        <p class="empty-state__subtitle">We could not find the page you are looking for.</p>
         <div class="empty-state__actions">
-            <a href="{{ url()->previous() }}" class="btn btn-outline-primary">Kembali</a>
-            <a href="{{ route('admin.dashboard') }}" class="btn btn-primary">Ke Dashboard</a>
+            <a href="{{ url()->previous() }}" class="btn btn-outline-primary">Back</a>
+            <a href="{{ route('admin.dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
         </div>
     </div>
 @endsection
