@@ -1019,13 +1019,11 @@ class ImportController extends Controller
                             DB::table('quotas')->where('id', $existing->id)->update($updateFields);
                             $applied++;
                         } else {
-                            // Insert new quota row.
-                            // quotas table requires 'quota_number' and 'name' (not nullable).
-                            // TODO: adjust columns if your project has different required fields.
-                            $quotaNumber = 'IMP-'.(string)Str::upper(Str::random(10));
+                            // Insert then set unified quota number using generated ID.
                             $name = 'Kuota '.$label.' '.$pStart.'-'.$pEnd;
-                            DB::table('quotas')->insert([
-                                'quota_number' => $quotaNumber,
+                            $tmpNumber = 'TMP-'.Str::uuid()->toString();
+                            $newId = DB::table('quotas')->insertGetId([
+                                'quota_number' => $tmpNumber,
                                 'name' => $name,
                                 'government_category' => $label,
                                 'period_start' => $pStart,
@@ -1042,6 +1040,9 @@ class ImportController extends Controller
                                 'is_max_inclusive' => $maxIncl,
                                 'created_at' => $now,
                                 'updated_at' => $now,
+                            ]);
+                            DB::table('quotas')->where('id', $newId)->update([
+                                'quota_number' => sprintf('QUOTA-%06d', (int) $newId),
                             ]);
                             $applied++;
                         }

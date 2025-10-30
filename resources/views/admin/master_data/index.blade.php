@@ -185,7 +185,7 @@
                         <td>
                             @forelse($product->quotaMappings as $mapping)
                                 <span class="quota-chip">
-                                    {{ $mapping->quota->quota_number }}
+                                    {{ $mapping->quota->display_number }}
                                     @if($mapping->is_primary)<small>Primary</small>@endif
                                 </span>
                             @empty

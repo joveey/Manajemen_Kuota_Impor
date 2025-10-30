@@ -73,7 +73,7 @@
                 @else
                   @foreach($p->quotaMappings as $m)
                     <span class="badge rounded-pill text-bg-light border me-1 mb-1">
-                      {{ $m->quota?->quota_number ?? 'Unknown' }}
+                      {{ $m->quota?->display_number ?? 'Unknown' }}
                       @if($m->is_primary)
                         <small class="text-success ms-1">Primary</small>
                       @endif

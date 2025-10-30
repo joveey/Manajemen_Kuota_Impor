@@ -13,7 +13,7 @@
         : ($pctDisplay >= 60 ? 'kpi-card__progress-fill--warning' : '');
     $periodStart = optional($q->period_start)->format('M Y') ?? '-';
     $periodEnd = optional($q->period_end)->format('M Y') ?? '-';
-    $category = $q->government_category ?? $q->quota_number ?? 'Quota';
+    $category = $q->government_category ?? $q->display_number ?? 'Quota';
 @endphp
 <div class="kpi-card">
     <div class="kpi-card__header">
