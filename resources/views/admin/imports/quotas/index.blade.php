@@ -201,7 +201,7 @@
                     <table class="table mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>#</th>
+                                <th>Quota</th>
                                 <th>HS_Code</th>
                                 <th>Desc</th>
                                 <th>Letter No</th>
@@ -219,7 +219,7 @@
                                     }
                                 @endphp
                                 <tr>
-                                    <td>{{ $loop->iteration }}</td>
+                                    <td>{{ $quota->display_number }}</td>
                                     <td>{{ $hsDisplay !== '' ? $hsDisplay : '—' }}</td>
                                     <td>{{ $quota->government_category ?? '—' }}</td>
                                     <td>{{ $quota->source_document ?? '—' }}</td>

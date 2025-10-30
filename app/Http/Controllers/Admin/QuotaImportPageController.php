@@ -50,7 +50,6 @@ class QuotaImportPageController extends Controller
         }
 
         $manualQuotas = Quota::query()
-            ->where('quota_number', 'like', 'MAN-%')
             ->orderByDesc('created_at')
             ->limit(10)
             ->get();
@@ -279,11 +278,12 @@ class QuotaImportPageController extends Controller
                     continue;
                 }
 
-                $quotaNumber = 'MAN-'.Str::upper(Str::random(10));
+                // Insert then update quota_number using the ID for unified format
                 $name = 'Quota HS '.$hsCode.' '.$periodStart.'-'.$periodEnd;
 
-                DB::table('quotas')->insert(array_merge($baseFields, [
-                    'quota_number' => $quotaNumber,
+                $tmpNumber = 'TMP-'.Str::uuid()->toString();
+                $id = DB::table('quotas')->insertGetId(array_merge($baseFields, [
+                    'quota_number' => $tmpNumber,
                     'name' => $name,
                     'status' => 'available',
                     'is_active' => true,
@@ -293,6 +293,8 @@ class QuotaImportPageController extends Controller
                     'notes' => $notesValue !== '' ? $notesValue : null,
                     'created_at' => $now,
                 ]));
+                $formatted = sprintf('QUOTA-%06d', (int) $id);
+                DB::table('quotas')->where('id', $id)->update(['quota_number' => $formatted]);
                 $applied++;
             }
         });
@@ -387,6 +389,7 @@ class QuotaImportPageController extends Controller
                 // Tampilkan hanya HS code pada dropdown; desc tetap tersedia via data-desc
                 'text' => $row->hs_code,
                 'desc' => $desc,
+                'pk' => $row->pk_capacity,
             ];
         })->all();
     }

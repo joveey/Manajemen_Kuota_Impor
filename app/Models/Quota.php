@@ -195,4 +195,16 @@ class Quota extends Model
         }
         return true;
     }
+
+    // Unified, human-friendly quota number for display
+    public function getDisplayNumberAttribute(): string
+    {
+        $id = (int) ($this->id ?? 0);
+        if ($id > 0) {
+            return sprintf('QUOTA-%06d', $id);
+        }
+
+        $raw = trim((string) ($this->quota_number ?? ''));
+        return $raw !== '' ? $raw : 'QUOTA-XXXXXX';
+    }
 }

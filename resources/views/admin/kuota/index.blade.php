@@ -329,7 +329,7 @@
                     @endphp
                     <tr data-state="{{ $state }}">
                         <td>{{ $loop->iteration }}</td>
-                        <td><strong>{{ $quota->quota_number }}</strong></td>
+                        <td><strong>{{ $quota->display_number }}</strong></td>
                         <td>{{ $quota->name }}</td>
                         <td class="text-end">{{ number_format($quota->total_allocation ?? 0) }}</td>
                         <td class="text-end col-forecast">{{ number_format(max(($quota->forecast_consumed ?? 0),0)) }}</td>

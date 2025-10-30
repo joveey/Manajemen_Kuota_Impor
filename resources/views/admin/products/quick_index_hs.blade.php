@@ -46,6 +46,7 @@
                             'periodKey' => null,
                             'backUrl' => route('admin.master.quick_hs.index'),
                             'showCancel' => false,
+                            'hsSeedOptions' => $hsSeedOptions ?? [],
                         ])
                     @endif
                 </div>
