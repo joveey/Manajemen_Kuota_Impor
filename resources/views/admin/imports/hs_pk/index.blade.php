@@ -41,11 +41,11 @@
                             </div>
                         @endif
 
-                        <form action="{{ route('admin.hs_pk.manual.store') }}" method="POST" class="row g-3">
+                        <form action="{{ route('admin.hs_pk.manual.store') }}" method="POST" class="row g-3" novalidate>
                             @csrf
                             <div class="col-md-3">
                                 <label class="form-label" for="period_key">Periode (YYYY)</label>
-                                <input type="text" name="period_key" id="period_key" class="form-control" placeholder="YYYY" pattern="^\\d{4}$" value="{{ old('period_key') }}">
+                                <input type="text" name="period_key" id="period_key" class="form-control" placeholder="YYYY" inputmode="numeric" maxlength="4" value="{{ old('period_key') }}" title="Masukkan 4 digit tahun, mis. 2025">
                                 <small class="text-muted">Kosongkan untuk legacy.</small>
                             </div>
                             <div class="col-md-4">
@@ -92,7 +92,6 @@
                                 <th>HS Code</th>
                                 <th>Periode</th>
                                 <th>DESC</th>
-                                <th>Updated</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -101,7 +100,6 @@
                                   <td>{{ $r->hs_code }}</td>
                                   <td>{{ isset($r->period_key) && $r->period_key === '' ? 'Legacy' : ($r->period_key ?? '') }}</td>
                                   <td>{{ isset($r->desc) && $r->desc !== '' ? $r->desc : number_format((float)($r->pk_capacity ?? 0), 2) }}</td>
-                                  <td>{{ optional($r->updated_at)->format('Y-m-d H:i') }}</td>
                                 </tr>
                               @empty
                                 <tr>

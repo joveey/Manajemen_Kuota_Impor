@@ -56,7 +56,16 @@
               <td>{{ $p->sap_model ?: $p->code }}</td>
               <td>{{ $p->name }}</td>
               <td><span class="badge bg-info text-dark">{{ $p->hs_code }}</span></td>
-              <td class="text-end">{{ $p->pk_capacity ? number_format($p->pk_capacity, 2) : '-' }}</td>
+              <td class="text-end">
+                @php $label = $p->hs_desc ?? null; @endphp
+                @if(!empty($label))
+                  {{ $label }}
+                @elseif(!is_null($p->pk_capacity))
+                  {{ number_format((float)$p->pk_capacity, 2) }}
+                @else
+                  -
+                @endif
+              </td>
               <td>{{ $p->category ?: '-' }}</td>
               <td>
                 @if($p->quotaMappings->isEmpty())

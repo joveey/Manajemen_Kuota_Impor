@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 class ProductQuickController extends Controller
 {
@@ -21,6 +22,42 @@ class ProductQuickController extends Controller
             ->orderByDesc('updated_at')
             ->limit(10)
             ->get();
+
+        // Enrich with HS→PK label (DESC) if master table exists
+        if (Schema::hasTable('hs_code_pk_mappings')) {
+            $codes = $recent->pluck('hs_code')->filter()->unique()->values()->all();
+            if (!empty($codes)) {
+                $hasDesc = Schema::hasColumn('hs_code_pk_mappings', 'desc');
+                $hasPeriod = Schema::hasColumn('hs_code_pk_mappings', 'period_key');
+                $select = ['hs_code', 'pk_capacity'];
+                if ($hasDesc) { $select[] = 'desc'; }
+                if ($hasPeriod) { $select[] = 'period_key'; }
+
+                $q = DB::table('hs_code_pk_mappings')
+                    ->whereIn('hs_code', $codes);
+                if ($hasPeriod) {
+                    $year = now()->format('Y');
+                    $q->where(function ($w) use ($year) {
+                        $w->where('period_key', $year)->orWhere('period_key', '');
+                    })->orderByRaw("CASE WHEN period_key = ? THEN 0 WHEN period_key = '' THEN 1 ELSE 2 END", [$year]);
+                }
+                $rows = $q->orderBy('hs_code')->get($select);
+
+                $labelByCode = [];
+                foreach ($rows as $r) {
+                    if (!isset($labelByCode[$r->hs_code])) {
+                        $label = null;
+                        if ($hasDesc) { $label = (string) ($r->desc ?? ''); }
+                        if ($label === '') { $label = null; }
+                        $labelByCode[$r->hs_code] = $label;
+                    }
+                }
+
+                foreach ($recent as $p) {
+                    $p->setAttribute('hs_desc', $labelByCode[$p->hs_code] ?? null);
+                }
+            }
+        }
 
         return view('admin.products.quick_index_hs', compact('recent'));
     }

@@ -145,10 +145,13 @@
                                         <td>{{ $product->code }}</td>
                                         <td>{{ $product->hs_code ?? '-' }}</td>
                                         <td>
-                                            @if($product->pk_capacity === null)
-                                                -
-                                            @else
+                                            @php $label = $product->hs_desc ?? null; @endphp
+                                            @if(!empty($label))
+                                                {{ $label }}
+                                            @elseif(!is_null($product->pk_capacity))
                                                 {{ rtrim(rtrim(number_format((float) $product->pk_capacity, 2), '0'), '.') }}
+                                            @else
+                                                -
                                             @endif
                                         </td>
                                         <td>{{ optional($product->updated_at)->format('d M Y H:i') ?? '-' }}</td>
