@@ -219,6 +219,18 @@ class QuotaImportPageController extends Controller
 
         $applied = 0;
         $skipped = 0;
+        // Kumpulkan unique tahun dari periode untuk automap setelah publish
+        $years = collect($preview)
+            ->flatMap(function ($item) {
+                $years = [];
+                try { if (!empty($item['period_start'])) { $years[] = \Illuminate\Support\Carbon::parse($item['period_start'])->format('Y'); } } catch (\Throwable $e) {}
+                try { if (!empty($item['period_end'])) { $years[] = \Illuminate\Support\Carbon::parse($item['period_end'])->format('Y'); } } catch (\Throwable $e) {}
+                return $years;
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
 
         DB::transaction(function () use ($preview, &$applied, &$skipped) {
             foreach ($preview as $item) {
@@ -285,9 +297,23 @@ class QuotaImportPageController extends Controller
             }
         });
 
+        // Jalankan automap kuota -> produk berdasarkan tahun periode
+        $automapRan = false; $automapNotes = '';
+        if (!empty($years)) {
+            foreach ($years as $y) {
+                try {
+                    app(\App\Services\ProductQuotaAutoMapper::class)->runForPeriod($y);
+                    $automapRan = true;
+                } catch (\Throwable $e) {
+                    // Abaikan error automap agar publish tetap sukses
+                }
+            }
+            $automapNotes = ' Automap kuota dijalankan untuk tahun: '.implode(', ', $years).'.';
+        }
+
         session()->forget('quotas.manual.preview');
 
-        return back()->with('status', "Publish selesai. Applied={$applied}, Skipped={$skipped}.");
+        return back()->with('status', "Publish selesai. Applied={$applied}, Skipped={$skipped}.".$automapNotes);
     }
 
     protected function buildPreviewSummary(array $preview): array

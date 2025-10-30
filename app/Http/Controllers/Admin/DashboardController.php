@@ -81,9 +81,11 @@ class DashboardController extends Controller
                 ->get();
 
             $ids = $quotas->pluck('id')->all();
-            $forecastByQuota = empty($ids) ? collect() : \DB::table('purchase_order_quota')
-                ->select('quota_id', \DB::raw('SUM(allocated_qty) as qty'))
+            $forecastByQuota = empty($ids) ? collect() : \DB::table('quota_histories')
+                ->select('quota_id', \DB::raw('SUM(ABS(quantity_change)) as qty'))
+                ->where('change_type', \App\Models\QuotaHistory::TYPE_FORECAST_DECREASE)
                 ->whereIn('quota_id', $ids)
+                ->whereBetween('occurred_on', [$start, $end])
                 ->groupBy('quota_id')
                 ->pluck('qty', 'quota_id');
             $actualByQuota = empty($ids) ? collect() : \DB::table('quota_histories')
@@ -94,12 +96,10 @@ class DashboardController extends Controller
                 ->groupBy('quota_id')
                 ->pluck('qty', 'quota_id');
 
+            $quotaBatches = [];
             foreach ($quotas as $q) {
                 $alloc = (float) ($q->total_allocation ?? 0);
-                // Forecast fallback: use allocation - forecast_remaining when pivot empty
-                $pivotFc = (float) ($forecastByQuota[$q->id] ?? 0);
-                $fallbackFc = max($alloc - (float) ($q->forecast_remaining ?? 0), 0.0);
-                $fc = min($alloc, $pivotFc > 0 ? $pivotFc : $fallbackFc);
+                $fc = min($alloc, (float) ($forecastByQuota[$q->id] ?? 0));
                 $ac = min($alloc, (float) ($actualByQuota[$q->id] ?? 0));
                 $q->setAttribute('forecast_consumed', $fc);
                 $q->setAttribute('actual_consumed', $ac);
@@ -107,9 +107,26 @@ class DashboardController extends Controller
                 $q->setAttribute('actual_remaining', max($alloc - $ac, 0));
                 $q->setAttribute('in_transit', max($fc - $ac, 0));
                 $q->setAttribute('year', $year);
+
+                $statusLabel = match ($q->status) {
+                    \App\Models\Quota::STATUS_AVAILABLE => 'Available',
+                    \App\Models\Quota::STATUS_LIMITED => 'Limited',
+                    \App\Models\Quota::STATUS_DEPLETED => 'Depleted',
+                    default => 'Unknown',
+                };
+                $quotaBatches[] = [
+                    'gov_ref' => $q->quota_number,
+                    'range' => (string) ($q->government_category ?? 'N/A'),
+                    'forecast' => (float) $fc,
+                    'actual' => (float) $alloc,
+                    'consumed' => (float) $ac,
+                    'remaining_status' => $statusLabel,
+                ];
             }
 
             $quotaCards = $quotas;
+            // expose to view for charts
+            $quotaBatches = $quotaBatches;
         } catch (\Throwable $e) {}
 
         // Activity feed (last 7 days)
@@ -277,6 +294,7 @@ class DashboardController extends Controller
             'recentShipments',
             'metrics',
             'quotaCards',
+            'quotaBatches',
             'activities',
             'alerts',
             'summary'
