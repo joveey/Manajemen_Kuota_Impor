@@ -42,9 +42,9 @@
                         </div>
                     @else
                         @include('admin.products.partials.quick_hs_manual_form', [
-                            'model' => null,
-                            'periodKey' => null,
-                            'backUrl' => route('admin.master.quick_hs.index'),
+                            'model' => $model ?? null,
+                            'periodKey' => $periodKey ?? null,
+                            'backUrl' => $returnUrl ?? route('admin.master.quick_hs.index'),
                             'showCancel' => false,
                             'hsSeedOptions' => $hsSeedOptions ?? [],
                         ])

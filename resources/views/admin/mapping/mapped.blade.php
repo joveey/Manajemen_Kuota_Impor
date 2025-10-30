@@ -24,8 +24,8 @@
         <div class="col-md-5 d-flex gap-2">
           <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Tampilkan</button>
           <a href="{{ route('admin.mapping.mapped.page') }}" class="btn btn-outline-secondary">Reset</a>
-          @if(Route::has('admin.master.quick_hs.create') && auth()->user()?->can('product.create'))
-            <a href="{{ route('admin.master.quick_hs.create', ['return' => request()->fullUrl()]) }}" class="btn btn-success">
+          @if(Route::has('admin.master.quick_hs.index') && auth()->user()?->can('product.create'))
+            <a href="{{ route('admin.master.quick_hs.index', ['return' => request()->fullUrl()]) }}" class="btn btn-success">
               <i class="fas fa-circle-plus"></i> Tambah Model → HS
             </a>
           @endif
@@ -74,9 +74,6 @@
                   @foreach($p->quotaMappings as $m)
                     <span class="badge rounded-pill text-bg-light border me-1 mb-1">
                       {{ $m->quota?->display_number ?? 'Unknown' }}
-                      @if($m->is_primary)
-                        <small class="text-success ms-1">Primary</small>
-                      @endif
                     </span>
                   @endforeach
                 @endif

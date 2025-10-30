@@ -14,8 +14,14 @@ use Illuminate\Support\Facades\DB;
 
 class ProductQuickController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $model = trim((string) $request->query('model', ''));
+        $periodKey = trim((string) $request->query('period_key', ''));
+        $returnUrl = (string) $request->query(
+            'return',
+            url()->previous() ?: route('admin.mapping.mapped.page')
+        );
         $recent = Product::query()
             ->select(['id', 'code', 'hs_code', 'pk_capacity', 'updated_at'])
             ->whereNotNull('hs_code')
@@ -82,45 +88,10 @@ class ProductQuickController extends Controller
             }
         }
 
-        return view('admin.products.quick_index_hs', compact('recent', 'hsSeedOptions'));
+        return view('admin.products.quick_index_hs', compact('recent', 'hsSeedOptions', 'model', 'periodKey', 'returnUrl'));
     }
 
-    public function create(Request $request): View
-    {
-        $model = trim((string) $request->query('model', ''));
-        $periodKey = trim((string) $request->query('period_key', ''));
-        $returnUrl = (string) $request->query(
-            'return',
-            url()->previous() ?: route('admin.mapping.mapped.page')
-        );
-
-        // Seed HS options similar to Import Kuota page
-        $hsSeedOptions = [];
-        if (Schema::hasTable('hs_code_pk_mappings')) {
-            $hasDesc = Schema::hasColumn('hs_code_pk_mappings', 'desc');
-            $hasPeriod = Schema::hasColumn('hs_code_pk_mappings', 'period_key');
-            $select = ['hs_code', 'pk_capacity'];
-            if ($hasDesc) { $select[] = 'desc'; }
-            $q = DB::table('hs_code_pk_mappings')->select($select);
-            if ($hasPeriod && $periodKey !== '') {
-                $q->where('period_key', $periodKey);
-            }
-            $rows = $q->orderBy('hs_code')->limit(200)->get();
-            foreach ($rows as $row) {
-                $desc = $hasDesc ? ($row->desc ?? '') : '';
-                if (strtoupper((string)$row->hs_code) === 'ACC') { $desc = 'Accesory'; }
-                if ($desc === '') { $desc = $this->formatPkLabel((float) ($row->pk_capacity ?? 0)); }
-                $hsSeedOptions[] = [
-                    'id' => $row->hs_code,
-                    'text' => $row->hs_code,
-                    'desc' => $desc,
-                    'pk' => $row->pk_capacity,
-                ];
-            }
-        }
-
-        return view('admin.products.quick_create_hs', compact('model', 'periodKey', 'returnUrl', 'hsSeedOptions'));
-    }
+    // Removed dedicated create() page; index now accepts query params
 
     private function formatPkLabel(?float $anchor): string
     {
