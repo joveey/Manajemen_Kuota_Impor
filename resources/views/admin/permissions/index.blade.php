@@ -133,15 +133,15 @@
         <div>
             <h1 class="permissions-title">Permissions Management</h1>
             <p class="permissions-subtitle">
-                Atur hak akses granular untuk setiap fitur. Gunakan prefiks <code>create</code>, <code>read</code>,
-                <code>update</code>, atau <code>delete</code> agar konsisten.
+                Configure granular access for each feature. Use the prefixes <code>create</code>, <code>read</code>,
+                <code>update</code>, or <code>delete</code> for consistency.
             </p>
         </div>
         <div class="permissions-actions">
             @can('create permissions')
                 <a href="{{ route('admin.permissions.create') }}" class="permissions-action permissions-action--primary">
                     <i class="fas fa-plus"></i>
-                    Buat Permission
+                    Create Permission
                 </a>
             @endcan
         </div>
@@ -151,17 +151,17 @@
         <div class="perm-metric">
             <span class="perm-metric__label">Total Permissions</span>
             <div class="perm-metric__value">{{ number_format($stats['total'] ?? 0) }}</div>
-            <p class="perm-metric__caption">Seluruh permission yang tersedia di aplikasi.</p>
+            <p class="perm-metric__caption">All permissions available in the application.</p>
         </div>
         <div class="perm-metric">
             <span class="perm-metric__label">Create</span>
             <div class="perm-metric__value text-primary">{{ number_format($stats['create'] ?? 0) }}</div>
-            <p class="perm-metric__caption">Hak akses untuk membuat data.</p>
+            <p class="perm-metric__caption">Access rights to create data.</p>
         </div>
         <div class="perm-metric">
             <span class="perm-metric__label">Read</span>
             <div class="perm-metric__value text-primary">{{ number_format($stats['read'] ?? 0) }}</div>
-            <p class="perm-metric__caption">Hak akses untuk melihat data.</p>
+            <p class="perm-metric__caption">Access rights to view data.</p>
         </div>
         <div class="perm-metric">
             <span class="perm-metric__label">Update / Delete</span>
@@ -172,7 +172,7 @@
 
     <div class="alert-tip">
         <i class="fas fa-info-circle"></i>
-        Pastikan penamaan permission mengikuti pola CRUD agar mudah dipetakan dengan role.
+        Ensure permission names follow CRUD patterns for easy mapping to roles.
     </div>
 
     @if(session('success'))
@@ -192,10 +192,10 @@
                 <tr>
                     <th>#</th>
                     <th>Permission</th>
-                    <th>Deskripsi</th>
-                    <th class="text-center">Jumlah Role</th>
-                    <th>Dibuat</th>
-                    <th class="text-end">Aksi</th>
+                    <th>Description</th>
+                    <th class="text-center">Roles Count</th>
+                    <th>Created</th>
+                    <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -203,15 +203,15 @@
                     <tr>
                         <td data-label="#">{{ $permissions->firstItem() + $loop->index }}</td>
                         <td data-label="Permission"><span class="perm-name-chip">{{ $permission->name }}</span></td>
-                        <td data-label="Deskripsi">{{ $permission->description ?? '-' }}</td>
-                        <td data-label="Jumlah Role" class="text-center">
+                        <td data-label="Description">{{ $permission->description ?? '-' }}</td>
+                        <td data-label="Roles Count" class="text-center">
                             <span class="count-pill">{{ $permission->roles->count() }}</span>
                         </td>
-                        <td data-label="Dibuat">{{ $permission->created_at->format('d M Y') }}</td>
-                        <td data-label="Aksi" class="text-end">
+                        <td data-label="Created">{{ $permission->created_at->format('d M Y') }}</td>
+                        <td data-label="Actions" class="text-end">
                             <div class="action-pills">
                                 @if(Route::has('admin.permissions.show'))
-                                    <a href="{{ route('admin.permissions.show', $permission) }}" class="action-pill action-pill--view" title="Detail">
+                                    <a href="{{ route('admin.permissions.show', $permission) }}" class="action-pill action-pill--view" title="View">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                 @endif
@@ -221,7 +221,7 @@
                                     </a>
                                 @endcan
                                 @can('delete permissions')
-                                    <button type="button" class="action-pill action-pill--delete" onclick="deletePermission({{ $permission->id }})" title="Hapus">
+                                    <button type="button" class="action-pill action-pill--delete" onclick="deletePermission({{ $permission->id }})" title="Delete">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 @endcan
@@ -237,7 +237,7 @@
                 @empty
                     <tr>
                         <td colspan="6" class="empty-state">
-                            Belum ada permission yang diset. @can('create permissions')<a href="{{ route('admin.permissions.create') }}">Buat permission baru</a>@endcan
+                            No permissions defined yet. @can('create permissions')<a href="{{ route('admin.permissions.create') }}">Create a new permission</a>@endcan
                         </td>
                     </tr>
                 @endforelse
@@ -258,14 +258,14 @@
 <script>
 function deletePermission(id) {
     Swal.fire({
-        title: 'Hapus permission?',
-        text: 'Aksi ini akan mencabut akses dari role terkait.',
+        title: 'Delete permission?',
+        text: 'This will remove access from related roles.',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc2626',
         cancelButtonColor: '#2563eb',
-        confirmButtonText: 'Ya, hapus',
-        cancelButtonText: 'Batal'
+        confirmButtonText: 'Yes, delete',
+        cancelButtonText: 'Cancel'
     }).then((result) => {
         if (result.isConfirmed) {
             document.getElementById('delete-permission-' + id).submit();

@@ -13,7 +13,7 @@
 <div class="card activity-card">
     <div class="card-header">
         <div>
-            <strong>Aktivitas (7 hari)</strong>
+            <strong>Activity (7 days)</strong>
             <span class="activity-card__subtitle">Recent import and update activity.</span>
         </div>
         @if($hasImportRoute)
@@ -38,7 +38,7 @@
                             <div class="activity-meta">
                                 <span class="activity-tag activity-tag--{{ $meta['variant'] }}">{{ $type }}</span>
                                 @if($time)
-                                    <span>• {{ $time }}</span>
+                                    <span>&middot; {{ $time }}</span>
                                 @endif
                             </div>
                         </div>
@@ -56,7 +56,7 @@
         <div class="activity-alerts">
             <div class="activity-alerts__title">
                 <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
-                Alert Penting
+                Important Alerts
             </div>
             <ul class="activity-alerts__list">
                 @foreach($alerts as $msg)
@@ -66,3 +66,4 @@
         </div>
     @endif
 </div>
+

@@ -993,7 +993,7 @@
                     @csrf
                     <button type="submit" class="logout-btn">
                         <span class="nav-icon"><i class="fas fa-sign-out-alt"></i></span>
-                        <span>Keluar</span>
+                        <span>Sign Out</span>
                     </button>
                 </form>
             </div>
@@ -1297,7 +1297,6 @@
     @stack('scripts')
 </body>
 </html>
-
 
 
 

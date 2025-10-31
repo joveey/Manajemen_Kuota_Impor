@@ -1,11 +1,11 @@
 @extends('layouts.admin')
 
-@section('title', 'Pengguna Terbaru')
+@section('title', 'Recent Users')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
     <li class="breadcrumb-item"><a href="{{ route('admin.users.index') }}">Users</a></li>
-    <li class="breadcrumb-item active">Pengguna Terbaru</li>
+    <li class="breadcrumb-item active">Recent Users</li>
 @endsection
 
 @push('styles')
@@ -146,16 +146,16 @@
 <div class="recent-shell">
     <section class="recent-hero">
         <div>
-            <h1>Pengguna Terbaru</h1>
-            <p>Daftar pengguna yang baru dibuat serta status keaktifannya. Gunakan halaman ini untuk memverifikasi hak akses dan aktivitas terakhir.</p>
+            <h1>Recent Users</h1>
+            <p>List of newly created users and their activity status. Use this page to verify access and recent activity.</p>
         </div>
         <div class="recent-hero__actions">
             <a href="{{ route('admin.users.index') }}" class="recent-btn">
-                <i class="fas fa-list"></i> Semua Users
+                <i class="fas fa-list"></i> All Users
             </a>
             @can('create users')
             <a href="{{ route('admin.users.create') }}" class="recent-btn">
-                <i class="fas fa-user-plus"></i> Tambah User
+                <i class="fas fa-user-plus"></i> Add User
             </a>
             @endcan
         </div>
@@ -163,29 +163,29 @@
 
     <section class="recent-card">
         <div class="recent-card__header">
-            <h2 class="recent-card__title">{{ $recentUsers->perPage() }} Pengguna terakhir</h2>
-            <p class="recent-card__meta">Urutan berdasarkan tanggal dibuat (terbaru terlebih dahulu)</p>
+            <h2 class="recent-card__title">Latest {{ $recentUsers->perPage() }} users</h2>
+            <p class="recent-card__meta">Sorted by created date (newest first)</p>
         </div>
         @if($recentUsers->isEmpty())
-            <div class="text-center text-muted py-4">Belum ada pengguna yang tercatat.</div>
+            <div class="text-center text-muted py-4">No users recorded yet.</div>
         @else
         <div class="table-responsive">
             <table class="recent-table">
                 <thead>
                     <tr>
-                        <th>Nama</th>
+                        <th>Name</th>
                         <th>Email</th>
                         <th>Role</th>
                         <th>Status</th>
-                        <th>Terdaftar</th>
+                        <th>Registered</th>
                         <th>Last Login</th>
-                        <th class="text-center">Aksi</th>
+                        <th class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($recentUsers as $user)
                     <tr>
-                        <td data-label="Nama">
+                        <td data-label="Name">
                             <div class="user-inline">
                                 <img src="https://ui-avatars.com/api/?name={{ urlencode($user->name) }}&background=0EA5E9&color=fff" alt="{{ $user->name }}">
                                 <span>{{ $user->name }}</span>
@@ -204,7 +204,7 @@
                                 {{ $user->is_active ? 'Active' : 'Inactive' }}
                             </span>
                         </td>
-                        <td data-label="Terdaftar">
+                        <td data-label="Registered">
                             <small class="text-muted">{{ optional($user->created_at)->format('d M Y H:i') ?? '-' }}</small>
                         </td>
                         <td data-label="Last Login">
@@ -212,17 +212,17 @@
                                 {{ $user->last_login_at ? $user->last_login_at->diffForHumans() : 'Never' }}
                             </small>
                         </td>
-                        <td data-label="Aksi">
+                        <td data-label="Actions">
                             <div class="table-actions">
                                 @if($user->isAdmin())
                                     @if(Route::has('admin.admins.show'))
-                                        <a href="{{ route('admin.admins.show', $user) }}" title="Detail Admin">
+                                        <a href="{{ route('admin.admins.show', $user) }}" title="Admin Details">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                     @endif
                                 @else
                                     @if(Route::has('admin.users.show'))
-                                        <a href="{{ route('admin.users.show', $user) }}" title="Detail User">
+                                        <a href="{{ route('admin.users.show', $user) }}" title="User Details">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                     @endif
