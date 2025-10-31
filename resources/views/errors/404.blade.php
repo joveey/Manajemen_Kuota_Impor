@@ -1,17 +1,26 @@
-@extends('errors.layout')
+@extends('layouts.admin')
 
 @section('title', 'Page Not Found')
 
 @section('content')
-    <div class="empty-state">
-        <div class="empty-state__icon">
-            <i class="fas fa-compass"></i>
+<div class="page-shell">
+  <div class="page-header">
+    <h1 class="page-header__title">Page Not Found</h1>
+  </div>
+  <div class="d-flex align-items-center justify-content-center" style="min-height: 50vh;">
+    <div class="card shadow-sm" style="max-width:560px; width:100%;">
+      <div class="card-body text-center p-4 p-md-5">
+        <div class="mb-3" style="display:inline-flex; width:64px; height:64px; border-radius:16px; align-items:center; justify-content:center; background:rgba(148,163,184,.12); color:#334155; font-size:24px;">
+          <i class="fas fa-compass"></i>
         </div>
-        <h1 class="empty-state__title">Page Not Found</h1>
-        <p class="empty-state__subtitle">We could not find the page you are looking for.</p>
-        <div class="empty-state__actions">
-            <a href="{{ url()->previous() }}" class="btn btn-outline-primary">Back</a>
-            <a href="{{ route('admin.dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
+        <h3 class="mb-2">Page Not Found</h3>
+        <p class="text-muted mb-4">We could not find the page you are looking for.</p>
+        <div class="d-inline-flex gap-2">
+          <a href="{{ url()->previous() }}" class="btn btn-outline-primary">Back</a>
+          <a href="{{ route('admin.dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
         </div>
+      </div>
     </div>
+  </div>
+</div>
 @endsection
