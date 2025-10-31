@@ -1,7 +1,7 @@
 {{-- resources/views/admin/kuota/form.blade.php --}}
 @extends('layouts.admin')
 
-@section('title', 'Form Kuota')
+@section('title', 'Quota Form')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
@@ -15,7 +15,7 @@
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">
-                    <i class="fas fa-edit me-2"></i>Form Kuota Impor
+                    <i class="fas fa-edit me-2"></i>Import Quota Form
                 </h3>
             </div>
             <form action="{{ $quota->exists ? route('admin.quotas.update', $quota) : route('admin.quotas.store') }}" method="POST">
@@ -34,67 +34,67 @@
                         </div>
                     @endif
                     <div class="mb-3">
-                        <label for="quota_number" class="form-label">Nomor Kuota <span class="text-danger">*</span></label>
+                        <label for="quota_number" class="form-label">Quota Number <span class="text-danger">*</span></label>
                         <input type="text" 
                                class="form-control" 
                                id="quota_number" 
                                name="quota_number" 
                                value="{{ old('quota_number', $quota->quota_number) }}"
-                               placeholder="Contoh: KTA-2025-001"
+                               placeholder="e.g., KTA-2025-001"
                                required>
                         <small class="form-text text-muted">Format: KTA-YYYY-XXX</small>
                     </div>
 
                     <div class="mb-3">
-                        <label for="name" class="form-label">Nama Kuota <span class="text-danger">*</span></label>
+                        <label for="name" class="form-label">Quota Name <span class="text-danger">*</span></label>
                         <input type="text"
                                class="form-control"
                                id="name"
                                name="name"
                                value="{{ old('name', $quota->name) }}"
-                               placeholder="Contoh: Kuota Pemerintah 0.5 PK - 2 PK"
+                               placeholder="e.g., Government Quota 0.5 PK - 2 PK"
                                required>
                     </div>
 
                     <div class="mb-3">
-                        <label for="government_category" class="form-label">Kategori Pemerintah <span class="text-danger">*</span></label>
+                        <label for="government_category" class="form-label">Government Category <span class="text-danger">*</span></label>
                         <input type="text"
                                class="form-control"
                                id="government_category"
                                name="government_category"
                                value="{{ old('government_category', $quota->government_category) }}"
-                               placeholder="Contoh: AC 0.5 PK - 2 PK"
+                               placeholder="e.g., AC 0.5 PK - 2 PK"
                                required>
                     </div>
 
                     <div class="mb-3">
-                        <label for="total_allocation" class="form-label">Quantity Pemerintah <span class="text-danger">*</span></label>
+                        <label for="total_allocation" class="form-label">Government Quantity <span class="text-danger">*</span></label>
                         <input type="number" 
                                class="form-control" 
                                id="total_allocation" 
                                name="total_allocation" 
                                value="{{ old('total_allocation', $quota->total_allocation) }}"
-                               placeholder="Contoh: 100000"
+                               placeholder="e.g., 100000"
                                min="1"
                                required>
-                        <small class="form-text text-muted">Jumlah unit yang disetujui pemerintah</small>
+                        <small class="form-text text-muted">Total units approved by the government</small>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="period_start" class="form-label">Periode Mulai</label>
+                                <label for="period_start" class="form-label">Period Start</label>
                                 <input type="text" 
                                        class="form-control datepicker" 
                                        id="period_start" 
                                        name="period_start" 
                                        value="{{ old('period_start', optional($quota->period_start)->format('Y-m-d')) }}"
-                                       placeholder="DD-MM-YYYY">
+                                       placeholder="YYYY-MM-DD">
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="period_end" class="form-label">Periode Selesai</label>
+                                <label for="period_end" class="form-label">Period End</label>
                                 <input type="text" 
                                        class="form-control datepicker" 
                                        id="period_end" 
@@ -134,31 +134,31 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="source_document" class="form-label">Dokumen Sumber</label>
+                        <label for="source_document" class="form-label">Source Document</label>
                         <input type="text" class="form-control" id="source_document" name="source_document" value="{{ old('source_document', $quota->source_document) }}" placeholder="Contoh: SK Menteri ...">
                     </div>
 
                     <div class="mb-3">
-                        <label for="notes" class="form-label">Keterangan</label>
+                        <label for="notes" class="form-label">Notes</label>
                         <textarea class="form-control" 
                                   id="notes" 
                                   name="notes" 
                                   rows="3"
-                                  placeholder="Catatan tambahan (opsional)">{{ old('notes', $quota->notes) }}</textarea>
+                                  placeholder="Additional notes (optional)">{{ old('notes', $quota->notes) }}</textarea>
                     </div>
 
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" role="switch" id="is_active" name="is_active" value="1" {{ old('is_active', $quota->is_active ?? true) ? 'checked' : '' }}>
-                        <label class="form-check-label" for="is_active">Kuota Aktif</label>
+                        <label class="form-check-label" for="is_active">Active Quota</label>
                     </div>
                 </div>
 
                 <div class="card-footer">
                     <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-2"></i>Simpan
+                        <i class="fas fa-save me-2"></i>Save
                     </button>
                     <a href="{{ route('admin.quotas.index') }}" class="btn btn-secondary">
-                        <i class="fas fa-times me-2"></i>Batal
+                        <i class="fas fa-times me-2"></i>Cancel
                     </a>
                 </div>
             </form>
@@ -169,25 +169,25 @@
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">
-                    <i class="fas fa-info-circle me-2"></i>Panduan Pengisian
+                    <i class="fas fa-info-circle me-2"></i>Filling Guide
                 </h3>
             </div>
             <div class="card-body">
-                <h6><strong>Nomor Kuota</strong></h6>
-                <p class="text-muted small">Nomor unik kuota. Format: KTA-YYYY-XXX (XXX adalah nomor urut 3 digit)</p>
+                <h6><strong>Quota Number</strong></h6>
+                <p class="text-muted small">Unique quota number. Format: KTA-YYYY-XXX (XXX is 3-digit sequence)</p>
 
-                <h6 class="mt-3"><strong>Produk</strong></h6>
-                <p class="text-muted small">Pilih produk yang akan diberikan kuota impor.</p>
+                <h6 class="mt-3"><strong>Product</strong></h6>
+                <p class="text-muted small">Select the product to receive the import quota.</p>
 
-                <h6 class="mt-3"><strong>Quantity Pemerintah</strong></h6>
-                <p class="text-muted small">Jumlah maksimal unit yang diizinkan pemerintah untuk diimpor dalam periode tertentu.</p>
+                <h6 class="mt-3"><strong>Government Quantity</strong></h6>
+                <p class="text-muted small">Maximum units allowed by government to be imported for the period.</p>
 
-                <h6 class="mt-3"><strong>Periode</strong></h6>
-                <p class="text-muted small">Rentang waktu berlakunya kuota. Pastikan periode selesai lebih besar dari periode mulai.</p>
+                <h6 class="mt-3"><strong>Period</strong></h6>
+                <p class="text-muted small">Validity range of the quota. Ensure end date is after start date.</p>
 
                 <div class="alert alert-warning mt-3">
                     <i class="fas fa-exclamation-triangle"></i>
-                    <small><strong>Perhatian:</strong> Setelah kuota dibuat, quantity pemerintah tidak dapat diubah. Pastikan data sudah benar.</small>
+                    <small><strong>Note:</strong> After a quota is created, the government quantity cannot be changed. Ensure data is correct.</small>
                 </div>
             </div>
         </div>
@@ -195,21 +195,21 @@
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">
-                    <i class="fas fa-calculator me-2"></i>Kalkulator Kuota
+                    <i class="fas fa-calculator me-2"></i>Quota Calculator
                 </h3>
             </div>
             <div class="card-body">
                 <div class="mb-2">
-                    <label class="form-label small">Qty Pemerintah:</label>
+                    <label class="form-label small">Government Qty:</label>
                     <input type="number" class="form-control form-control-sm" id="calc_qty" value="500">
                 </div>
                 <div class="mb-2">
                     <label class="form-label small">Forecast (%):</label>
                     <input type="number" class="form-control form-control-sm" id="calc_forecast" value="90">
                 </div>
-                <button type="button" class="btn btn-sm btn-primary w-100" onclick="calculateForecast()">
-                    <i class="fas fa-calculator me-1"></i>Hitung
-                </button>
+                    <button type="button" class="btn btn-sm btn-primary w-100" onclick="calculateForecast()">
+                    <i class="fas fa-calculator me-1"></i>Calculate
+                    </button>
                 <div class="mt-3 p-2 bg-light rounded" id="calc_result" style="display: none;">
                     <small class="text-muted">Forecast Quantity:</small>
                     <h5 class="mb-0 text-primary" id="forecast_result">0</h5>
@@ -235,7 +235,7 @@
             const forecast = parseInt($('#forecast_remaining').val()) || 0;
             const used = Math.max(0, total - forecast);
             $('#calc_result').slideDown();
-            $('#forecast_result').text(`${used.toLocaleString()} unit terpakai (forecast)`);
+            $('#forecast_result').text(`${used.toLocaleString()} units used (forecast)`);
         });
     });
 </script>

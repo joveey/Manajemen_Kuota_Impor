@@ -806,7 +806,7 @@
                             @if($hasMasterDataCreate && $currentUser?->can('create master_data'))
                                 <a href="{{ route('admin.master-data.create') }}" class="nav-link {{ request()->routeIs('admin.master-data.create') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-circle-plus"></i></span>
-                                    <span>Tambah Products</span>
+                                    <span>Add Products</span>
                                 </a>
                             @endif
                         @endif
@@ -1297,7 +1297,6 @@
     @stack('scripts')
 </body>
 </html>
-
 
 
 

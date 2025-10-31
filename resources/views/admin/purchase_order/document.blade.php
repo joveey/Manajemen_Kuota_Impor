@@ -243,12 +243,12 @@
         <div class="page-header__actions">
             <a href="{{ route('admin.purchase-orders.index') }}" class="page-header__button">
                 <i class="fas fa-arrow-left"></i>
-                Kembali
+                Back
             </a>
             @if(isset($internalPO) && $internalPO)
                 <button type="button" class="page-header__button" data-bs-toggle="modal" data-bs-target="#reallocateModalDoc">
                     <i class="fas fa-random"></i>
-                    Pindahkan Kuota
+                    Move Quota
                 </button>
             @endif
         </div>
@@ -302,7 +302,7 @@
             <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Pindahkan Kuota (Per PO Line)</h5>
+                        <h5 class="modal-title">Move Quota (Per PO Line)</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <form method="POST" action="{{ route('admin.purchase-orders.reallocate_quota', $internalPO) }}">
@@ -310,43 +310,43 @@
                         <div class="modal-body">
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="form-label">Kuota Asal</label>
+                                    <label class="form-label">Source Quota</label>
                                     <select name="source_quota_id" id="doc_source_quota_id" class="form-select" required>
                                         @foreach($currentAllocs as $q)
                                             <option value="{{ $q->id }}" data-allocated="{{ (int) $q->pivot->allocated_qty }}">
-                                                {{ $q->display_number }} — Alloc: {{ number_format((int) $q->pivot->allocated_qty) }} (Periode: {{ optional($q->period_start)->format('d-m-Y') }} s/d {{ optional($q->period_end)->format('d-m-Y') }})
+                                                {{ $q->display_number }} — Alloc: {{ number_format((int) $q->pivot->allocated_qty) }} (Period: {{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
                                             </option>
                                         @endforeach
                                     </select>
-                                    <div class="form-text">Pilih kuota yang saat ini menampung alokasi PO ini.</div>
+                                    <div class="form-text">Select the quota currently holding this PO’s allocation.</div>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">ETA Baru (opsional)</label>
+                                    <label class="form-label">New ETA (optional)</label>
                                     <input type="date" name="eta_date" id="doc_eta_date" class="form-control">
-                                    <div class="form-text">Dipakai untuk memfilter kuota tujuan sesuai periode.</div>
+                                    <div class="form-text">Used to filter target quotas by period.</div>
                                 </div>
                                 <div class="col-md-8">
-                                    <label class="form-label">Kuota Tujuan</label>
+                                    <label class="form-label">Target Quota</label>
                                     <select name="target_quota_id" id="doc_target_quota_id" class="form-select" required>
-                                        <option value="" disabled selected hidden>Pilih kuota</option>
+                                        <option value="" disabled selected hidden>Select quota</option>
                                         @foreach($candidateQuotas as $q)
                                             <option value="{{ $q->id }}" data-start="{{ optional($q->period_start)->format('Y-m-d') }}" data-end="{{ optional($q->period_end)->format('Y-m-d') }}" data-avail="{{ (int) $q->forecast_remaining }}">
-                                                {{ $q->display_number }} — Sisa: {{ number_format((int) $q->forecast_remaining) }} ({{ optional($q->period_start)->format('d-m-Y') }} s/d {{ optional($q->period_end)->format('d-m-Y') }})
+                                                {{ $q->display_number }} — Remaining: {{ number_format((int) $q->forecast_remaining) }} ({{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
                                             </option>
                                         @endforeach
                                     </select>
-                                    <div class="form-text">Hanya kuota dengan sisa kapasitas yang akan menerima realokasi.</div>
+                                    <div class="form-text">Only quotas with remaining capacity will receive reallocation.</div>
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label">Qty Dipindahkan</label>
-                                    <input type="number" name="move_qty" id="doc_move_qty" class="form-control" min="1" step="1" placeholder="otomatis">
-                                    <div class="form-text">Kosongkan untuk memindahkan seluruh alokasi dari kuota asal.</div>
+                                    <label class="form-label">Quantity to Move</label>
+                                    <input type="number" name="move_qty" id="doc_move_qty" class="form-control" min="1" step="1" placeholder="auto">
+                                    <div class="form-text">Leave empty to move the entire allocation from the source quota.</div>
                                 </div>
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                            <button type="submit" class="btn btn-primary">Pindahkan</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Move</button>
                         </div>
                     </form>
                 </div>

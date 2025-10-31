@@ -36,9 +36,9 @@
     ];
 
     $quotaHistory = $quotaHistory ?? [
-        ['title' => 'Forecast decrease', 'subtitle' => 'Batch-03 • -200', 'date' => '10 Okt 2025', 'badge' => 'Forecast', 'variant' => 'info'],
-        ['title' => 'Actual increase', 'subtitle' => 'Batch-02 • +300', 'date' => '11 Okt 2025', 'badge' => 'Actual', 'variant' => 'success'],
-        ['title' => 'Actual decrease', 'subtitle' => 'Batch-01 • -100', 'date' => '12 Okt 2025', 'badge' => 'Actual', 'variant' => 'danger'],
+        ['title' => 'Forecast decrease', 'subtitle' => 'Batch-03 • -200', 'date' => '10 Oct 2025', 'badge' => 'Forecast', 'variant' => 'info'],
+        ['title' => 'Actual increase', 'subtitle' => 'Batch-02 • +300', 'date' => '11 Oct 2025', 'badge' => 'Actual', 'variant' => 'success'],
+        ['title' => 'Actual decrease', 'subtitle' => 'Batch-01 • -100', 'date' => '12 Oct 2025', 'badge' => 'Actual', 'variant' => 'danger'],
     ];
 
     $usersByRole = $usersByRole ?? [

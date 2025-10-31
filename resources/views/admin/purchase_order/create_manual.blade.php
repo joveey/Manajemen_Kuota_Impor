@@ -1,24 +1,24 @@
 {{-- resources/views/admin/purchase_order/create_manual.blade.php --}}
 @extends('layouts.admin')
 
-@section('title', 'Tambah PO Manual')
+@section('title', 'Add Manual PO')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
     <li class="breadcrumb-item"><a href="{{ route('admin.purchase-orders.index') }}">Purchase Orders</a></li>
-    <li class="breadcrumb-item active">Tambah PO Manual</li>
+    <li class="breadcrumb-item active">Add Manual PO</li>
 @endsection
 
 @section('content')
 @php $canCreate = auth()->user()?->can('po.create'); @endphp
 @if(!$canCreate)
-    <div class="alert alert-danger">Forbidden (403): Anda tidak memiliki akses untuk membuat PO manual.</div>
+    <div class="alert alert-danger">Forbidden (403): You do not have access to create a manual PO.</div>
 @else
 <div class="page-shell">
     <div class="page-header">
         <div>
-            <h1 class="page-header__title">Tambah Purchase Order Manual</h1>
-            <p class="page-header__subtitle">Gunakan form berikut untuk mencatat PO yang tidak tersedia di Excel.</p>
+            <h1 class="page-header__title">Add Manual Purchase Order</h1>
+            <p class="page-header__subtitle">Use this form to record POs not available via Excel.</p>
         </div>
     </div>
 
@@ -28,13 +28,13 @@
                 @csrf
 
                 <div class="col-md-6">
-                    <label class="form-label">Nomor PO</label>
+                    <label class="form-label">PO Number</label>
                     <input type="text" name="po_number" value="{{ old('po_number') }}" class="form-control @error('po_number') is-invalid @enderror" maxlength="50" required>
                     @error('po_number')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">Tanggal PO</label>
+                    <label class="form-label">PO Date</label>
                     <input type="date" name="order_date" value="{{ old('order_date', now()->toDateString()) }}" class="form-control @error('order_date') is-invalid @enderror" required>
                     @error('order_date')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
@@ -52,25 +52,25 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label class="form-label">Unit Price (opsional)</label>
+                    <label class="form-label">Unit Price (optional)</label>
                     <input type="number" name="unit_price" value="{{ old('unit_price') }}" min="0" step="0.01" class="form-control @error('unit_price') is-invalid @enderror">
                     @error('unit_price')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
 
                 <div class="col-12">
-                    <label class="form-label">Catatan</label>
+                    <label class="form-label">Notes</label>
                     <textarea name="notes" rows="3" class="form-control @error('notes') is-invalid @enderror" maxlength="500">{{ old('notes') }}</textarea>
                     @error('notes')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
 
                 <div class="col-12 form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="create_product" name="create_product" value="1" {{ old('create_product', '1') ? 'checked' : '' }}>
-                    <label class="form-check-label" for="create_product">Buat Produk Minimal jika Belum Ada</label>
+                    <label class="form-check-label" for="create_product">Create minimal Product if not exists</label>
                 </div>
 
                 <div class="col-12 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">Simpan</button>
-                    <a href="{{ route('admin.purchase-orders.index') }}" class="btn btn-outline-secondary">Batal</a>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <a href="{{ route('admin.purchase-orders.index') }}" class="btn btn-outline-secondary">Cancel</a>
                 </div>
             </form>
         </div>

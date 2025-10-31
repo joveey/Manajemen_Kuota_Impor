@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 
 @section('title', 'Shipments & Receipts')
 
@@ -21,7 +21,7 @@
                     <button class="btn btn-primary w-100" type="submit"><i class="fas fa-search me-2"></i>Search</button>
                 </div>
                 <div class="col-md-3 text-end small text-muted">
-                    Read-only: Ordered | Shipped | Received | In-Transit | Remaining
+                    Read-only: Ordered | Shipped S Received S In-Transit | Remaining
                 </div>
             </form>
         </div>
@@ -42,8 +42,8 @@
                 </div>
                 <div class="d-flex flex-wrap gap-2">
                     <div class="badge rounded-pill text-bg-secondary p-2">Ordered <span class="ms-1 fw-semibold">{{ fmt_qty($sum['ordered_total']) }}</span></div>
-                    <div class="badge rounded-pill" style="background:#e8f0ff;color:#1d4ed8;border:1px solid #c9dcff;">Shipped <span class="ms-1 fw-semibold">{{ fmt_qty($sum['shipped_total']) }}</span></div>
-                    <div class="badge rounded-pill" style="background:#e8faee;color:#15803d;border:1px solid #bbf7d0;">Received <span class="ms-1 fw-semibold">{{ fmt_qty($sum['received_total']) }}</span></div>
+                    <div class="badge rounded-pill" style="background:#e8f0ff;color:#1d4ed8;border:1px solid #c9dcff;">Shipped Sspan class="ms-1 fw-semibold">{{ fmt_qty($sum['shipped_total']) }}</span></div>
+                    <div class="badge rounded-pill" style="background:#e8faee;color:#15803d;border:1px solid #bbf7d0;">Received Sspan class="ms-1 fw-semibold">{{ fmt_qty($sum['received_total']) }}</span></div>
                     <div class="badge rounded-pill text-bg-info p-2">In-Transit <span class="ms-1 fw-semibold">{{ fmt_qty(max($sum['in_transit'],0)) }}</span></div>
                     <div class="badge rounded-pill text-bg-warning p-2">Remaining <span class="ms-1 fw-semibold">{{ fmt_qty(max($sum['remaining'],0)) }}</span></div>
                 </div>
@@ -69,9 +69,7 @@
                                         <span class="badge text-bg-success">Received: {{ fmt_qty($ln['received_total']) }}</span>
                                         <span class="badge text-bg-info">In-Transit: {{ fmt_qty($ln['in_transit']) }}</span>
                                         <span class="badge text-bg-warning">Remaining: {{ fmt_qty($ln['remaining']) }}</span>
-                                        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#{{ $cid }}" aria-expanded="false" aria-controls="{{ $cid }}">
-                                            Detail
-                                        </button>
+                                        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#{{ $cid }}" aria-expanded="false" aria-controls="{{ $cid }}">Details</button>
                                     </div>
                                 </div>
                                 <div id="{{ $cid }}" class="collapse" data-bs-parent="#acc-{{ \Illuminate\Support\Str::slug($poNo) }}">
@@ -83,8 +81,8 @@
                                                         <th style="min-width:120px">Date</th>
                                                         <th style="min-width:110px">Type</th>
                                                         <th class="text-end" style="min-width:100px">Qty</th>
-                                                        <th class="text-end" style="min-width:120px">Shipped Σ</th>
-                                                        <th class="text-end" style="min-width:120px">Received Σ</th>
+                                                        <th class="text-end" style="min-width:120px">Shipped Total</th>
+                                                        <th class="text-end" style="min-width:120px">Received Total</th>
                                                         <th class="text-end" style="min-width:120px">In-Transit</th>
                                                         <th class="text-end" style="min-width:120px">Remaining (Actual)</th>
                                                     </tr>
