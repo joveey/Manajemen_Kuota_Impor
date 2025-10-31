@@ -314,11 +314,11 @@
                                     <select name="source_quota_id" id="doc_source_quota_id" class="form-select" required>
                                         @foreach($currentAllocs as $q)
                                             <option value="{{ $q->id }}" data-allocated="{{ (int) $q->pivot->allocated_qty }}">
-                                                {{ $q->display_number }} G�� Alloc: {{ number_format((int) $q->pivot->allocated_qty) }} (Period: {{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
+                                                {{ $q->display_number }} - Alloc: {{ number_format((int) $q->pivot->allocated_qty) }} (Period: {{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
                                             </option>
                                         @endforeach
                                     </select>
-                                    <div class="form-text">Select the quota currently holding this POG��s allocation.</div>
+                                    <div class="form-text">Select the quota currently holding this PO's allocation.</div>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">New ETA (optional)</label>
@@ -331,7 +331,7 @@
                                         <option value="" disabled selected hidden>Select quota</option>
                                         @foreach($candidateQuotas as $q)
                                             <option value="{{ $q->id }}" data-start="{{ optional($q->period_start)->format('Y-m-d') }}" data-end="{{ optional($q->period_end)->format('Y-m-d') }}" data-avail="{{ (int) $q->forecast_remaining }}">
-                                                {{ $q->display_number }} G�� Remaining: {{ number_format((int) $q->forecast_remaining) }} ({{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
+                                                {{ $q->display_number }} - Remaining: {{ number_format((int) $q->forecast_remaining) }} ({{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
                                             </option>
                                         @endforeach
                                     </select>
@@ -406,6 +406,86 @@
             })();
         </script>
         @endpush
+    @endif
+
+    @if(isset($internalPO) && $internalPO)
+        @php
+            // Safely fetch current quota allocations for this PO
+            $__poAllocs = $internalPO->allocatedQuotas()->get();
+        @endphp
+
+        <div class="card mt-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Quota Info</span>
+                <span class="badge bg-secondary">Entries: {{ $__poAllocs->count() }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Quota</th>
+                                <th>PK Range</th>
+                                <th>Period</th>
+                                <th class="text-end">Allocated</th>
+                                <th class="text-end">Forecast Left</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($__poAllocs as $q)
+                                @php
+                                    $raw = (string) ($q->government_category ?? '');
+                                    $friendly = trim($raw);
+                                    try {
+                                        $parsed = \App\Support\PkCategoryParser::parse($friendly);
+                                        $min = $parsed['min_pk'];
+                                        $max = $parsed['max_pk'];
+                                        // format numbers without trailing zeros
+                                        $minStr = !is_null($min) ? rtrim(rtrim(number_format((float)$min, 2, '.', ''), '0'), '.') : '';
+                                        $maxStr = !is_null($max) ? rtrim(rtrim(number_format((float)$max, 2, '.', ''), '0'), '.') : '';
+                                        if (!is_null($min) && !is_null($max)) {
+                                            $friendly = ($min == $max) ? ($minStr.' PK') : ($minStr.'-'.$maxStr.' PK');
+                                        } elseif (!is_null($min) && is_null($max)) {
+                                            $friendly = ($min >= 8 && $min < 10) ? '8-10 PK' : ('>'.$minStr.' PK');
+                                        } elseif (is_null($min) && !is_null($max)) {
+                                            $friendly = ($max <= 8) ? '<8 PK' : ('<'.$maxStr.' PK');
+                                        } else {
+                                            if ($friendly !== '' && stripos($friendly, 'PK') === false && strtoupper($friendly) !== 'ACCESORY') {
+                                                $friendly = $friendly.' PK';
+                                            }
+                                        }
+                                    } catch (\Throwable $e) {
+                                        if ($friendly !== '' && stripos($friendly, 'PK') === false && strtoupper($friendly) !== 'ACCESORY') {
+                                            $friendly = $friendly.' PK';
+                                        }
+                                    }
+                                @endphp
+                                <tr>
+                                    <td>{{ $q->display_number }}</td>
+                                    <td>{{ $friendly !== '' ? $friendly : '-' }}</td>
+                                    <td>
+                                        {{ optional($q->period_start)->format('d-m-Y') ?? '-' }}
+                                        @if($q->period_end)
+                                            - {{ optional($q->period_end)->format('d-m-Y') }}
+                                        @endif
+                                    </td>
+                                    <td class="text-end">{{ number_format((int) ($q->pivot->allocated_qty ?? 0), 0) }}</td>
+                                    <td class="text-end">{{ number_format((int) ($q->forecast_remaining ?? 0), 0) }}</td>
+                                    <td>
+                                        <span class="badge {{ $q->is_active ? 'bg-success' : 'bg-secondary' }}">{{ $q->is_active ? 'active' : 'inactive' }}</span>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-3">No quota allocation is linked to this PO.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     @endif
 
     @if($headers->count() > 1)
