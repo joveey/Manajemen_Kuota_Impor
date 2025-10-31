@@ -15,14 +15,8 @@ class MappingController extends Controller
 {
     public function __construct()
     {
+        // Guard by permission only; allow read-limited users via Gate alias
         $this->middleware('permission:read master_data');
-        $this->middleware(function (\Illuminate\Http\Request $request, \Closure $next) {
-            if ($request->user()?->hasRole('user')) {
-                abort(403);
-            }
-
-            return $next($request);
-        });
     }
 
     public function unmapped(Request $request)

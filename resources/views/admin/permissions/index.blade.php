@@ -156,23 +156,23 @@
         <div class="perm-metric">
             <span class="perm-metric__label">Create</span>
             <div class="perm-metric__value text-primary">{{ number_format($stats['create'] ?? 0) }}</div>
-            <p class="perm-metric__caption">Access rights to create data.</p>
+            <p class="perm-metric__caption">Global create permission.</p>
         </div>
         <div class="perm-metric">
-            <span class="perm-metric__label">Read</span>
-            <div class="perm-metric__value text-primary">{{ number_format($stats['read'] ?? 0) }}</div>
-            <p class="perm-metric__caption">Access rights to view data.</p>
+            <span class="perm-metric__label">Read (All)</span>
+            <div class="perm-metric__value text-primary">{{ number_format($stats['read_all'] ?? 0) }}</div>
+            <p class="perm-metric__caption">Read all modules (incl. Administration).</p>
         </div>
         <div class="perm-metric">
-            <span class="perm-metric__label">Update / Delete</span>
-            <div class="perm-metric__value text-primary">{{ number_format(($stats['update'] ?? 0) + ($stats['delete'] ?? 0)) }}</div>
-            <p class="perm-metric__caption">Combined permissions: update and delete.</p>
+            <span class="perm-metric__label">Read (Limited)</span>
+            <div class="perm-metric__value text-primary">{{ number_format($stats['read_limited'] ?? 0) }}</div>
+            <p class="perm-metric__caption">Read operational only (no Administration).</p>
         </div>
     </div>
 
     <div class="alert-tip">
         <i class="fas fa-info-circle"></i>
-        Ensure permission names follow CRUD patterns for easy mapping to roles.
+        Permissions simplified: only <strong>create</strong>, <strong>read</strong>, and <strong>read limited</strong>.
     </div>
 
     @if(session('success'))

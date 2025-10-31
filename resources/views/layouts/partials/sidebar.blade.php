@@ -222,7 +222,7 @@
                 {{-- Master Data (Products) removed per request --}}
 
                 <!-- Shipments -->
-                @if(Route::has('admin.shipments.index') && Auth::user()->hasPermission('read purchase_orders'))
+                @if(Route::has('admin.shipments.index') && Auth::user()->can('read purchase_orders'))
                 <li class="nav-item {{ request()->routeIs('admin.shipments.*') ? 'menu-open' : '' }}">
                     <a href="#" class="nav-link {{ request()->routeIs('admin.shipments.*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-truck"></i>
@@ -238,7 +238,7 @@
                                 <p>Shipment List</p>
                             </a>
                         </li>
-                        @if(Route::has('admin.shipments.create') && Auth::user()->hasPermission('create purchase_orders'))
+                        @if(Route::has('admin.shipments.create') && Auth::user()->can('create purchase_orders'))
                         <li class="nav-item">
                             <a href="{{ route('admin.shipments.create') }}" class="nav-link {{ request()->routeIs('admin.shipments.create') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
@@ -279,7 +279,7 @@
                 @endcan
 
                 <!-- Administration -->
-                @if(Auth::user()->hasPermission('read permissions') || Auth::user()->hasPermission('read roles') || Auth::user()->hasPermission('read users') || Auth::user()->isAdmin())
+                @if(Auth::user()->can('read permissions') || Auth::user()->can('read roles') || Auth::user()->can('read users') || Auth::user()->isAdmin())
                 @php
                     $adminMenuOpen = request()->is('admin/permissions*') || request()->is('admin/roles*') || request()->is('admin/users*') || request()->is('admin/admins*');
                 @endphp
@@ -292,7 +292,7 @@
                         </p>
                     </a>
                     <ul class="nav nav-treeview">
-                        @if(Auth::user()->hasPermission('read permissions'))
+                        @if(Auth::user()->can('read permissions'))
                         <li class="nav-item">
                             <a href="{{ route('admin.permissions.index') }}" 
                                class="nav-link {{ request()->is('admin/permissions*') ? 'active' : '' }}">
@@ -302,7 +302,7 @@
                         </li>
                         @endif
 
-                        @if(Auth::user()->hasPermission('read roles'))
+                        @if(Auth::user()->can('read roles'))
                         <li class="nav-item">
                             <a href="{{ route('admin.roles.index') }}" 
                                class="nav-link {{ request()->is('admin/roles*') ? 'active' : '' }}">
@@ -312,7 +312,7 @@
                         </li>
                         @endif
 
-                        @if(Auth::user()->hasPermission('read users'))
+                        @if(Auth::user()->can('read users'))
                         <li class="nav-item">
                             <a href="{{ route('admin.users.index') }}" 
                                class="nav-link {{ request()->is('admin/users*') ? 'active' : '' }}">

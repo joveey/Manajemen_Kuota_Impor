@@ -757,7 +757,8 @@
                     $canPOCreate = $currentUser?->can('po.create');
                     $canReports = $currentUser?->can('read reports');
                     $canProductCreate = $currentUser?->can('product.create');
-                    $showPrep = $currentUser && !$currentUser->hasRole('user');
+                    // Show Data Preparation when user can read master data (mapping) or has create ability
+                    $showPrep = (bool) $currentUser && ($currentUser->can('read master_data') || $currentUser->can('create'));
                     
                     $operationalActive = (
                         request()->routeIs('admin.openpo.*') ||
@@ -826,22 +827,28 @@
                         <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
                     </button>
                     <div class="nav-group__body" id="nav-group-prep">
-                        <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}">
-                            <span class="nav-icon"><i class="fas fa-file-import"></i></span>
-                            <span>Import HS &rarr; PK</span>
-                        </a>
-                        <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
-                            <span class="nav-icon"><i class="fas fa-file-import"></i></span>
-                            <span>Import Quota</span>
-                        </a>
-                        <a href="{{ route('admin.mapping.unmapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.unmapped') || request()->routeIs('admin.mapping.unmapped.*') ? 'active' : '' }}">
-                            <span class="nav-icon"><i class="fas fa-puzzle-piece"></i></span>
-                            <span>Products Unmapped</span>
-                        </a>
-                        <a href="{{ route('admin.mapping.mapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.mapped.page') ? 'active' : '' }}">
-                            <span class="nav-icon"><i class="fas fa-link"></i></span>
-                            <span>Model &gt; HS (Mapped)</span>
-                        </a>
+                        @can('create')
+                            <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}">
+                                <span class="nav-icon"><i class="fas fa-file-import"></i></span>
+                                <span>Import HS &rarr; PK</span>
+                            </a>
+                            <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
+                                <span class="nav-icon"><i class="fas fa-file-import"></i></span>
+                                <span>Import Quota</span>
+                            </a>
+                        @endcan
+
+                        @can('read master_data')
+                            <a href="{{ route('admin.mapping.unmapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.unmapped') || request()->routeIs('admin.mapping.unmapped.*') ? 'active' : '' }}">
+                                <span class="nav-icon"><i class="fas fa-puzzle-piece"></i></span>
+                                <span>Products Unmapped</span>
+                            </a>
+                            <a href="{{ route('admin.mapping.mapped.page') }}" class="nav-link {{ request()->routeIs('admin.mapping.mapped.page') ? 'active' : '' }}">
+                                <span class="nav-icon"><i class="fas fa-link"></i></span>
+                                <span>Model &gt; HS (Mapped)</span>
+                            </a>
+                        @endcan
+
                         @if($canProductCreate)
                             <a href="{{ route('admin.master.quick_hs.index') }}" class="nav-link {{ (request()->routeIs('admin.master.quick_hs.*') || request()->routeIs('admin.mapping.model_hs.*')) ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-circle-plus"></i></span>
@@ -1300,5 +1307,4 @@
     @stack('scripts')
 </body>
 </html>
-
 

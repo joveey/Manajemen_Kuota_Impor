@@ -35,8 +35,8 @@ class RoleController extends Controller
      */
     public function create()
     {
-        // Guard by permission (middleware already enforces)
-        if (!auth()->user()->hasPermission('create roles')) {
+        // Guard by permission via Gate (admin bypass respected); middleware already enforces
+        if (!auth()->user()->can('create roles')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You do not have permission to create roles.');
         }
@@ -51,8 +51,8 @@ class RoleController extends Controller
      */
     public function store(Request $request)
     {
-        // Guard by permission (middleware already enforces)
-        if (!auth()->user()->hasPermission('create roles')) {
+        // Guard by permission via Gate (admin bypass respected); middleware already enforces
+        if (!auth()->user()->can('create roles')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You do not have permission to create roles.');
         }
@@ -100,8 +100,8 @@ class RoleController extends Controller
      */
     public function edit(Role $role)
     {
-        // Guard by permission (middleware already enforces)
-        if (!auth()->user()->hasPermission('update roles')) {
+        // Guard by permission via Gate (admin bypass respected); middleware already enforces
+        if (!auth()->user()->can('update roles')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You do not have permission to edit roles.');
         }
@@ -123,8 +123,8 @@ class RoleController extends Controller
      */
     public function update(Request $request, Role $role)
     {
-        // Guard by permission (middleware already enforces)
-        if (!auth()->user()->hasPermission('update roles')) {
+        // Guard by permission via Gate (admin bypass respected); middleware already enforces
+        if (!auth()->user()->can('update roles')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You do not have permission to update roles.');
         }
@@ -169,8 +169,8 @@ class RoleController extends Controller
      */
     public function destroy(Role $role)
     {
-        // Guard by permission (middleware already enforces)
-        if (!auth()->user()->hasPermission('delete roles')) {
+        // Guard by permission via Gate (admin bypass respected); middleware already enforces
+        if (!auth()->user()->can('delete roles')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You do not have permission to delete roles.');
         }
