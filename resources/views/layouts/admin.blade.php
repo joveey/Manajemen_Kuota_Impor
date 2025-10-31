@@ -165,6 +165,7 @@
             color: #64748b;
             font-weight: 700;
             margin: 0;
+            text-align: left; /* ensure left alignment for long titles */
         }
 
         .nav-group.is-open .nav-title,
@@ -1299,6 +1300,5 @@
     @stack('scripts')
 </body>
 </html>
-
 
 
