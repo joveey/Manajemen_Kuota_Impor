@@ -149,7 +149,7 @@
                     <dd class="col-sm-7">{{ $admin->created_at->format('d M Y') }}</dd>
                     
                     <dt class="col-sm-5">Last Login:</dt>
-                    <dd class="col-sm-7">{{ $admin->last_login_at ? $admin->last_login_at->format('d M Y H:i') : 'Never' }}</dd>
+                    <dd class="col-sm-7">{{ $admin->last_login_at ? $admin->last_login_at->setTimezone('Asia/Jakarta')->format('d-m-Y') : 'Never' }}</dd>
                     
                     <dt class="col-sm-5">Status:</dt>
                     <dd class="col-sm-7">

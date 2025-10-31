@@ -185,7 +185,7 @@
                                 return [
                                     'title' => $statusNameMap[$log->status] ?? ucfirst(str_replace('_', ' ', $log->status)),
                                     'subtitle' => $log->description,
-                                    'date' => optional($log->recorded_at)->format('d M Y H:i'),
+                                    'date' => optional($log->recorded_at)->setTimezone('Asia/Jakarta')->format('d-m-Y'),
                                     'badge' => $badge,
                                     'variant' => $statusVariantMap[$log->status] ?? 'neutral',
                                 ];
@@ -258,3 +258,4 @@
     @endif
 </div>
 @endsection
+

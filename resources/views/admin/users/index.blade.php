@@ -204,7 +204,7 @@
                                 {{ $user->is_active ? 'Active' : 'Inactive' }}
                             </span>
                         </td>
-                        <td data-label="Last Login">{{ $user->last_login_at ? $user->last_login_at->format('d M Y H:i') : 'Never' }}</td>
+                        <td data-label="Last Login">{{ $user->last_login_at ? $user->last_login_at->setTimezone('Asia/Jakarta')->format('d-m-Y') : 'Never' }}</td>
                         <td data-label="Actions" class="text-end">
                             <div class="action-pills">
                                 @if(Route::has('admin.users.show'))
@@ -269,3 +269,4 @@ function deleteUser(id) {
 }
 </script>
 @endpush
+

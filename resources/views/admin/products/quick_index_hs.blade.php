@@ -87,7 +87,7 @@
                                                 -
                                             @endif
                                         </td>
-                                        <td>{{ optional($product->updated_at)->format('d M Y H:i') ?? '-' }}</td>
+                                        <td>{{ optional($product->updated_at)->setTimezone('Asia/Jakarta')->format('d-m-Y') ?? '-' }}</td>
                                     </tr>
                                 @empty
                                     <tr>
@@ -120,3 +120,4 @@
     </div>
 </div>
 @endsection
+
