@@ -168,6 +168,7 @@ class QuotaImportPageController extends Controller
         if ($desc === '') {
             $desc = $this->formatPkLabel($hsRow->pk_capacity);
         }
+        $desc = $this->normalizePkDesc($desc, $hsRow->pk_capacity);
 
         $preview = session('quotas.manual.preview', []);
         $duplicateKey = sprintf('%s|%s|%s|%s', $hsRow->hs_code, $data['letter_no'] ?? '', $data['period_start'], $data['period_end']);
@@ -332,27 +333,12 @@ class QuotaImportPageController extends Controller
 
     protected function formatPkLabel(?float $anchor): string
     {
-        if ($anchor === null) {
-            return 'PK N/A';
-        }
-        if ($anchor <= 0.0) {
-            return 'ACC';
-        }
+        if ($anchor === null) { return 'PK N/A'; }
+        if ($anchor <= 0.0) { return 'ACC'; }
         $rounded = round($anchor, 2);
-        $fraction = $rounded - floor($rounded);
-
-        if (abs($fraction - 0.99) < 0.02) {
-            return '<'.number_format(floor($rounded) + 1, 0, '.', '');
-        }
-        if (abs($fraction - 0.01) < 0.02) {
-            return '>'.number_format(floor($rounded), 0, '.', '');
-        }
-
-        if (abs($fraction) < 0.01) {
-            return number_format($rounded, 0, '.', '');
-        }
-
-        return number_format($rounded, 2, '.', '');
+        if ($rounded < 8.0) { return '<8'; }
+        if ($rounded >= 10.0) { return '>10'; }
+        return '8-10';
     }
 
     protected function fetchHsOptions(?string $search = null, ?string $periodKey = null, int $limit = 30): array
@@ -384,6 +370,7 @@ class QuotaImportPageController extends Controller
             if ($desc === '') {
                 $desc = $this->formatPkLabel($row->pk_capacity);
             }
+            $desc = $this->normalizePkDesc($desc, $row->pk_capacity);
             return [
                 'id' => $row->hs_code,
                 // Show only the HS code in the dropdown; desc remains available via data-desc
@@ -420,6 +407,7 @@ class QuotaImportPageController extends Controller
         if ($desc === '') {
             $desc = $this->formatPkLabel($row->pk_capacity);
         }
+        $desc = $this->normalizePkDesc($desc, $row->pk_capacity);
 
         return [
             'id' => $row->hs_code,
@@ -427,5 +415,22 @@ class QuotaImportPageController extends Controller
             'text' => $row->hs_code,
             'desc' => $desc,
         ];
+    }
+
+    protected function normalizePkDesc(string $desc, ?float $anchor): string
+    {
+        $s = strtoupper(trim($desc));
+        $s = str_replace('PK', '', $s);
+        $s = str_replace(' ', '', $s);
+        if ($s === '' || $s === 'PKN/A') {
+            return $this->formatPkLabel($anchor);
+        }
+        if (strpos($s, '-') !== false) { return str_replace('--', '-', $s); }
+        if (is_numeric($s)) { return (string)(float)$s; }
+        if ($s[0] === '>' || $s[0] === '<') {
+            if ($anchor !== null) { return $this->formatPkLabel($anchor); }
+            return $s;
+        }
+        return $desc;
     }
 }
