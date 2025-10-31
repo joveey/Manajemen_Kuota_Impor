@@ -149,19 +149,19 @@
                         </td>
                         <td data-label="Created">{{ $role->created_at->format('d M Y') }}</td>
                         <td data-label="Actions" class="text-end">
-                            <div class="btn-group" role="group" aria-label="Actions">
+                            <div class="d-inline-flex gap-2" aria-label="Actions">
                                 @if(Route::has('admin.roles.show'))
-                                    <a href="{{ route('admin.roles.show', $role) }}" class="btn btn-info btn-sm" title="View">
+                                    <a href="{{ route('admin.roles.show', $role) }}" class="action-badge action-badge--view" title="View">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                 @endif
                                 @can('update roles')
-                                    <a href="{{ route('admin.roles.edit', $role) }}" class="btn btn-warning btn-sm" title="Edit">
+                                    <a href="{{ route('admin.roles.edit', $role) }}" class="action-badge action-badge--edit" title="Edit">
                                         <i class="fas fa-edit"></i>
                                     </a>
                                 @endcan
                                 @if(auth()->user()->can('delete roles') && !in_array($role->name, ['admin','super-admin']))
-                                    <button type="button" class="btn btn-danger btn-sm" onclick="deleteRole({{ $role->id }})" title="Delete">
+                                    <button type="button" class="action-badge action-badge--delete" onclick="deleteRole({{ $role->id }})" title="Delete">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 @endif
