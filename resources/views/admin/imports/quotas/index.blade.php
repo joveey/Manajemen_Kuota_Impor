@@ -143,7 +143,31 @@
                                     @forelse ($manualPreview as $item)
                                         <tr>
                                             <td>{{ $item['hs_code'] ?? '-' }}</td>
-                                            <td>{{ $item['hs_desc'] ?? '-' }}</td>
+                                            <td>
+                                                @php
+                                                    $d = trim((string)($item['hs_desc'] ?? ''));
+                                                    $friendly = $d;
+                                                    try {
+                                                        $p = \App\Support\PkCategoryParser::parse($d);
+                                                        $min = $p['min_pk']; $max = $p['max_pk'];
+                                                        $fmt = function($v){ return rtrim(rtrim(number_format((float)$v, 2, '.', ''), '0'), '.'); };
+                                                        if (!is_null($min) && !is_null($max)) {
+                                                            $friendly = ($min === $max)
+                                                                ? ($fmt($min).' PK')
+                                                                : ($fmt($min).'-'.$fmt($max).' PK');
+                                                        } elseif (!is_null($min) && is_null($max)) {
+                                                            $friendly = ($min >= 8 && $min < 10) ? '8-10 PK' : ('>'.$fmt($min).' PK');
+                                                        } elseif (is_null($min) && !is_null($max)) {
+                                                            $friendly = ($max <= 8) ? '<8 PK' : ('<'.$fmt($max).' PK');
+                                                        } else {
+                                                            if ($d !== '' && stripos($d,'PK')===false && strtoupper($d)!=='ACCESORY') { $friendly = $d.' PK'; }
+                                                        }
+                                                    } catch (\Throwable $e) {
+                                                        if ($d !== '' && stripos($d,'PK')===false && strtoupper($d)!=='ACCESORY') { $friendly = $d.' PK'; }
+                                                    }
+                                                @endphp
+                                                {{ $friendly !== '' ? $friendly : '-' }}
+                                            </td>
                                             <td>{{ $item['letter_no'] ?? '-' }}</td>
                                             <td class="text-end">{{ number_format($item['quantity'] ?? 0, 0) }}</td>
                                             <td>
@@ -221,7 +245,29 @@
                                 <tr>
                                     <td>{{ $quota->display_number }}</td>
                                     <td>{{ $hsDisplay !== '' ? $hsDisplay : '-' }}</td>
-                                    <td>{{ $quota->government_category ?? '-' }}</td>
+                                    <td>
+                                        @php
+                                            $dd = trim((string)($quota->government_category ?? ''));
+                                            $friendly2 = $dd;
+                                            try {
+                                                $pp = \App\Support\PkCategoryParser::parse($dd);
+                                                $min = $pp['min_pk']; $max = $pp['max_pk'];
+                                                $fmt = function($v){ return rtrim(rtrim(number_format((float)$v, 2, '.', ''), '0'), '.'); };
+                                                if (!is_null($min) && !is_null($max)) {
+                                                    $friendly2 = ($min === $max) ? ($fmt($min).' PK') : ($fmt($min).'-'.$fmt($max).' PK');
+                                                } elseif (!is_null($min) && is_null($max)) {
+                                                    $friendly2 = ($min >= 8 && $min < 10) ? '8-10 PK' : ('>'.$fmt($min).' PK');
+                                                } elseif (is_null($min) && !is_null($max)) {
+                                                    $friendly2 = ($max <= 8) ? '<8 PK' : ('<'.$fmt($max).' PK');
+                                                } else {
+                                                    if ($dd !== '' && stripos($dd,'PK')===false && strtoupper($dd)!=='ACCESORY') { $friendly2 = $dd.' PK'; }
+                                                }
+                                            } catch (\Throwable $e) {
+                                                if ($dd !== '' && stripos($dd,'PK')===false && strtoupper($dd)!=='ACCESORY') { $friendly2 = $dd.' PK'; }
+                                            }
+                                        @endphp
+                                        {{ $friendly2 !== '' ? $friendly2 : '-' }}
+                                    </td>
                                     <td>{{ $quota->source_document ?? '-' }}</td>
                                     <td class="text-end">{{ number_format((float) $quota->total_allocation, 0) }}</td>
                                     <td>
