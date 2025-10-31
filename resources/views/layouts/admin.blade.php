@@ -1285,7 +1285,9 @@
 
             if (typeof flatpickr !== 'undefined') {
                 flatpickr('.datepicker', {
-                    dateFormat: 'Y-m-d',
+                    dateFormat: 'Y-m-d', // value posted
+                    altInput: true,
+                    altFormat: 'd-m-Y', // display format
                     allowInput: true
                 });
             }
@@ -1295,7 +1297,6 @@
     @stack('scripts')
 </body>
 </html>
-
 
 
 

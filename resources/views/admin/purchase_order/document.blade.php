@@ -314,7 +314,7 @@
                                     <select name="source_quota_id" id="doc_source_quota_id" class="form-select" required>
                                         @foreach($currentAllocs as $q)
                                             <option value="{{ $q->id }}" data-allocated="{{ (int) $q->pivot->allocated_qty }}">
-                                                {{ $q->display_number }} — Alloc: {{ number_format((int) $q->pivot->allocated_qty) }} (Periode: {{ optional($q->period_start)->format('Y-m-d') }} s/d {{ optional($q->period_end)->format('Y-m-d') }})
+                                                {{ $q->display_number }} — Alloc: {{ number_format((int) $q->pivot->allocated_qty) }} (Periode: {{ optional($q->period_start)->format('d-m-Y') }} s/d {{ optional($q->period_end)->format('d-m-Y') }})
                                             </option>
                                         @endforeach
                                     </select>
@@ -331,7 +331,7 @@
                                         <option value="" disabled selected hidden>Pilih kuota</option>
                                         @foreach($candidateQuotas as $q)
                                             <option value="{{ $q->id }}" data-start="{{ optional($q->period_start)->format('Y-m-d') }}" data-end="{{ optional($q->period_end)->format('Y-m-d') }}" data-avail="{{ (int) $q->forecast_remaining }}">
-                                                {{ $q->display_number }} — Sisa: {{ number_format((int) $q->forecast_remaining) }} ({{ optional($q->period_start)->format('Y-m-d') }} s/d {{ optional($q->period_end)->format('Y-m-d') }})
+                                                {{ $q->display_number }} — Sisa: {{ number_format((int) $q->forecast_remaining) }} ({{ optional($q->period_start)->format('d-m-Y') }} s/d {{ optional($q->period_end)->format('d-m-Y') }})
                                             </option>
                                         @endforeach
                                     </select>
@@ -571,4 +571,3 @@
 })();
 </script>
 @endpush
-
