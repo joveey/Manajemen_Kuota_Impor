@@ -106,13 +106,13 @@
     <div class="roles-header">
         <div>
             <h1 class="roles-title">Roles Management</h1>
-            <p class="roles-subtitle">Kelola role dan distribusi permissions untuk mengatur akses pengguna di platform.</p>
+            <p class="roles-subtitle">Manage roles and permission distribution to control user access.</p>
         </div>
         <div class="roles-actions">
             @can('create roles')
                 <a href="{{ route('admin.roles.create') }}" class="roles-action roles-action--primary">
                     <i class="fas fa-plus"></i>
-                    Buat Role Baru
+                    Create New Role
                 </a>
             @endcan
         </div>
@@ -124,11 +124,11 @@
                 <tr>
                     <th>#</th>
                     <th>Role</th>
-                    <th>Deskripsi</th>
+                    <th>Description</th>
                     <th class="text-center">Permissions</th>
                     <th class="text-center">Users</th>
-                    <th>Dibuat</th>
-                    <th class="text-end">Aksi</th>
+                    <th>Created</th>
+                    <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -138,7 +138,7 @@
                         <td data-label="Role">
                             <span class="role-name-chip">{{ $role->name }}</span>
                         </td>
-                        <td data-label="Deskripsi">
+                        <td data-label="Description">
                             <div class="roles-table__description">{{ $role->description ?? 'No description' }}</div>
                         </td>
                         <td data-label="Permissions" class="text-center">
@@ -147,11 +147,11 @@
                         <td data-label="Users" class="text-center">
                             <span class="count-pill">{{ $role->users_count }}</span>
                         </td>
-                        <td data-label="Dibuat">{{ $role->created_at->format('d M Y') }}</td>
-                        <td data-label="Aksi" class="text-end">
+                        <td data-label="Created">{{ $role->created_at->format('d M Y') }}</td>
+                        <td data-label="Actions" class="text-end">
                             <div class="btn-group" role="group" aria-label="Actions">
                                 @if(Route::has('admin.roles.show'))
-                                    <a href="{{ route('admin.roles.show', $role) }}" class="btn btn-info btn-sm" title="Detail">
+                                    <a href="{{ route('admin.roles.show', $role) }}" class="btn btn-info btn-sm" title="View">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                 @endif
@@ -161,7 +161,7 @@
                                     </a>
                                 @endcan
                                 @if(auth()->user()->can('delete roles') && !in_array($role->name, ['admin','super-admin']))
-                                    <button type="button" class="btn btn-danger btn-sm" onclick="deleteRole({{ $role->id }})" title="Hapus">
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="deleteRole({{ $role->id }})" title="Delete">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 @endif
@@ -175,7 +175,7 @@
                 @empty
                     <tr>
                         <td colspan="7" class="text-center text-muted py-4">
-                            Belum ada role yang terdaftar. @can('create roles')<a href="{{ route('admin.roles.create') }}">Buat role baru</a>@endcan
+                            No roles yet. @can('create roles')<a href="{{ route('admin.roles.create') }}">Create a new role</a>@endcan
                         </td>
                     </tr>
                 @endforelse
@@ -196,14 +196,14 @@
 <script>
     function deleteRole(id) {
         Swal.fire({
-            title: 'Hapus role ini?',
-            text: 'Role akan dicabut dari semua pengguna yang terkait.',
+            title: 'Delete this role?',
+            text: 'The role will be removed from all related users.',
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc2626',
             cancelButtonColor: '#2563eb',
-            confirmButtonText: 'Ya, hapus',
-            cancelButtonText: 'Batal'
+            confirmButtonText: 'Yes, delete',
+            cancelButtonText: 'Cancel'
         }).then(result => {
             if (result.isConfirmed) {
                 document.getElementById('delete-role-' + id).submit();

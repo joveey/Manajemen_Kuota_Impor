@@ -859,7 +859,7 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <strong style="font-size: 16px; font-weight: 700;">Quota Pipeline</strong>
-            <a href="{{ route('admin.mapping.unmapped.page') }}" class="panel-modern__link">Lihat</a>
+            <a href="{{ route('admin.mapping.unmapped.page') }}" class="panel-modern__link">View</a>
         </div>
         <div class="card-body">
             <div class="row g-3">
@@ -880,7 +880,7 @@
                         </div>
                         <div class="stat-label">Mapped</div>
                         <div class="stat-number">{{ number_format($metrics['mapped'] ?? 0) }}</div>
-                        <p class="stat-meta">Model sudah map</p>
+                        <p class="stat-meta">Model mapped</p>
                     </div>
                 </div>
                 <div class="col-12 col-md-6 col-lg">
@@ -944,7 +944,7 @@
                 <div class="stat-icon success">
                     <i class="fas fa-file-invoice"></i>
                 </div>
-                <div class="stat-label">PO Bulan Ini</div>
+                <div class="stat-label">PO This Month</div>
                 <div class="stat-number">{{ number_format($poStats['this_month']) }}</div>
                 <p class="stat-meta">Need Shipment: {{ number_format($poStats['need_shipment']) }} | In Transit: {{ number_format($poStats['in_transit']) }}</p>
             </div>
@@ -961,12 +961,12 @@
         </div>
     </div>
 
-    <!-- KPI per PK Bucket -->
+    <!-- KPI by PK Bucket -->
     <div class="card kpi-section">
         <div class="card-header d-flex justify-content-between align-items-start flex-wrap gap-2">
             <div>
-                <strong style="font-size: 16px; font-weight: 700;">KPI per PK Bucket</strong>
-                <span class="activity-card__subtitle">Pantau alokasi dan konsumsi terbaru untuk setiap bucket PK.</span>
+                <strong style="font-size: 16px; font-weight: 700;">KPI by PK Bucket</strong>
+                <span class="activity-card__subtitle">Monitor latest allocation and consumption for each PK bucket.</span>
             </div>
             @if(\Illuminate\Support\Facades\Route::has('admin.quotas.index'))
                 <a href="{{ route('admin.quotas.index') }}" class="kpi-card__action">Manage Quota</a>

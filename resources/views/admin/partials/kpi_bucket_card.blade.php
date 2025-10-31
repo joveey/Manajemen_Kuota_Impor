@@ -19,14 +19,14 @@
     <div class="kpi-card__header">
         <div>
             <div class="kpi-card__title">{{ $category }}</div>
-            <div class="kpi-card__period">Periode: {{ $periodStart }} - {{ $periodEnd }}</div>
+            <div class="kpi-card__period">Period: {{ $periodStart }} - {{ $periodEnd }}</div>
         </div>
     </div>
     <div class="kpi-card__progress" aria-hidden="true">
         <div class="kpi-card__progress-fill {{ $progressClass }}" style="width: {{ $pctDisplay }}%"></div>
     </div>
     <div class="kpi-card__progress-meta">
-        <span>{{ $pctDisplay }}% konsumsi</span>
+        <span>{{ $pctDisplay }}% consumed</span>
         <span>Total {{ number_format($alloc) }}</span>
     </div>
     <dl class="kpi-card__metrics">

@@ -116,47 +116,47 @@
 <div class="admins-page">
     <div class="admins-header">
         <div>
-            <h1 class="admins-title">Panel Administrator</h1>
+            <h1 class="admins-title">Administrator Panel</h1>
             <p class="admins-subtitle">
-                Kelola akun administrator dengan akses penuh ke sistem. Konversikan admin ke pengguna biasa sebelum penghapusan untuk menjaga keamanan.
+                Manage administrator accounts with full system access. Convert an admin to a regular user before deletion for safety.
             </p>
         </div>
         <div class="admins-actions">
             <a href="{{ route('admin.admins.create') }}" class="admins-action admins-action--primary">
                 <i class="fas fa-user-plus"></i>
-                Tambah Admin
+                Add Admin
             </a>
         </div>
     </div>
 
     <div class="admins-metrics">
         <div class="metric-card">
-            <span class="metric-label">Total Admin</span>
+            <span class="metric-label">Total Admins</span>
             <div class="metric-value">{{ number_format($stats['total'] ?? 0) }}</div>
             <div class="metric-caption">Jumlah admin yang tercatat dalam sistem.</div>
         </div>
         <div class="metric-card">
             <span class="metric-label">Aktif</span>
             <div class="metric-value text-success">{{ number_format($stats['active'] ?? 0) }}</div>
-            <div class="metric-caption">Admin dengan status aktif.</div>
+            <div class="metric-caption">Administrators currently active.</div>
         </div>
         <div class="metric-card">
             <span class="metric-label">Inactive</span>
             <div class="metric-value text-danger">{{ number_format($stats['inactive'] ?? 0) }}</div>
-            <div class="metric-caption">Admin yang sedang dinonaktifkan.</div>
+            <div class="metric-caption">Administrators currently disabled.</div>
         </div>
         <div class="metric-card">
-            <span class="metric-label">Login Terbaru</span>
+            <span class="metric-label">Latest Login</span>
             <div class="metric-value">
-                {{ $stats['recent_login'] ? \Carbon\Carbon::parse($stats['recent_login'])->diffForHumans() : 'Belum ada' }}
+                {{ $stats['recent_login'] ? \Carbon\Carbon::parse($stats['recent_login'])->diffForHumans() : 'None' }}
             </div>
-            <div class="metric-caption">Aktivitas login admin paling terkini.</div>
+            <div class="metric-caption">Most recent admin login activity.</div>
         </div>
     </div>
 
     <div class="alert-modern">
         <i class="fas fa-exclamation-triangle"></i>
-        Admin tidak dapat dihapus langsung. Konversikan terlebih dahulu menjadi pengguna biasa, lalu hapus dari menu Users.
+        Admins cannot be deleted directly. Convert to a regular user first, then delete from the Users menu.
     </div>
 
     @if(session('success'))
@@ -175,19 +175,19 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Nama</th>
+                    <th>Name</th>
                     <th>Email</th>
                     <th>Roles</th>
                     <th>Status</th>
                     <th>Last Login</th>
-                    <th class="text-end">Aksi</th>
+                    <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($admins as $admin)
                     <tr>
                         <td data-label="#">{{ $admins->firstItem() + $loop->index }}</td>
-                        <td data-label="Nama">
+                        <td data-label="Name">
                             {{ $admin->name }}
                             @if($admin->id === auth()->id())
                                 <span class="role-chip">You</span>
@@ -205,10 +205,10 @@
                             </span>
                         </td>
                         <td data-label="Last Login">{{ $admin->last_login_at ? $admin->last_login_at->format('d M Y H:i') : 'Never' }}</td>
-                        <td data-label="Aksi" class="text-end">
+                        <td data-label="Actions" class="text-end">
                             <div class="action-pills">
                                 @if(Route::has('admin.admins.show'))
-                                    <a href="{{ route('admin.admins.show', $admin) }}" class="action-pill action-pill--view" title="Detail">
+                                    <a href="{{ route('admin.admins.show', $admin) }}" class="action-pill action-pill--view" title="View">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                 @endif
@@ -216,7 +216,7 @@
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 @if($admin->id !== auth()->id())
-                                    <button type="button" class="action-pill action-pill--convert" onclick="convertToUser({{ $admin->id }})" title="Konversi">
+                                    <button type="button" class="action-pill action-pill--convert" onclick="convertToUser({{ $admin->id }})" title="Convert">
                                         <i class="fas fa-user-minus"></i>
                                     </button>
                                 @endif
@@ -231,7 +231,7 @@
                 @empty
                     <tr>
                         <td colspan="7" class="empty-state">
-                            Belum ada admin terdaftar. <a href="{{ route('admin.admins.create') }}">Tambah admin pertama</a>
+                            No administrators yet. <a href="{{ route('admin.admins.create') }}">Add the first admin</a>
                         </td>
                     </tr>
                 @endforelse
@@ -250,14 +250,14 @@
 <script>
 function convertToUser(id) {
     Swal.fire({
-        title: 'Konversi admin menjadi user?',
-        text: 'Admin akan kehilangan hak akses penuh dan bisa dihapus dari menu Users.',
+        title: 'Convert admin to user?',
+        text: 'Admin will lose full access and can be deleted from the Users menu.',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc2626',
         cancelButtonColor: '#2563eb',
-        confirmButtonText: 'Ya, konversi',
-        cancelButtonText: 'Batal'
+        confirmButtonText: 'Yes, convert',
+        cancelButtonText: 'Cancel'
     }).then((result) => {
         if (result.isConfirmed) {
             document.getElementById('convert-form-' + id).submit();

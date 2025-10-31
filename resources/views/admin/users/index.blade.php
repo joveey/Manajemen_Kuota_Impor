@@ -129,14 +129,14 @@
         <div>
             <h1 class="users-title">User Management</h1>
             <p class="users-subtitle">
-                Kelola akun pengguna non-admin, atur status aktif, dan tetapkan role sesuai kebutuhan operasional.
+                Manage non-admin user accounts, set active status, and assign roles as needed.
             </p>
         </div>
         <div class="users-actions">
             @can('create users')
                 <a href="{{ route('admin.users.create') }}" class="users-action users-action--primary">
                     <i class="fas fa-plus"></i>
-                    Tambah Pengguna
+                    Add User
                 </a>
             @endcan
         </div>
@@ -144,19 +144,19 @@
 
     <div class="users-metrics">
         <div class="metric-card">
-            <span class="metric-label">Total Pengguna</span>
+            <span class="metric-label">Total Users</span>
             <div class="metric-value">{{ number_format($stats['total'] ?? 0) }}</div>
-            <div class="metric-caption">Pengguna non-admin yang tercatat dalam sistem.</div>
+            <div class="metric-caption">Non-admin users recorded in the system.</div>
         </div>
         <div class="metric-card">
-            <span class="metric-label">Aktif</span>
+            <span class="metric-label">Active</span>
             <div class="metric-value text-success">{{ number_format($stats['active'] ?? 0) }}</div>
-            <div class="metric-caption">Akun yang saat ini berstatus aktif.</div>
+            <div class="metric-caption">Currently active accounts.</div>
         </div>
         <div class="metric-card">
             <span class="metric-label">Inactive</span>
             <div class="metric-value text-danger">{{ number_format($stats['inactive'] ?? 0) }}</div>
-            <div class="metric-caption">Akun yang dinonaktifkan atau menunggu aktivasi.</div>
+            <div class="metric-caption">Disabled or pending activation.</div>
         </div>
     </div>
 
@@ -176,19 +176,19 @@
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>Nama</th>
+                    <th>Name</th>
                     <th>Email</th>
                     <th>Roles</th>
                     <th>Status</th>
                     <th>Last Login</th>
-                    <th class="text-end">Aksi</th>
+                    <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($users as $user)
                     <tr>
                         <td data-label="#">{{ $users->firstItem() + $loop->index }}</td>
-                        <td data-label="Nama">{{ $user->name }}</td>
+                        <td data-label="Name">{{ $user->name }}</td>
                         <td data-label="Email">{{ $user->email }}</td>
                         <td data-label="Roles">
                             @if($user->roles->count() > 0)
@@ -205,10 +205,10 @@
                             </span>
                         </td>
                         <td data-label="Last Login">{{ $user->last_login_at ? $user->last_login_at->format('d M Y H:i') : 'Never' }}</td>
-                        <td data-label="Aksi" class="text-end">
+                        <td data-label="Actions" class="text-end">
                             <div class="action-pills">
                                 @if(Route::has('admin.users.show'))
-                                    <a href="{{ route('admin.users.show', $user) }}" class="action-pill action-pill--view" title="Detail">
+                                    <a href="{{ route('admin.users.show', $user) }}" class="action-pill action-pill--view" title="View">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                 @endif
@@ -218,7 +218,7 @@
                                     </a>
                                 @endcan
                                 @can('delete users')
-                                    <button type="button" class="action-pill action-pill--delete" onclick="deleteUser({{ $user->id }})" title="Hapus">
+                                    <button type="button" class="action-pill action-pill--delete" onclick="deleteUser({{ $user->id }})" title="Delete">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 @endcan
@@ -234,7 +234,7 @@
                 @empty
                     <tr>
                         <td colspan="7" class="empty-state">
-                            Belum ada pengguna yang tercatat. @can('create users')<a href="{{ route('admin.users.create') }}">Tambah pengguna pertama</a>@endcan
+                            No users recorded yet. @can('create users')<a href="{{ route('admin.users.create') }}">Add the first user</a>@endcan
                         </td>
                     </tr>
                 @endforelse
@@ -253,14 +253,14 @@
 <script>
 function deleteUser(id) {
     Swal.fire({
-        title: 'Hapus pengguna?',
-        text: 'Tindakan ini tidak dapat dibatalkan.',
+        title: 'Delete user?',
+        text: 'This action cannot be undone.',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc2626',
         cancelButtonColor: '#2563eb',
-        confirmButtonText: 'Ya, hapus',
-        cancelButtonText: 'Batal'
+        confirmButtonText: 'Yes, delete',
+        cancelButtonText: 'Cancel'
     }).then((result) => {
         if (result.isConfirmed) {
             document.getElementById('delete-form-' + id).submit();
