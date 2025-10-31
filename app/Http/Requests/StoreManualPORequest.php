@@ -8,7 +8,7 @@ class StoreManualPORequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return (bool) auth()->user()?->hasPermission('po.create');
+        return (bool) auth()->user()?->can('po.create');
     }
 
     public function rules(): array
@@ -24,4 +24,3 @@ class StoreManualPORequest extends FormRequest
         ];
     }
 }
-

@@ -27,10 +27,9 @@ class PermissionController extends Controller
         $permissions = Permission::orderBy('name', 'asc')->paginate(10);
         $stats = [
             'total' => Permission::count(),
-            'create' => Permission::where('name', 'like', 'create%')->count(),
-            'read' => Permission::where('name', 'like', 'read%')->count(),
-            'update' => Permission::where('name', 'like', 'update%')->count(),
-            'delete' => Permission::where('name', 'like', 'delete%')->count(),
+            'create' => Permission::where('name', 'create')->count(),
+            'read_all' => Permission::where('name', 'read')->count(),
+            'read_limited' => Permission::where('name', 'read limited')->count(),
         ];
         
         return view('admin.permissions.index', compact('permissions', 'stats'));
@@ -42,7 +41,7 @@ class PermissionController extends Controller
     public function create()
     {
         // Guard by permission (middleware already enforces)
-        if (!Auth::user()->hasPermission('create permissions')) {
+        if (!Auth::user()->can('create permissions')) {
             return redirect()->route('admin.permissions.index')
                 ->with('error', 'You do not have permission to create permissions.');
         }
@@ -56,7 +55,7 @@ class PermissionController extends Controller
     public function store(Request $request)
     {
         // Guard by permission (middleware already enforces)
-        if (!Auth::user()->hasPermission('create permissions')) {
+        if (!Auth::user()->can('create permissions')) {
             return redirect()->route('admin.permissions.index')
                 ->with('error', 'You do not have permission to create permissions.');
         }
@@ -72,20 +71,12 @@ class PermissionController extends Controller
                 ->withInput();
         }
 
-        // Validasi bahwa permission harus dimulai dengan create, read, update, atau delete
-        $validPrefixes = ['create', 'read', 'update', 'delete'];
-        $hasValidPrefix = false;
-        
-        foreach ($validPrefixes as $prefix) {
-            if (str_starts_with(strtolower($request->name), $prefix)) {
-                $hasValidPrefix = true;
-                break;
-            }
-        }
-
-        if (!$hasValidPrefix) {
+        // Validasi: hanya izinkan 'create', 'read', atau 'read limited'
+        $allowedNames = ['create', 'read', 'read limited'];
+        $name = strtolower(trim($request->name));
+        if (!in_array($name, $allowedNames, true)) {
             return redirect()->back()
-                ->withErrors(['name' => 'Permission name must start with create, read, update, or delete'])
+                ->withErrors(['name' => "Permission name must be exactly 'create', 'read', or 'read limited'"])
                 ->withInput();
         }
 
@@ -114,7 +105,7 @@ class PermissionController extends Controller
     public function edit(Permission $permission)
     {
         // Guard by permission (middleware already enforces)
-        if (!Auth::user()->hasPermission('update permissions')) {
+        if (!Auth::user()->can('update permissions')) {
             return redirect()->route('admin.permissions.index')
                 ->with('error', 'You do not have permission to edit permissions.');
         }
@@ -128,7 +119,7 @@ class PermissionController extends Controller
     public function update(Request $request, Permission $permission)
     {
         // Guard by permission (middleware already enforces)
-        if (!Auth::user()->hasPermission('update permissions')) {
+        if (!Auth::user()->can('update permissions')) {
             return redirect()->route('admin.permissions.index')
                 ->with('error', 'You do not have permission to update permissions.');
         }
@@ -144,20 +135,12 @@ class PermissionController extends Controller
                 ->withInput();
         }
 
-        // Validasi bahwa permission harus dimulai dengan create, read, update, atau delete
-        $validPrefixes = ['create', 'read', 'update', 'delete'];
-        $hasValidPrefix = false;
-        
-        foreach ($validPrefixes as $prefix) {
-            if (str_starts_with(strtolower($request->name), $prefix)) {
-                $hasValidPrefix = true;
-                break;
-            }
-        }
-
-        if (!$hasValidPrefix) {
+        // Validasi: hanya izinkan 'create', 'read', atau 'read limited'
+        $allowedNames = ['create', 'read', 'read limited'];
+        $name = strtolower(trim($request->name));
+        if (!in_array($name, $allowedNames, true)) {
             return redirect()->back()
-                ->withErrors(['name' => 'Permission name must start with create, read, update, or delete'])
+                ->withErrors(['name' => "Permission name must be exactly 'create', 'read', or 'read limited'"])
                 ->withInput();
         }
 
@@ -176,7 +159,7 @@ class PermissionController extends Controller
     public function destroy(Permission $permission)
     {
         // Guard by permission (middleware already enforces)
-        if (!Auth::user()->hasPermission('delete permissions')) {
+        if (!Auth::user()->can('delete permissions')) {
             return redirect()->route('admin.permissions.index')
                 ->with('error', 'You do not have permission to delete permissions.');
         }

@@ -21,9 +21,37 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Admin bypass - admin bisa akses semua
+        // Admin bypass + global aliasing for create/read
         Gate::before(function ($user, $ability) {
-            return $user->isAdmin() ? true : null;
+            if ($user->isAdmin()) {
+                return true;
+            }
+
+            if (!is_string($ability)) {
+                return null;
+            }
+
+            // Global create alias
+            if (str_starts_with($ability, 'create ') || in_array($ability, ['po.create', 'product.create'], true)) {
+                return $user->hasPermission('create') ? true : null;
+            }
+
+            // Global read alias
+            if (str_starts_with($ability, 'read ')) {
+                if ($user->hasPermission('read')) {
+                    return true; // full read
+                }
+                if ($user->hasPermission('read limited')) {
+                    $module = trim(substr($ability, strlen('read ')));
+                    // allowed non-admin modules for limited read
+                    $allowed = [
+                        'dashboard', 'quota', 'purchase_orders', 'master_data', 'reports',
+                    ];
+                    return in_array($module, $allowed, true) ? true : false;
+                }
+            }
+
+            return null; // defer to regular gates
         });
 
         // Register all permissions as gates

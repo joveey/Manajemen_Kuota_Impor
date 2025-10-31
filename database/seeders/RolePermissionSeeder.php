@@ -17,51 +17,13 @@ class RolePermissionSeeder extends Seeder
          * 2. Re-use the same canonical permission names when assigning to roles.
          */
         $permissionGroups = [
-            'Dashboard' => [
-                'read dashboard' => 'View dashboard and statistics.',
-            ],
-            'Administration' => [
-                'read users' => 'View users list and details.',
-                'create users' => 'Create new users.',
-                'update users' => 'Edit existing users.',
-                'delete users' => 'Delete users.',
-                'read roles' => 'View roles list and details.',
-                'create roles' => 'Create new roles.',
-                'update roles' => 'Edit existing roles.',
-                'delete roles' => 'Delete roles.',
-                'read permissions' => 'View permissions list and details.',
-                'create permissions' => 'Create new permissions.',
-                'update permissions' => 'Edit existing permissions.',
-                'delete permissions' => 'Delete permissions.',
-            ],
-            'Quota Management' => [
-                'read quota' => 'View quota data.',
-                'create quota' => 'Create new quota data.',
-                'update quota' => 'Edit quota data.',
-                'delete quota' => 'Delete quota data.',
-            ],
-            'Purchase Orders' => [
-                'read purchase_orders' => 'View purchase orders.',
-                'create purchase_orders' => 'Create new purchase orders.',
-                'update purchase_orders' => 'Edit purchase orders.',
-                'delete purchase_orders' => 'Delete purchase orders.',
-                // Manual PO specific permissions (UI + routes use these)
-                'po.create' => 'Create purchase orders manually via form.',
-                'po.update' => 'Update purchase orders (manual corrections).',
-            ],
-            'Master Data' => [
-                'read master_data' => 'View master data.',
-                'create master_data' => 'Create new master data.',
-                'update master_data' => 'Edit master data.',
-                'delete master_data' => 'Delete master data.',
-                // Specific product creation (Quick HS mapping)
-                'product.create' => 'Create or update product + HS mapping (quick form).',
-            ],
-            'Reports' => [
-                'read reports' => 'View reports.',
-                'create reports' => 'Create new reports.',
-                'update reports' => 'Edit reports.',
-                'delete reports' => 'Delete reports.',
+            'Global' => [
+                // Global create: boleh create di semua modul
+                'create' => 'Create any resource across the system.',
+                // Global read all
+                'read' => 'Read access to all modules.',
+                // Limited read: tidak termasuk Administration (users/roles/permissions)
+                'read limited' => 'Read access to operational modules only (no administration).',
             ],
         ];
 
@@ -80,6 +42,35 @@ class RolePermissionSeeder extends Seeder
 
                 $permissionIds[$name] = $permission->id;
             }
+        }
+
+        // Remove granular permissions so only 'create', 'read', and 'read limited' remain
+        try {
+            $toRemove = Permission::query()
+                ->where(function ($q) {
+                    // remove any 'update *' and 'delete *'
+                    $q->where('name', 'like', 'update %')
+                      ->orWhere('name', 'like', 'delete %')
+                      // remove any 'create *' granular permissions (we keep only the global 'create')
+                      ->orWhere('name', 'like', 'create %')
+                      // remove any 'read *' per modul, kecuali 'read limited'
+                      ->orWhere(function ($q2) {
+                          $q2->where('name', 'like', 'read %')
+                             ->where('name', '!=', 'read limited');
+                      });
+                })
+                ->orWhereIn('name', ['po.create', 'po.update', 'product.create'])
+                ->get();
+
+            foreach ($toRemove as $perm) {
+                $perm->roles()->detach();
+                $perm->delete();
+            }
+            if ($toRemove->count()) {
+                $this->command?->info('[OK] Removed granular update/delete/create permissions, keeping only global create + reads.');
+            }
+        } catch (\Throwable $e) {
+            // ignore if relations/tables not ready during early seeding
         }
 
         $this->command?->info('[OK] Permissions created or updated successfully.');
@@ -151,42 +142,20 @@ class RolePermissionSeeder extends Seeder
         $this->command?->info('[OK] Admin role: all permissions assigned.');
 
         $managerRole->permissions()->sync($pluckPermissions([
-            'read dashboard',
-            // Users CRUD
-            'read users', 'create users', 'update users', 'delete users',
-            // Roles & permissions CRUD
-            'read roles', 'create roles', 'update roles', 'delete roles',
-            'read permissions', 'create permissions', 'update permissions', 'delete permissions',
-            // Operational + overview read-only
-            'read quota',
-            'read purchase_orders',
-            'read master_data',
-            'read reports',
+            'read limited', // hanya operational
         ]));
-        $this->command?->info('[OK] Manager role: full management of users, roles, permissions; read-only operational/overview.');
+        $this->command?->info('[OK] Manager role: limited read (no administration).');
 
         $editorRole->permissions()->sync($pluckPermissions([
-            'read dashboard',
-            // Operational & overview: full manage
-            'read quota', 'create quota', 'update quota', 'delete quota',
-            'read purchase_orders', 'create purchase_orders', 'update purchase_orders', 'delete purchase_orders',
-            // Manual PO specific explicit permissions
-            'po.create', 'po.update',
-            'read master_data', 'create master_data', 'update master_data', 'delete master_data', 'product.create',
-            'read reports', 'create reports', 'update reports', 'delete reports',
-            // Administration read-only
-            'read users', 'update users', 'read roles', 'read permissions',
+            'create',
+            'read', // full read
         ]));
-        $this->command?->info('[OK] Editor role: manage operational/overview; read-only administration.');
+        $this->command?->info('[OK] Editor role: global create + read all.');
 
         $userRole->permissions()->sync($pluckPermissions([
-            'read dashboard',
-            'read quota',
-            'read purchase_orders',
-            'read master_data',
-            'read reports',
+            'read limited',
         ]));
-        $this->command?->info('[OK] User role: read-only operational/overview assigned.');
+        $this->command?->info('[OK] User role: limited read (operational only) assigned.');
 
         $this->command?->info('[DONE] Role & permission seeding completed.');
     }

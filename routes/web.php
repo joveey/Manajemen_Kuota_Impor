@@ -211,7 +211,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     });
 
     // Mapping diagnostics & UI
-    Route::middleware(['permission:read master_data', 'forbid-role:user'])->group(function () {
+    Route::middleware(['permission:read master_data'])->group(function () {
         Route::get('mapping/unmapped', [MappingController::class, 'unmapped'])->name('mapping.unmapped');
         Route::get('mapping/unmapped/view', [MappingPageController::class, 'unmapped'])->name('mapping.unmapped.page');
         Route::get('mapping/mapped', [MappingPageController::class, 'mapped'])->name('mapping.mapped.page');
