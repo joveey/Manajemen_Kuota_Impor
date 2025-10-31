@@ -41,8 +41,8 @@ class OpenPoImportController extends Controller
         }
 
         $result = $validator->validate($rows, $modelMap);
-        // Simpan ke session untuk publish
-        session(['openpo.preview' => $result, 'openpo.model_map' => $modelMap]);
+        // Keep raw rows so we can re-validate after fixing mappings without re-uploading
+        session(['openpo.preview' => $result, 'openpo.model_map' => $modelMap, 'openpo.rows' => $rows]);
 
         return view('admin.openpo.preview', [
             'summary' => [
@@ -54,9 +54,20 @@ class OpenPoImportController extends Controller
         ]);
     }
 
-    public function previewPage(Request $request): View|RedirectResponse
+    public function previewPage(Request $request, OpenPoValidator $validator): View|RedirectResponse
     {
+        // If we have the original rows, re-validate against current mappings so users don't need to re-upload
+        $rows = session('openpo.rows');
+        $modelMap = session('openpo.model_map', []);
         $result = session('openpo.preview');
+        if (is_array($rows)) {
+            try {
+                $result = $validator->validate($rows, is_array($modelMap) ? $modelMap : []);
+                session(['openpo.preview' => $result]);
+            } catch (\Throwable $e) {
+                // fall back to existing preview if re-validation fails for any reason
+            }
+        }
         if (!$result || !is_array($result)) {
             return redirect()->route('admin.openpo.form')->withErrors(['file' => 'Preview not found. Reupload the file.']);
         }
@@ -290,6 +301,7 @@ class OpenPoImportController extends Controller
 
         session()->forget('openpo.preview');
         session()->forget('openpo.model_map');
+        session()->forget('openpo.rows');
         $msg = 'Open PO published successfully. Mode: '.($mode === 'replace' ? 'Replace' : 'Insert').'. Added: '.$inserted.'.'.($skippedExisting>0 ? ' Duplicates skipped: '.$skippedExisting.'.' : '').($replaced>0 ? ' Headers replaced: '.$replaced.'.' : '');
         $redir = redirect()->route('admin.openpo.form')->with('status', $msg);
         if ($leftoverAll > 0) {
