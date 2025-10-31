@@ -843,7 +843,7 @@
                             <span>Model &gt; HS (Mapped)</span>
                         </a>
                         @if($canProductCreate)
-                            <a href="{{ route('admin.master.quick_hs.index') }}" class="nav-link {{ (request()->routeIs('admin.master.quick_hs.*') || request()->routeIs('admin.mapping.model_hs.*')) ? 'active' : '' }}">
+                            <a href="{{ route('admin.master.quick_hs.index', ['return' => request()->fullUrl()]) }}" class="nav-link {{ (request()->routeIs('admin.master.quick_hs.*') || request()->routeIs('admin.mapping.model_hs.*')) ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-circle-plus"></i></span>
                                 <span>Add Model &gt; HS</span>
                             </a>
