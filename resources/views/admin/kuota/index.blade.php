@@ -199,7 +199,7 @@
     <div class="quota-actions">
       <a href="{{ route('admin.imports.quotas.index') }}" class="action-pill action-pill--primary">
         <i class="fas fa-file-import"></i>
-        Import Kuota
+        Import Quota
       </a>
       <a href="{{ route('admin.quotas.export') }}" class="action-pill action-pill--outline">
         <i class="fas fa-download"></i>

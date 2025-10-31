@@ -2,13 +2,13 @@
 
 @include('admin.shipments.partials.styles')
 
-@section('title', 'Catat Penerimaan Shipment')
+@section('title', 'Record Shipment Receipt')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('admin.shipments.index') }}">Pengiriman</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('admin.shipments.show', $shipment->id) }}">Detail Shipment</a></li>
-    <li class="breadcrumb-item active">Catat Penerimaan</li>
+    <li class="breadcrumb-item"><a href="{{ route('admin.shipments.index') }}">Shipments</a></li>
+    <li class="breadcrumb-item"><a href="{{ route('admin.shipments.show', $shipment->id) }}">Shipment Details</a></li>
+    <li class="breadcrumb-item active">Record Receipt</li>
 @endsection
 
 @section('content')
@@ -21,15 +21,15 @@
 <div class="page-shell">
     <div class="page-header">
         <div>
-            <h1 class="page-header__title">Catat Penerimaan</h1>
+            <h1 class="page-header__title">Record Receipt</h1>
             <p class="page-header__subtitle">
-                Tambahkan catatan penerimaan untuk shipment {{ $shipment->shipment_number ?? "#{$shipment->id}" }}.
+                Add a receipt record for shipment {{ $shipment->shipment_number ?? "#{$shipment->id}" }}.
             </p>
         </div>
         <div class="page-header__actions">
             <a href="{{ route('admin.shipments.show', $shipment->id) }}" class="page-header__button page-header__button--outline">
                 <i class="fas fa-arrow-left"></i>
-                Kembali ke Detail
+                Back to Details
             </a>
         </div>
     </div>
@@ -37,21 +37,21 @@
     <div class="shipment-card shipment-card--padded">
         <div class="shipment-summary mb-4">
             <div class="shipment-summary__card">
-                <span class="shipment-summary__label">Qty Direncanakan</span>
+                <span class="shipment-summary__label">Planned Qty</span>
                 <span class="shipment-summary__value">{{ number_format($planned) }} unit</span>
             </div>
             <div class="shipment-summary__card">
-                <span class="shipment-summary__label">Qty Diterima</span>
+                <span class="shipment-summary__label">Received Qty</span>
                 <span class="shipment-summary__value">{{ number_format($totalReceived) }} unit</span>
             </div>
             <div class="shipment-summary__card">
-                <span class="shipment-summary__label">Sisa Qty</span>
+                <span class="shipment-summary__label">Remaining Qty</span>
                 <span class="shipment-summary__value">{{ number_format($remaining) }} unit</span>
                 <span class="shipment-summary__meta">
                     @if($remaining > 0)
-                        Sisa penerimaan masih dapat dicatat.
+                        Remaining quantity can still be received.
                     @else
-                        Seluruh quantity telah terpenuhi.
+                        All quantities have been received.
                     @endif
                 </span>
             </div>
@@ -64,7 +64,7 @@
                 <div class="shipment-alert shipment-alert--error">
                     <i class="fas fa-circle-exclamation mt-1"></i>
                     <div>
-                        <strong>Data belum lengkap:</strong>
+                        <strong>Incomplete data:</strong>
                         <ul>
                             @foreach($errors->all() as $error)
                                 <li>{{ $error }}</li>
@@ -76,7 +76,7 @@
 
             <div class="shipment-form-grid">
                 <div class="shipment-form-group">
-                    <label for="receipt_date">Tanggal Penerimaan</label>
+                    <label for="receipt_date">Receipt Date</label>
                     <input
                         type="date"
                         id="receipt_date"
@@ -87,12 +87,12 @@
                 </div>
 
                 <div class="shipment-form-group">
-                    <label for="quantity_received">Qty Diterima</label>
+                    <label for="quantity_received">Received Qty</label>
                     <span class="shipment-helper d-block mb-2">
                         @if($remaining > 0)
-                            Maksimal {{ number_format($remaining) }} unit.
+                            Maximum {{ number_format($remaining) }} units.
                         @else
-                            Kuantitas sudah terpenuhi untuk shipment ini.
+                            Quantity already fulfilled for this shipment.
                         @endif
                     </span>
                     <input
@@ -112,7 +112,7 @@
                 </div>
 
                 <div class="shipment-form-group">
-                    <label for="document_number">No. Dokumen (Customs/Container)</label>
+                    <label for="document_number">Document No. (Customs/Container)</label>
                     <input
                         type="text"
                         id="document_number"
@@ -123,13 +123,13 @@
                 </div>
 
                 <div class="shipment-form-group shipment-form-group--full">
-                    <label for="notes">Catatan</label>
+                    <label for="notes">Notes</label>
                     <textarea
                         id="notes"
                         name="notes"
                         class="form-control"
                         rows="3"
-                        placeholder="Catat kondisi pengiriman, nomor kontainer, atau informasi pelengkap lainnya.">{{ old('notes') }}</textarea>
+                        placeholder="Record delivery condition, container number, or other details.">{{ old('notes') }}</textarea>
                     @error('notes')<small class="text-danger d-block mt-1">{{ $message }}</small>@enderror
                 </div>
             </div>
@@ -137,11 +137,11 @@
             <div class="shipment-form-actions">
                 <a href="{{ route('admin.shipments.show', $shipment->id) }}" class="form-action-btn form-action-btn--secondary">
                     <i class="fas fa-times"></i>
-                    Batal
+                    Cancel
                 </a>
                 <button type="submit" class="form-action-btn form-action-btn--primary" @if($remaining === 0) disabled @endif>
                     <i class="fas fa-save"></i>
-                    Simpan Penerimaan
+                    Save Receipt
                 </button>
             </div>
         </form>

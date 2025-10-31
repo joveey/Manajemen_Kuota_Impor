@@ -133,10 +133,10 @@
         <div class="metric-card">
             <span class="metric-label">Total Admins</span>
             <div class="metric-value">{{ number_format($stats['total'] ?? 0) }}</div>
-            <div class="metric-caption">Jumlah admin yang tercatat dalam sistem.</div>
+            <div class="metric-caption">Total administrators recorded in the system.</div>
         </div>
         <div class="metric-card">
-            <span class="metric-label">Aktif</span>
+            <span class="metric-label">Active</span>
             <div class="metric-value text-success">{{ number_format($stats['active'] ?? 0) }}</div>
             <div class="metric-caption">Administrators currently active.</div>
         </div>
