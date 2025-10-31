@@ -71,12 +71,12 @@
 
                 <div class="shipment-form-group">
                     <label for="ship_date">Ship Date <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control" id="ship_date" name="ship_date" value="{{ old('ship_date', now()->format('Y-m-d')) }}" required>
+                    <input type="text" class="form-control datepicker" id="ship_date" name="ship_date" value="{{ old('ship_date', now()->format('Y-m-d')) }}" placeholder="DD-MM-YYYY" required>
                 </div>
 
                 <div class="shipment-form-group">
                     <label for="eta_date">Estimated Arrival</label>
-                    <input type="date" class="form-control" id="eta_date" name="eta_date" value="{{ old('eta_date', now()->addDays(14)->format('Y-m-d')) }}">
+                    <input type="text" class="form-control datepicker" id="eta_date" name="eta_date" value="{{ old('eta_date', now()->addDays(14)->format('Y-m-d')) }}" placeholder="DD-MM-YYYY">
                 </div>
 
                 <div class="shipment-form-group shipment-form-group--full">

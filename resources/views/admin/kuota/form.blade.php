@@ -89,7 +89,7 @@
                                        id="period_start" 
                                        name="period_start" 
                                        value="{{ old('period_start', optional($quota->period_start)->format('Y-m-d')) }}"
-                                       placeholder="YYYY-MM-DD">
+                                       placeholder="DD-MM-YYYY">
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -100,7 +100,7 @@
                                        id="period_end" 
                                        name="period_end" 
                                        value="{{ old('period_end', optional($quota->period_end)->format('Y-m-d')) }}"
-                                       placeholder="YYYY-MM-DD">
+                                       placeholder="DD-MM-YYYY">
                             </div>
                         </div>
                     </div>
@@ -224,7 +224,9 @@
 <script>
     $(document).ready(function() {
         flatpickr('.datepicker', {
-            dateFormat: 'Y-m-d',
+            dateFormat: 'Y-m-d', // value submitted to server
+            altInput: true,
+            altFormat: 'd-m-Y', // shown to users
             allowInput: true
         });
 

@@ -94,13 +94,13 @@
 
                             <div class="col-md-6">
                                 <label for="period-start" class="form-label">Start Period</label>
-                                <input type="text" id="period-start" name="period_start" value="{{ old('period_start') }}" class="form-control manual-date @error('period_start') is-invalid @enderror" placeholder="YYYY-MM-DD" required>
+                                <input type="text" id="period-start" name="period_start" value="{{ old('period_start') }}" class="form-control manual-date @error('period_start') is-invalid @enderror" placeholder="DD-MM-YYYY" required>
                                 @error('period_start')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 
                             <div class="col-md-6">
                                 <label for="period-end" class="form-label">End Period</label>
-                                <input type="text" id="period-end" name="period_end" value="{{ old('period_end') }}" class="form-control manual-date @error('period_end') is-invalid @enderror" placeholder="YYYY-MM-DD" required>
+                                <input type="text" id="period-end" name="period_end" value="{{ old('period_end') }}" class="form-control manual-date @error('period_end') is-invalid @enderror" placeholder="DD-MM-YYYY" required>
                                 @error('period_end')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 
@@ -225,9 +225,9 @@
                                     <td>{{ $quota->source_document ?? '-' }}</td>
                                     <td class="text-end">{{ number_format((float) $quota->total_allocation, 0) }}</td>
                                     <td>
-                                        {{ $quota->period_start ?? '-' }}
+                                        {{ optional($quota->period_start)->format('d-m-Y') ?? '-' }}
                                         @if($quota->period_end)
-                                            - {{ $quota->period_end }}
+                                            - {{ optional($quota->period_end)->format('d-m-Y') }}
                                         @endif
                                     </td>
                                     <td>{{ optional($quota->created_at)->format('d M Y H:i') }}</td>
@@ -254,7 +254,9 @@
 
     if (typeof flatpickr !== 'undefined') {
         flatpickr('.manual-date', {
-            dateFormat: 'Y-m-d',
+            dateFormat: 'Y-m-d', // submitted to server
+            altInput: true,
+            altFormat: 'd-m-Y', // displayed to user
             allowInput: true
         });
     }
