@@ -61,7 +61,7 @@
             return [
                 'title' => ucfirst(str_replace('_', ' ', $log->status)),
                 'subtitle' => $log->description,
-                'date' => optional($log->recorded_at)->format('d M Y H:i'),
+                'date' => optional($log->recorded_at)->setTimezone('Asia/Jakarta')->format('d-m-Y'),
                 'badge' => $progressBadge,
                 'variant' => $badgeVariant,
             ];
@@ -146,7 +146,7 @@
                 <span class="shipment-meta__label">Shipment Number</span>
                 <span class="shipment-meta__value">{{ $shipment->shipment_number ?? 'Not assigned' }}</span>
                 <span class="shipment-summary__meta">
-                    Created: {{ optional($shipment->created_at)->format('d M Y H:i') ?? '-' }}
+                    Created: {{ optional($shipment->created_at)->setTimezone('Asia/Jakarta')->format('d-m-Y') ?? '-' }}
                 </span>
             </div>
 
@@ -211,3 +211,4 @@
     </div>
 </div>
 @endsection
+

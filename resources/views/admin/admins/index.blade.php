@@ -204,7 +204,7 @@
                                 {{ $admin->is_active ? 'Active' : 'Inactive' }}
                             </span>
                         </td>
-                        <td data-label="Last Login">{{ $admin->last_login_at ? $admin->last_login_at->format('d M Y H:i') : 'Never' }}</td>
+                        <td data-label="Last Login">{{ $admin->last_login_at ? $admin->last_login_at->setTimezone('Asia/Jakarta')->format('d-m-Y') : 'Never' }}</td>
                         <td data-label="Actions" class="text-end">
                             <div class="action-pills">
                                 @if(Route::has('admin.admins.show'))

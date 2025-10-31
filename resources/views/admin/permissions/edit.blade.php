@@ -91,10 +91,10 @@
             <div class="card-body">
                 <dl class="row">
                     <dt class="col-sm-5">Created:</dt>
-                    <dd class="col-sm-7">{{ $permission->created_at->format('d M Y H:i') }}</dd>
+                    <dd class="col-sm-7">{{ $permission->created_at->setTimezone('Asia/Jakarta')->format('d-m-Y') }}</dd>
                     
                     <dt class="col-sm-5">Updated:</dt>
-                    <dd class="col-sm-7">{{ $permission->updated_at->format('d M Y H:i') }}</dd>
+                    <dd class="col-sm-7">{{ $permission->updated_at->setTimezone('Asia/Jakarta')->format('d-m-Y') }}</dd>
                     
                     <dt class="col-sm-5">Roles Count:</dt>
                     <dd class="col-sm-7">
@@ -106,3 +106,4 @@
     </div>
 </div>
 @endsection
+
