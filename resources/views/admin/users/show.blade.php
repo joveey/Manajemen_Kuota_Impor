@@ -40,10 +40,10 @@
                     </dd>
                     
                     <dt class="col-sm-3">Created At:</dt>
-                    <dd class="col-sm-9">{{ $user->created_at->format('d M Y H:i:s') }}</dd>
+                    <dd class="col-sm-9">{{ $user->created_at->setTimezone('Asia/Jakarta')->format('d-m-Y') }}</dd>
                     
                     <dt class="col-sm-3">Last Login:</dt>
-                    <dd class="col-sm-9">{{ $user->last_login_at ? $user->last_login_at->format('d M Y H:i:s') : 'Never logged in' }}</dd>
+                    <dd class="col-sm-9">{{ $user->last_login_at ? $user->last_login_at->setTimezone('Asia/Jakarta')->format('d-m-Y') : 'Never logged in' }}</dd>
                 </dl>
             </div>
         </div>
@@ -192,3 +192,4 @@ function deleteUser() {
 }
 </script>
 @endpush
+

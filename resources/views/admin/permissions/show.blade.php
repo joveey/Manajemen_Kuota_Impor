@@ -47,10 +47,10 @@
                     <dd class="col-sm-9">{{ $permission->description ?? '-' }}</dd>
                     
                     <dt class="col-sm-3">Created At:</dt>
-                    <dd class="col-sm-9">{{ $permission->created_at->format('d M Y H:i:s') }}</dd>
+                    <dd class="col-sm-9">{{ $permission->created_at->setTimezone('Asia/Jakarta')->format('d-m-Y') }}</dd>
                     
                     <dt class="col-sm-3">Updated At:</dt>
-                    <dd class="col-sm-9">{{ $permission->updated_at->format('d M Y H:i:s') }}</dd>
+                    <dd class="col-sm-9">{{ $permission->updated_at->setTimezone('Asia/Jakarta')->format('d-m-Y') }}</dd>
                 </dl>
             </div>
         </div>
@@ -148,3 +148,4 @@ function deletePermission() {
 }
 </script>
 @endpush
+

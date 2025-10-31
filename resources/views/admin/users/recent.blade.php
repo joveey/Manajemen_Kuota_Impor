@@ -205,7 +205,7 @@
                             </span>
                         </td>
                         <td data-label="Registered">
-                            <small class="text-muted">{{ optional($user->created_at)->format('d M Y H:i') ?? '-' }}</small>
+                            <small class="text-muted">{{ optional($user->created_at)->setTimezone('Asia/Jakarta')->format('d-m-Y') ?? '-' }}</small>
                         </td>
                         <td data-label="Last Login">
                             <small class="text-muted">
@@ -242,3 +242,4 @@
     </section>
 </div>
 @endsection
+

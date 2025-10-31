@@ -276,7 +276,7 @@
                                             - {{ optional($quota->period_end)->format('d-m-Y') }}
                                         @endif
                                     </td>
-                                    <td>{{ optional($quota->created_at)->format('d M Y H:i') }}</td>
+                                    <td>{{ optional($quota->created_at)->setTimezone('Asia/Jakarta')->format('d-m-Y') }}</td>
                                 </tr>
                             @empty
                                 <tr>
