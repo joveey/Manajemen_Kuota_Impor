@@ -13,7 +13,7 @@
 <div class="card activity-card">
     <div class="card-header">
         <div>
-            <strong>Activity (7 days)</strong>
+            <strong>Activity (last 7 days)</strong>
             <span class="activity-card__subtitle">Recent import and update activity.</span>
         </div>
         @if($hasImportRoute)
@@ -66,4 +66,3 @@
         </div>
     @endif
 </div>
-

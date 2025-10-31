@@ -146,7 +146,7 @@
         <div class="metric-card">
             <span class="metric-label">Total Users</span>
             <div class="metric-value">{{ number_format($stats['total'] ?? 0) }}</div>
-            <div class="metric-caption">Non-admin users recorded in the system.</div>
+            <div class="metric-caption">Non-admin users in the system.</div>
         </div>
         <div class="metric-card">
             <span class="metric-label">Active</span>

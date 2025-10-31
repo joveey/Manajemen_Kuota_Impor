@@ -15,7 +15,7 @@
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">
-                    <i class="fas fa-edit me-2"></i>Import Quota Form
+                    <i class="fas fa-edit me-2"></i>Quota Details
                 </h3>
             </div>
             <form action="{{ $quota->exists ? route('admin.quotas.update', $quota) : route('admin.quotas.store') }}" method="POST">
@@ -149,7 +149,7 @@
 
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" role="switch" id="is_active" name="is_active" value="1" {{ old('is_active', $quota->is_active ?? true) ? 'checked' : '' }}>
-                        <label class="form-check-label" for="is_active">Active Quota</label>
+                        <label class="form-check-label" for="is_active">Active</label>
                     </div>
                 </div>
 

@@ -65,7 +65,7 @@
 
                 <div class="col-12 form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" id="create_product" name="create_product" value="1" {{ old('create_product', '1') ? 'checked' : '' }}>
-                    <label class="form-check-label" for="create_product">Create minimal Product if not exists</label>
+                    <label class="form-check-label" for="create_product">Create a minimal product if missing</label>
                 </div>
 
                 <div class="col-12 d-flex gap-2">

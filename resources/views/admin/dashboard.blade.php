@@ -880,7 +880,7 @@
                         </div>
                         <div class="stat-label">Mapped</div>
                         <div class="stat-number">{{ number_format($metrics['mapped'] ?? 0) }}</div>
-                        <p class="stat-meta">Model mapped</p>
+                        <p class="stat-meta">Models mapped</p>
                     </div>
                 </div>
                 <div class="col-12 col-md-6 col-lg">
@@ -961,12 +961,12 @@
         </div>
     </div>
 
-    <!-- KPI by PK Bucket -->
+    <!-- PK Bucket KPIs -->
     <div class="card kpi-section">
         <div class="card-header d-flex justify-content-between align-items-start flex-wrap gap-2">
             <div>
-                <strong style="font-size: 16px; font-weight: 700;">KPI by PK Bucket</strong>
-                <span class="activity-card__subtitle">Monitor latest allocation and consumption for each PK bucket.</span>
+                <strong style="font-size: 16px; font-weight: 700;">PK Bucket KPIs</strong>
+                <span class="activity-card__subtitle">Track allocation and consumption per PK bucket.</span>
             </div>
             @if(\Illuminate\Support\Facades\Route::has('admin.quotas.index'))
                 <a href="{{ route('admin.quotas.index') }}" class="kpi-card__action">Manage Quota</a>
