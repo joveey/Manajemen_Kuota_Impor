@@ -877,14 +877,16 @@
                                     <span class="nav-icon"><i class="fas fa-truck"></i></span>
                                     <span>Shipments &amp; Receipts</span>
                                 </a>
-                                <a href="{{ route('admin.imports.invoices.index') }}" class="nav-link {{ request()->routeIs('admin.imports.invoices.*') ? 'active' : '' }}">
-                                    <span class="nav-icon"><i class="fas fa-file-invoice"></i></span>
-                                    <span>Import Invoice (optional)</span>
-                                </a>
-                                <a href="{{ route('admin.imports.gr.index') }}" class="nav-link {{ request()->routeIs('admin.imports.gr.*') ? 'active' : '' }}">
-                                    <span class="nav-icon"><i class="fas fa-receipt"></i></span>
-                                    <span>Import GR</span>
-                                </a>
+                                @can('po.create')
+                                    <a href="{{ route('admin.imports.invoices.index') }}" class="nav-link {{ request()->routeIs('admin.imports.invoices.*') ? 'active' : '' }}">
+                                        <span class="nav-icon"><i class="fas fa-file-invoice"></i></span>
+                                        <span>Import Invoice (optional)</span>
+                                    </a>
+                                    <a href="{{ route('admin.imports.gr.index') }}" class="nav-link {{ request()->routeIs('admin.imports.gr.*') ? 'active' : '' }}">
+                                        <span class="nav-icon"><i class="fas fa-receipt"></i></span>
+                                        <span>Import GR</span>
+                                    </a>
+                                @endcan
                             @endif
                             {{-- Quick HS creation removed along with Product system --}}
                         </div>
@@ -1297,7 +1299,6 @@
     @stack('scripts')
 </body>
 </html>
-
 
 
 
