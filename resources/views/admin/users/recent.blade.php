@@ -12,33 +12,35 @@
 <style>
     .recent-shell { display:flex; flex-direction:column; gap:24px; }
     .recent-hero {
-        border-radius:20px;
-        padding:24px 28px;
-        background:linear-gradient(135deg,#0f172a 0%,#1d4ed8 65%,#3b82f6 100%);
-        color:#fff;
+        /* Neutral header, align with other pages */
         display:flex;
         justify-content:space-between;
-        align-items:center;
+        align-items:flex-start;
         gap:18px;
         flex-wrap:wrap;
+        padding:0;
+        margin:0;
+        color:inherit;
+        background:transparent;
     }
-    .recent-hero h1 { margin:0; font-size:26px; font-weight:700; }
-    .recent-hero p { margin:6px 0 0; opacity:0.85; max-width:520px; }
+    .recent-hero h1 { margin:0; font-size:26px; font-weight:700; color:#0f172a; }
+    .recent-hero p { margin:6px 0 0; color:#64748b; max-width:520px; }
     .recent-hero__actions { display:flex; gap:12px; flex-wrap:wrap; }
     .recent-btn {
         display:inline-flex;
         align-items:center;
         gap:8px;
-        padding:10px 16px;
-        border-radius:12px;
-        background:#fff;
-        color:#1d4ed8;
+        padding:10px 18px;
+        border-radius:14px;
+        background:#2563eb;
+        color:#ffffff;
         font-weight:600;
-        border:none;
+        border:1px solid transparent;
         text-decoration:none;
         transition:all .2s ease;
+        box-shadow:0 18px 36px -30px rgba(37,99,235,.8);
     }
-    .recent-btn:hover { background:#e2e8ff; color:#1e3a8a; }
+    .recent-btn:hover { background:#1d4ed8; transform:translateY(-1px); }
 
     .recent-card {
         border:1px solid #e3e8f5;
@@ -242,4 +244,3 @@
     </section>
 </div>
 @endsection
-
