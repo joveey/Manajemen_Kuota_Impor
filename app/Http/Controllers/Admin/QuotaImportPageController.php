@@ -32,7 +32,8 @@ class QuotaImportPageController extends Controller
             ->limit(25)
             ->get();
 
-        $preview = session('quotas.manual.preview', []);
+        $preview = $this->refreshManualPreview(session('quotas.manual.preview', []));
+        session(['quotas.manual.preview' => $preview]);
         $summary = $this->buildPreviewSummary($preview);
 
         $oldHs = session()->getOldInput('hs_code');
@@ -432,5 +433,36 @@ class QuotaImportPageController extends Controller
             return $s;
         }
         return $desc;
+    }
+
+    /**
+     * Refresh session-based manual preview with latest HS desc/anchor.
+     *
+     * @param array<int,array<string,mixed>> $preview
+     * @return array<int,array<string,mixed>>
+     */
+    protected function refreshManualPreview(array $preview): array
+    {
+        if (!Schema::hasTable('hs_code_pk_mappings') || empty($preview)) {
+            return $preview;
+        }
+        $hasDesc = $this->hsHasDesc;
+        foreach ($preview as &$item) {
+            $code = (string) ($item['hs_code'] ?? '');
+            if ($code === '') { continue; }
+            $row = DB::table('hs_code_pk_mappings')
+                ->where('hs_code', $code)
+                ->orderByDesc('updated_at')
+                ->first(['hs_code','pk_capacity'] + ($hasDesc ? ['desc'] : []));
+            if ($row) {
+                $desc = $hasDesc ? ($row->desc ?? '') : '';
+                if (strtoupper((string)$row->hs_code) === 'ACC') { $desc = 'Accesory'; }
+                if ($desc === '') { $desc = $this->formatPkLabel($row->pk_capacity); }
+                $item['hs_desc'] = $this->normalizePkDesc($desc, $row->pk_capacity);
+                $item['pk_anchor'] = (float) ($row->pk_capacity ?? 0);
+            }
+        }
+        unset($item);
+        return $preview;
     }
 }
