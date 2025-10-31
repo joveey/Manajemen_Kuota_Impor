@@ -1067,8 +1067,8 @@
                         </svg>
                         Latest GR Receipts
                     </h3>
-                    @if(\Illuminate\Support\Facades\Route::has('admin.imports.gr.index'))
-                        <a href="{{ route('admin.imports.gr.index') }}" class="panel-modern__link">View all</a>
+                    @if(\Illuminate\Support\Facades\Route::has('admin.po_progress.index'))
+                        <a href="{{ route('admin.po_progress.index') }}" class="panel-modern__link">View all</a>
                     @endif
                 </div>
                 @php $recentShipmentsEmpty = $recentShipments->isEmpty(); @endphp
