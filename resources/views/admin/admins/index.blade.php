@@ -150,7 +150,7 @@
             <div class="metric-value">
                 {{ $stats['recent_login'] ? \Carbon\Carbon::parse($stats['recent_login'])->diffForHumans() : 'None' }}
             </div>
-            <div class="metric-caption">Most recent admin login activity.</div>
+            <div class="metric-caption">Most recent administrator login.</div>
         </div>
     </div>
 
