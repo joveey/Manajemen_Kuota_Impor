@@ -314,11 +314,11 @@
                                     <select name="source_quota_id" id="doc_source_quota_id" class="form-select" required>
                                         @foreach($currentAllocs as $q)
                                             <option value="{{ $q->id }}" data-allocated="{{ (int) $q->pivot->allocated_qty }}">
-                                                {{ $q->display_number }} â€” Alloc: {{ number_format((int) $q->pivot->allocated_qty) }} (Period: {{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
+                                                {{ $q->display_number }} GÇö Alloc: {{ number_format((int) $q->pivot->allocated_qty) }} (Period: {{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
                                             </option>
                                         @endforeach
                                     </select>
-                                    <div class="form-text">Select the quota currently holding this POâ€™s allocation.</div>
+                                    <div class="form-text">Select the quota currently holding this POGÇÖs allocation.</div>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">New ETA (optional)</label>
@@ -331,7 +331,7 @@
                                         <option value="" disabled selected hidden>Select quota</option>
                                         @foreach($candidateQuotas as $q)
                                             <option value="{{ $q->id }}" data-start="{{ optional($q->period_start)->format('Y-m-d') }}" data-end="{{ optional($q->period_end)->format('Y-m-d') }}" data-avail="{{ (int) $q->forecast_remaining }}">
-                                                {{ $q->display_number }} â€” Remaining: {{ number_format((int) $q->forecast_remaining) }} ({{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
+                                                {{ $q->display_number }} GÇö Remaining: {{ number_format((int) $q->forecast_remaining) }} ({{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
                                             </option>
                                         @endforeach
                                     </select>
