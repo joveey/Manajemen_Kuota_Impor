@@ -773,7 +773,7 @@
                     $reportsActive = $canReports && (request()->is('admin/reports*') || request()->is('analytics*'));
 
                     $adminActive = request()->is('admin/users*') || request()->is('admin/roles*') ||
-                        request()->is('admin/permissions*') || request()->is('admin/admins*');
+                        request()->is('admin/permissions*') || request()->is('admin/admins*') || request()->is('admin/audit-logs*');
                     
                     $prepActive = $showPrep && (
                         request()->routeIs('admin.imports.hs_pk.*') ||
@@ -974,6 +974,12 @@
                                 <a href="{{ route('admin.permissions.index') }}" class="nav-link {{ request()->is('admin/permissions*') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-key"></i></span>
                                     <span>Permissions</span>
+                                </a>
+                            @endif
+                            @if($currentUser?->isAdmin() || $currentUser?->can('audit_logs.read'))
+                                <a href="{{ route('admin.audit-logs.index') }}" class="nav-link {{ request()->routeIs('admin.audit-logs.index') ? 'active' : '' }}">
+                                    <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
+                                    <span>Audit Logs</span>
                                 </a>
                             @endif
                             @if($currentUser?->isAdmin())
@@ -1307,4 +1313,3 @@
     @stack('scripts')
 </body>
 </html>
-
