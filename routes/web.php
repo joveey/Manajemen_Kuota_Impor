@@ -246,6 +246,8 @@ Route::middleware(['auth', 'verified', 'permission:read reports'])->prefix('anal
 // Audit Logs (admin-only read)
 Route::middleware(['web','auth'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/audit-logs', [\App\Http\Controllers\Admin\AuditLogController::class, 'index'])->name('audit-logs.index');
+    Route::get('/audit-logs/export', [\App\Http\Controllers\Admin\AuditLogController::class, 'export'])->name('audit-logs.export');
+    Route::get('/audit-logs/export-xlsx', [\App\Http\Controllers\Admin\AuditLogController::class, 'exportXlsx'])->name('audit-logs.export.xlsx');
 });
 // Ensure audit logging middleware is applied to all web routes
 try {
