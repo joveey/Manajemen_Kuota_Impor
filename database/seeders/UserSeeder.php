@@ -23,31 +23,22 @@ class UserSeeder extends Seeder
         $admin->assignRole('admin');
         $this->command->info('✅ Admin user created: admin@example.com / password');
 
-        // MANAGER USER
-        $manager = User::firstOrCreate(
-            ['email' => 'manager@example.com'],
-            [
-                'name' => 'Manager User',
-                'password' => Hash::make('password'),
-                'is_active' => true,
-                'email_verified_at' => now(),
-            ]
-        );
-        $manager->assignRole('manager');
-        $this->command->info('✅ Manager user created: manager@example.com / password');
-
-        // EDITOR USER
-        $editor = User::firstOrCreate(
-            ['email' => 'editor@example.com'],
-            [
-                'name' => 'Editor User',
-                'password' => Hash::make('password'),
-                'is_active' => true,
-                'email_verified_at' => now(),
-            ]
-        );
-        $editor->assignRole('editor');
-        $this->command->info('✅ Editor user created: editor@example.com / password');
+        // CLEANUP: remove legacy seeded users for roles we don't use anymore
+        try {
+            foreach ([
+                'manager@example.com' => 'manager',
+                'editor@example.com' => 'editor',
+            ] as $email => $roleName) {
+                if ($u = User::where('email', $email)->first()) {
+                    // detach potential role relation gracefully
+                    try { $u->removeRole($roleName); } catch (\Throwable $e) {}
+                    $u->delete();
+                    $this->command->info("🗑️ Removed legacy user: {$email}");
+                }
+            }
+        } catch (\Throwable $e) {
+            // ignore cleanup errors
+        }
 
         // REGULAR USER
         $regular = User::firstOrCreate(
