@@ -134,7 +134,7 @@
                             <span class="badge-action {{ $cls }}">{{ $label }}</span>
                         </td>
                         <td class="text-nowrap"><code>{{ $log->path }}</code></td>
-                        <td class="text-nowrap">{{ $log->route_name ?? '-' }}</td>
+                        <td class="text-nowrap" title="{{ $log->route_name }}">{{ audit_route_label($log->route_name) }}</td>
                         <td class="text-nowrap">{{ $log->ip_address }}</td>
                         <td style="max-width: 480px;">
                             @php

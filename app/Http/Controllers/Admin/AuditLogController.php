@@ -58,16 +58,13 @@ class AuditLogController extends Controller
 
             $query->orderBy('id')->chunk(1000, function ($rows) use ($out, $label) {
                 foreach ($rows as $log) {
-                    $detail = $log->description;
-                    if (is_array($detail)) {
-                        $detail = json_encode($detail, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
-                    }
+                    $detail = $this->humanizeDescription($log->description);
                     fputcsv($out, [
                         optional($log->created_at)->format('Y-m-d H:i:s'),
                         optional($log->user)->name ?? 'Guest',
                         $label($log->method),
                         $log->path,
-                        $log->route_name,
+                        audit_route_label($log->route_name),
                         $log->ip_address,
                         $detail,
                     ]);
@@ -107,17 +104,14 @@ class AuditLogController extends Controller
 
         $query->orderBy('id')->chunk(1000, function ($rows) use (&$row, $sheet, $label) {
             foreach ($rows as $log) {
-                $detail = $log->description;
-                if (is_array($detail)) {
-                    $detail = json_encode($detail, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
-                }
-                $sheet->setCellValueExplicit('A'.$row, optional($log->created_at)->format('Y-m-d H:i:s'));
-                $sheet->setCellValueExplicit('B'.$row, optional($log->user)->name ?? 'Guest');
-                $sheet->setCellValueExplicit('C'.$row, $label($log->method));
-                $sheet->setCellValueExplicit('D'.$row, (string) $log->path);
-                $sheet->setCellValueExplicit('E'.$row, (string) $log->route_name);
-                $sheet->setCellValueExplicit('F'.$row, (string) $log->ip_address);
-                $sheet->setCellValueExplicit('G'.$row, (string) $detail);
+                $detail = $this->humanizeDescription($log->description);
+                $sheet->setCellValue('A'.$row, optional($log->created_at)->format('Y-m-d H:i:s'));
+                $sheet->setCellValue('B'.$row, optional($log->user)->name ?? 'Guest');
+                $sheet->setCellValue('C'.$row, $label($log->method));
+                $sheet->setCellValue('D'.$row, (string) $log->path);
+                $sheet->setCellValue('E'.$row, (string) audit_route_label($log->route_name));
+                $sheet->setCellValue('F'.$row, (string) $log->ip_address);
+                $sheet->setCellValue('G'.$row, (string) $detail);
                 $row++;
             }
         });
@@ -125,6 +119,9 @@ class AuditLogController extends Controller
         foreach (range('A','G') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
+
+        // Wrap detail column to keep content readable
+        $sheet->getStyle('G2:G'.max(2, $row-1))->getAlignment()->setWrapText(true);
 
         $filename = 'audit_logs_'.now()->format('Ymd_His').'.xlsx';
 
@@ -134,6 +131,56 @@ class AuditLogController extends Controller
         }, $filename, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    protected function humanizeDescription($desc): string
+    {
+        if (is_string($desc)) {
+            $trim = trim($desc);
+            if ($trim === '' || $trim === 'null') return '';
+            if ((str_starts_with($trim, '{') && str_ends_with($trim, '}')) || (str_starts_with($trim, '[') && str_ends_with($trim, ']'))) {
+                $decoded = json_decode($trim, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $desc = $decoded;
+                }
+            }
+        }
+
+        if (!is_array($desc)) {
+            return is_string($desc) ? $desc : '';
+        }
+
+        $blacklist = ['_token','password','password_confirmation','current_password'];
+        $parts = [];
+        foreach ($desc as $key => $value) {
+            if (in_array($key, $blacklist, true)) continue;
+
+            $label = match ($key) {
+                'file', 'files' => 'Berkas',
+                'name' => 'Nama',
+                'email' => 'Email',
+                'note', 'notes' => 'Catatan',
+                default => ucfirst(str_replace(['_', '-'], ' ', (string) $key)),
+            };
+
+            $val = $value;
+            if (is_string($val) && str_starts_with($val, 'uploaded_file:')) {
+                $val = 'Berkas diunggah: '.substr($val, strlen('uploaded_file:'));
+            } elseif (is_bool($val)) {
+                $val = $val ? 'Ya' : 'Tidak';
+            } elseif (is_array($val)) {
+                $flat = [];
+                foreach ($val as $v) {
+                    if (is_scalar($v)) { $flat[] = (string) $v; }
+                }
+                $val = count($flat) ? implode(', ', $flat) : json_encode($val, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+            }
+
+            if ($val === '' || $val === null) continue;
+            $parts[] = $label.': '.$val;
+        }
+
+        return implode(' | ', $parts);
     }
 
     protected function authorizeAdmin(Request $request): void
