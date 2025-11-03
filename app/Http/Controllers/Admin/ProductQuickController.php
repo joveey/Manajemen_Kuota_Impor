@@ -18,9 +18,10 @@ class ProductQuickController extends Controller
     {
         $model = trim((string) $request->query('model', ''));
         $periodKey = trim((string) $request->query('period_key', ''));
+        // Default return target stays on this page unless explicitly overridden
         $returnUrl = (string) $request->query(
             'return',
-            url()->previous() ?: route('admin.mapping.mapped.page')
+            route('admin.master.quick_hs.index')
         );
         $recent = Product::query()
             ->select(['id', 'code', 'hs_code', 'pk_capacity', 'updated_at'])
@@ -113,7 +114,10 @@ class ProductQuickController extends Controller
         $pk = $data['pk_capacity'] !== null ? (float) $data['pk_capacity'] : null;
         $category = isset($data['category']) ? trim((string) $data['category']) : null;
         $periodKey = $data['period_key'] ?? null;
-        $return = $data['return'] ?? route('admin.mapping.mapped.page');
+        // Stay on Add Model > HS by default; honor explicit return if provided
+        $return = !empty($data['return'])
+            ? (string) $data['return']
+            : route('admin.master.quick_hs.index');
 
         // Pastikan kolom hs_code tersedia pada schema
         if (!Schema::hasColumn('products', 'hs_code')) {
