@@ -150,6 +150,14 @@ class Quota extends Model
 
     public function matchesProduct(Product $product): bool
     {
+        // ACC handling: ACC products only match ACC quotas; non-ACC products never match ACC quotas
+        $hsCode = strtoupper((string) ($product->hs_code ?? ''));
+        $cat = strtoupper(trim((string) ($this->government_category ?? '')));
+        $quotaIsAcc = str_contains($cat, 'ACC') || str_contains($cat, 'ACCESSORY') || str_contains($cat, 'ACCESORY');
+        $productIsAcc = ($hsCode === 'ACC');
+
+        if ($productIsAcc && !$quotaIsAcc) { return false; }
+        if (!$productIsAcc && $quotaIsAcc) { return false; }
         // Resolve PK from product if not explicitly set
         $pk = $product->pk_capacity;
         if ($pk === null) {

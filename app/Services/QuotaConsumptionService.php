@@ -19,6 +19,8 @@ class QuotaConsumptionService
     {
         $quotasArr = [];
         foreach ($quotas as $q) {
+            $cat = strtoupper(trim((string) ($q->government_category ?? '')));
+            $isAcc = str_contains($cat, 'ACC') || str_contains($cat, 'ACCESSORY') || str_contains($cat, 'ACCESORY');
             $p = PkCategoryParser::parse((string) $q->government_category);
             $quotasArr[$q->id] = [
                 'min_pk' => $p['min_pk'],
@@ -28,6 +30,7 @@ class QuotaConsumptionService
                 'start' => $q->period_start ? $q->period_start->toDateString() : null,
                 'end'   => $q->period_end ? $q->period_end->toDateString() : null,
                 'allocation' => (float)($q->total_allocation ?? 0),
+                'is_acc' => $isAcc,
             ];
         }
 
@@ -54,6 +57,7 @@ class QuotaConsumptionService
                 DB::raw('COALESCE(inv.qty_invoiced,0) as invoiced'),
                 DB::raw('COALESCE(gr.qty_received,0) as received'),
                 'hs.pk_capacity',
+                'hs.hs_code as hs_code',
                 'ph.po_date',
             ]);
 
@@ -68,6 +72,9 @@ class QuotaConsumptionService
         }
 
         foreach ($lines as $ln) {
+            $hsCode = strtoupper((string)($ln->hs_code ?? ''));
+            $lineIsAcc = ($hsCode === 'ACC');
+
             $pk = isset($ln->pk_capacity) ? (float) $ln->pk_capacity : null;
             if ($pk === null) { continue; }
 
@@ -82,7 +89,8 @@ class QuotaConsumptionService
                     $d = $ln->po_date ? (string)$ln->po_date : null;
                     if (!$d || $d < $q['start'] || $d > $q['end']) { continue; }
                 }
-                // PK bucket filter
+                // ACC filter and PK bucket filter
+                if ($lineIsAcc !== (bool)($q['is_acc'] ?? false)) { continue; }
                 $ok = true;
                 if ($q['min_pk'] !== null && $q['max_pk'] !== null) {
                     $ok = $pk >= $q['min_pk'] && $pk <= $q['max_pk'];
@@ -107,4 +115,3 @@ class QuotaConsumptionService
         return $stats;
     }
 }
-
