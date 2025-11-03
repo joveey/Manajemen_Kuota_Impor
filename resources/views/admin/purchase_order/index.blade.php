@@ -440,12 +440,15 @@
                         <tr>
                             <th>#</th>
                             <th>PO Doc</th>
-                            <th>Created Date</th>
-                            <th>Deliv Date</th>
+                            <th>Document Date</th>
+                            <th>Delivery Date</th>
                             <th>Vendor</th>
+                            <th>Storage Loc</th>
                             <th class="text-end">Total Line</th>
-                            <th class="text-end">Qty Ordered</th>
-                            <th class="text-end">Qty Received</th>
+                            <th class="text-end">Order Qty</th>
+                            <th class="text-end">To Invoice</th>
+                            <th class="text-end">To Deliver</th>
+                            <th class="text-end">Received</th>
                             <th class="text-end">Outstanding</th>
                             <th>Status</th>
                             <th class="text-end">Actions</th>
@@ -499,8 +502,11 @@
                                         <div class="po-table__subtext">SAP: {{ $po->sap_statuses }}</div>
                                     @endif
                                 </td>
+                                <td>{{ $po->storage_locations ?? '-' }}</td>
                                 <td class="text-end">{{ number_format((int) $po->total_lines) }}</td>
                                 <td class="text-end">{{ number_format((float) $po->total_qty_ordered, 0) }}</td>
+                                <td class="text-end">{{ $po->total_qty_to_invoice !== null ? number_format((float) $po->total_qty_to_invoice, 0) : '-' }}</td>
+                                <td class="text-end">{{ $po->total_qty_to_deliver !== null ? number_format((float) $po->total_qty_to_deliver, 0) : '-' }}</td>
                                 <td class="text-end">{{ number_format((float) $po->total_qty_received, 0) }}</td>
                                 <td class="text-end">{{ number_format((float) $po->total_qty_outstanding, 0) }}</td>
                                 <td>

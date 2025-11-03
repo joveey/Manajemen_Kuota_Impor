@@ -95,10 +95,10 @@ class OpenPoImportController extends Controller
         $modelMap = session('openpo.model_map', []);
         // Read publish mode as plain string (avoid Stringable so strict comparisons work)
         $mode = (string) $request->input('publish_mode', 'insert'); // 'insert' | 'replace'
-        $inserted = 0; $skippedExisting = 0; $replaced = 0; $leftoverAll = 0;
+        $inserted = 0; $skippedExisting = 0; $updatedExisting = 0; $replaced = 0; $leftoverAll = 0; $allocatedTotal = 0; $needsReallocCount = 0;
 
         try {
-            DB::transaction(function () use ($groups, $modelMap, $mode, &$inserted, &$skippedExisting, &$replaced, &$leftoverAll) {
+            DB::transaction(function () use ($groups, $modelMap, $mode, &$inserted, &$skippedExisting, &$updatedExisting, &$replaced, &$leftoverAll, &$allocatedTotal, &$needsReallocCount) {
                 $hsTable = DB::getSchemaBuilder()->hasTable('hs_codes') ? 'hs_codes' : 'hs_code_pk_mappings';
                 $hsCodeCol = $hsTable === 'hs_codes' ? 'code' : 'hs_code';
                 $modelMapUpper = collect($modelMap ?? [])->mapWithKeys(fn($v,$k)=>[strtoupper((string)$k)=>$v])->all();
@@ -112,17 +112,19 @@ class OpenPoImportController extends Controller
                         }
                     }
 
+                    // Build header attributes only for columns that exist, for safety when migrations are not fully applied
+                    $headerAttrs = [
+                        'po_date' => $payload['po_date'] ?? now()->toDateString(),
+                        'supplier' => $payload['supplier'] ?? '',
+                        'published_at' => now(),
+                        'created_by' => Auth::id(),
+                    ];
+                    if (Schema::hasColumn('po_headers','vendor_number')) { $headerAttrs['vendor_number'] = $payload['vendor_number'] ?? null; }
+                    if (Schema::hasColumn('po_headers','currency')) { $headerAttrs['currency'] = $payload['currency'] ?? null; }
+                    if (Schema::hasColumn('po_headers','note')) { $headerAttrs['note'] = $payload['note'] ?? null; }
                     $header = PoHeader::{$mode === 'replace' ? 'updateOrCreate' : 'firstOrCreate'}(
                         ['po_number' => (string) $poNumber],
-                        [
-                            'po_date' => $payload['po_date'] ?? now()->toDateString(),
-                            'supplier' => $payload['supplier'] ?? '',
-                            'vendor_number' => $payload['vendor_number'] ?? null,
-                            'currency' => $payload['currency'] ?? null,
-                            'note' => $payload['note'] ?? null,
-                            'published_at' => now(),
-                            'created_by' => Auth::id(),
-                        ]
+                        $headerAttrs
                     );
 
                     // Do not write to the product master from the PO mapping sheet.
@@ -236,15 +238,101 @@ class OpenPoImportController extends Controller
                                 'validation_status' => 'ok',
                                 'validation_notes' => null,
                             ];
+                        // Optional new columns only if present in schema
+                        if (Schema::hasColumn('po_lines','qty_to_invoice')) { $payloadAttrs['qty_to_invoice'] = isset($line['qty_to_invoice']) ? (float)$line['qty_to_invoice'] : null; }
+                        if (Schema::hasColumn('po_lines','qty_to_deliver')) { $payloadAttrs['qty_to_deliver'] = isset($line['qty_to_deliver']) ? (float)$line['qty_to_deliver'] : null; }
+                        if (Schema::hasColumn('po_lines','storage_location')) { $payloadAttrs['storage_location'] = $line['storage_location'] ?? null; }
 
                         if ($mode === 'replace') {
                             $poLine = PoLine::create(array_merge($unique, $payloadAttrs));
                             $inserted++;
-                        } else { // insert-only
-                            $exists = PoLine::where($unique)->exists();
-                            if ($exists) { $skippedExisting++; continue; }
-                            $poLine = PoLine::create(array_merge($unique, $payloadAttrs));
-                            $inserted++;
+                        } else { // insert-or-diff-update
+                            $existingLine = PoLine::where($unique)->first();
+                            if ($existingLine) {
+                                $prevQty = (float) ($existingLine->qty_ordered ?? 0);
+                                $newQty = (float) ($line['qty_ordered'] ?? 0);
+                                $delta = (int) round($newQty - $prevQty);
+
+                                // Update attributes regardless
+                                $existingLine->fill($payloadAttrs);
+                                $existingLine->qty_ordered = $newQty;
+                                $existingLine->save();
+                                $poLine = $existingLine; // for allocation marking below
+                                $updatedExisting++;
+
+                                if ($delta !== 0) {
+                                    $allocDate = $line['eta_date'] ?? ($payload['po_date'] ?? $po->order_date ?? now()->toDateString());
+                                    $candidates = \App\Models\Quota::query()
+                                        ->where('is_active', true)
+                                        ->whereDate('period_start', '<=', $allocDate)
+                                        ->whereDate('period_end', '>=', $allocDate)
+                                        ->get()
+                                        ->filter(function ($q) use ($product) { return $q->matchesProduct($product); });
+                                    $choose = function ($q) {
+                                        $min = is_null($q->min_pk) ? null : (float)$q->min_pk;
+                                        $max = is_null($q->max_pk) ? null : (float)$q->max_pk;
+                                        if ($min === null || $max === null) { return INF; }
+                                        return max(0.0, $max - $min);
+                                    };
+                                    $quota = $candidates->sortBy($choose)->first();
+
+                                    if ($delta > 0) {
+                                        // allocate additional quantity, no carry-over
+                                        $left = $delta;
+                                        if ($quota) {
+                                            $avail = (int) max((int) ($quota->forecast_remaining ?? 0), 0);
+                                            $take = min($left, $avail);
+                                            if ($take > 0) {
+                                                $quota->decrementForecast($take, 'Forecast delta+ for PO '.$po->po_number.' (line '.$poLine->line_no.')', $po, new \DateTimeImmutable((string)$allocDate), Auth::id());
+                                                // Upsert pivot
+                                                $existing = DB::table('purchase_order_quota')
+                                                    ->where('purchase_order_id', $po->id)
+                                                    ->where('quota_id', $quota->id)
+                                                    ->first();
+                                                if ($existing) {
+                                                    DB::table('purchase_order_quota')
+                                                        ->where('id', $existing->id)
+                                                        ->update(['allocated_qty' => (int)$existing->allocated_qty + $take, 'updated_at' => now()]);
+                                                } else {
+                                                    DB::table('purchase_order_quota')->insert([
+                                                        'purchase_order_id' => $po->id,
+                                                        'quota_id' => $quota->id,
+                                                        'allocated_qty' => $take,
+                                                        'created_at' => now(),
+                                                        'updated_at' => now(),
+                                                    ]);
+                                                }
+                                                $allocatedTotal += (int) $take;
+                                                $left -= (int) $take;
+                                            }
+                                        }
+                                        if ($left > 0) { $leftoverAll += (int)$left; $needsReallocCount++; DB::table('po_lines')->where('id',$poLine->id)->update(['needs_reallocation'=>true]); }
+                                    } else { // $delta < 0, refund
+                                        $refund = -$delta;
+                                        if ($quota) {
+                                            $existing = DB::table('purchase_order_quota')
+                                                ->where('purchase_order_id', $po->id)
+                                                ->where('quota_id', $quota->id)
+                                                ->first();
+                                            $canRefund = (int) min($refund, (int) ($existing->allocated_qty ?? 0));
+                                            if ($canRefund > 0) {
+                                                // Increase forecast back
+                                                $quota->incrementForecast($canRefund, 'Forecast delta- for PO '.$po->po_number.' (line '.$poLine->line_no.')', $po, new \DateTimeImmutable((string)$allocDate), Auth::id());
+                                                // Update pivot
+                                                DB::table('purchase_order_quota')
+                                                    ->where('purchase_order_id', $po->id)
+                                                    ->where('quota_id', $quota->id)
+                                                    ->update(['allocated_qty' => (int)max(0, ((int)($existing->allocated_qty ?? 0)) - $canRefund), 'updated_at' => now()]);
+                                                $refund -= $canRefund;
+                                            }
+                                        }
+                                        // If some portion cannot be refunded (likely moved via Move Quota), leave as-is.
+                                    }
+                                }
+                            } else {
+                                $poLine = PoLine::create(array_merge($unique, $payloadAttrs));
+                                $inserted++;
+                            }
                         }
 
                         // Create/Update PurchaseOrder per PO line to drive forecast allocation
@@ -282,15 +370,60 @@ class OpenPoImportController extends Controller
                             ]
                         );
 
-                        // Allocate per line quantity (pivot aggregates per PO) based on delivery date.
+                        // Allocate per line quantity by delivery date WITHOUT carry-over
                         $lineQty = (int) ($line['qty_ordered'] ?? 0);
                         if ($lineQty > 0 && (empty($poLine->forecast_allocated_at))) {
                             $allocDate = $line['eta_date'] ?? ($payload['po_date'] ?? $po->order_date ?? now()->toDateString());
-                            [$allocs, $left] = app(QuotaAllocationService::class)
-                                ->allocateForecast($product->id, $lineQty, $allocDate, $po);
-                            $leftoverAll += (int) $left;
+
+                            // Find single matching quota for the delivery date
+                            $candidates = \App\Models\Quota::query()
+                                ->where('is_active', true)
+                                ->whereDate('period_start', '<=', $allocDate)
+                                ->whereDate('period_end', '>=', $allocDate)
+                                ->get()
+                                ->filter(function ($q) use ($product) { return $q->matchesProduct($product); });
+
+                            // choose the narrowest PK range when multiple match
+                            $choose = function ($q) {
+                                $min = is_null($q->min_pk) ? null : (float)$q->min_pk;
+                                $max = is_null($q->max_pk) ? null : (float)$q->max_pk;
+                                if ($min === null || $max === null) { return INF; }
+                                return max(0.0, $max - $min);
+                            };
+                            $quota = $candidates->sortBy($choose)->first();
+
+                            $left = $lineQty;
+                            if ($quota) {
+                                $avail = (int) max((int) ($quota->forecast_remaining ?? 0), 0);
+                                $take = min($lineQty, $avail);
+                                if ($take > 0) {
+                                    $quota->decrementForecast($take, 'Forecast allocated for PO '.$po->po_number.' (line '.$poLine->line_no.')', $po, new \DateTimeImmutable((string)$allocDate), Auth::id());
+
+                                    // Upsert/accumulate pivot
+                                    $existing = DB::table('purchase_order_quota')
+                                        ->where('purchase_order_id', $po->id)
+                                        ->where('quota_id', $quota->id)
+                                        ->first();
+                                    if ($existing) {
+                                        DB::table('purchase_order_quota')
+                                            ->where('id', $existing->id)
+                                            ->update(['allocated_qty' => (int)$existing->allocated_qty + $take, 'updated_at' => now()]);
+                                    } else {
+                                        DB::table('purchase_order_quota')->insert([
+                                            'purchase_order_id' => $po->id,
+                                            'quota_id' => $quota->id,
+                                            'allocated_qty' => $take,
+                                            'created_at' => now(),
+                                            'updated_at' => now(),
+                                        ]);
+                                    }
+                                    $allocatedTotal += (int) $take;
+                                    $left -= (int) $take;
+                                }
+                            }
+                            if ($left > 0) { $leftoverAll += (int)$left; $needsReallocCount++; if (Schema::hasTable('po_lines') && Schema::hasColumn('po_lines','needs_reallocation')) { DB::table('po_lines')->where('id',$poLine->id)->update(['needs_reallocation'=>true]); } }
                             // mark line allocated to avoid re-run duplication
-                            PoLine::where('id', $poLine->id)->update(['forecast_allocated_at' => now()]);
+                            if (Schema::hasColumn('po_lines', 'forecast_allocated_at')) { PoLine::where('id', $poLine->id)->update(['forecast_allocated_at' => now()]); }
                         }
                     }
                 }
@@ -302,11 +435,16 @@ class OpenPoImportController extends Controller
         session()->forget('openpo.preview');
         session()->forget('openpo.model_map');
         session()->forget('openpo.rows');
-        $msg = 'Open PO published successfully. Mode: '.($mode === 'replace' ? 'Replace' : 'Insert').'. Added: '.$inserted.'.'.($skippedExisting>0 ? ' Duplicates skipped: '.$skippedExisting.'.' : '').($replaced>0 ? ' Headers replaced: '.$replaced.'.' : '');
+        $msg = 'Open PO published successfully. Mode: '.($mode === 'replace' ? 'Replace' : 'Insert').'. Added: '.$inserted.'.'
+            .($skippedExisting>0 ? ' Duplicates skipped: '.$skippedExisting.'.' : '')
+            .($updatedExisting>0 ? ' Updated: '.$updatedExisting.'.' : '')
+            .($replaced>0 ? ' Headers replaced: '.$replaced.'.' : '')
+            .' Allocated qty: '.number_format($allocatedTotal).'. Needs reallocation lines: '.number_format($needsReallocCount).'.';
         $redir = redirect()->route('admin.openpo.form')->with('status', $msg);
         if ($leftoverAll > 0) {
-            $redir->with('warning', 'Some items were not allocated: '.number_format($leftoverAll).' units. Please complete the next period quota.');
+            $redir->with('warning', 'Unallocated quantity (insufficient quota): '.number_format($leftoverAll).' units. Use Move Quota to resolve.');
         }
         return $redir;
     }
 }
+

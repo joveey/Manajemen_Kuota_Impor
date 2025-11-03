@@ -10,13 +10,20 @@ class PoLine extends Model
     use HasFactory;
 
     protected $fillable = [
-        'po_header_id','line_no','model_code','item_desc','hs_code_id','qty_ordered','qty_received','uom','eta_date','validation_status','validation_notes',
-        'warehouse_code','warehouse_name','warehouse_source','subinventory_code','subinventory_name','subinventory_source','amount','category_code','category','material_group','sap_order_status'
+        'po_header_id', 'line_no', 'model_code', 'item_desc', 'hs_code_id',
+        'qty_ordered', 'qty_received', 'uom', 'eta_date',
+        'qty_to_invoice', 'qty_to_deliver', 'storage_location',
+        'validation_status', 'validation_notes', 'forecast_allocated_at',
+        'warehouse_code', 'warehouse_name', 'warehouse_source',
+        'subinventory_code', 'subinventory_name', 'subinventory_source',
+        'amount', 'category_code', 'category', 'material_group', 'sap_order_status'
     ];
 
     protected $casts = [
         'qty_ordered' => 'decimal:2',
         'qty_received' => 'decimal:2',
+        'qty_to_invoice' => 'decimal:2',
+        'qty_to_deliver' => 'decimal:2',
         'eta_date' => 'date',
         'amount' => 'decimal:2',
     ];

@@ -31,12 +31,18 @@ class PurchaseOrderController extends Controller
         $hasQtyOrdered = Schema::hasColumn('po_lines', 'qty_ordered');
         $hasQtyReceived = Schema::hasColumn('po_lines', 'qty_received');
         $hasSapStatus = Schema::hasColumn('po_lines', 'sap_order_status');
+        $hasQtyToInvoice = Schema::hasColumn('po_lines', 'qty_to_invoice');
+        $hasQtyToDeliver = Schema::hasColumn('po_lines', 'qty_to_deliver');
+        $hasStorageLocation = Schema::hasColumn('po_lines', 'storage_location');
 
         $qtyOrderedExprBase = $hasQtyOrdered ? 'COALESCE(pl.qty_ordered,0)' : '0';
         $qtyReceivedExprBase = $hasQtyReceived ? 'COALESCE(pl.qty_received,0)' : '0';
 
         $sumQtyOrderedExpr = "SUM($qtyOrderedExprBase)";
         $sumQtyReceivedExpr = "SUM($qtyReceivedExprBase)";
+        $sumQtyToInvoiceExpr = $hasQtyToInvoice ? 'SUM(COALESCE(pl.qty_to_invoice,0))' : 'NULL';
+        $sumQtyToDeliverExpr = $hasQtyToDeliver ? 'SUM(COALESCE(pl.qty_to_deliver,0))' : 'NULL';
+        $storagesExpr = $hasStorageLocation ? "STRING_AGG(DISTINCT NULLIF(pl.storage_location,''), ', ')" : 'NULL';
         $sumOutstandingExpr = $hasQtyReceived
             ? "SUM(GREATEST($qtyOrderedExprBase - $qtyReceivedExprBase,0))"
             : '0';
@@ -67,6 +73,9 @@ class PurchaseOrderController extends Controller
             DB::raw("$sumQtyOrderedExpr as total_qty_ordered"),
             DB::raw("$sumQtyReceivedExpr as total_qty_received"),
             DB::raw("$sumOutstandingExpr as total_qty_outstanding"),
+            DB::raw("$sumQtyToInvoiceExpr as total_qty_to_invoice"),
+            DB::raw("$sumQtyToDeliverExpr as total_qty_to_deliver"),
+            DB::raw("$storagesExpr as storage_locations"),
             DB::raw("$statusExpr as status_key"),
         ];
 
@@ -246,11 +255,14 @@ class PurchaseOrderController extends Controller
         $hasSubinvSource = Schema::hasColumn('po_lines', 'subinventory_source');
         $hasAmount = Schema::hasColumn('po_lines', 'amount');
         $hasCatCode = Schema::hasColumn('po_lines', 'category_code');
-        $hasCategory = Schema::hasColumn('po_lines', 'category');
-        $hasMatGrp = Schema::hasColumn('po_lines', 'material_group');
-        $hasSapStatus = Schema::hasColumn('po_lines', 'sap_order_status');
+         = Schema::hasColumn('po_lines', 'category');
+         = Schema::hasColumn('po_lines', 'material_group');
+         = Schema::hasColumn('po_lines', 'sap_order_status');
+         = Schema::hasColumn('po_lines', 'qty_to_invoice');
+         = Schema::hasColumn('po_lines', 'qty_to_deliver');
+         = Schema::hasColumn('po_lines', 'storage_location');
 
-        $lineQuery = DB::table('po_lines as pl')
+ = DB::table('po_lines as pl')
             ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
             ->select(array_filter([
                 DB::raw('pl.id as line_id'),
@@ -262,6 +274,7 @@ class PurchaseOrderController extends Controller
                 DB::raw("COALESCE(pl.line_no,'') as line_number"),
                 DB::raw('pl.model_code as item_code'),
                 DB::raw('pl.item_desc as item_description'),
+                DB::raw(4hasStorageLocation ? 'pl.storage_location' : 'NULL as storage_location'),
                 DB::raw($hasWhCode ? 'pl.warehouse_code' : 'NULL as warehouse_code'),
                 DB::raw($hasWhName ? 'pl.warehouse_name' : 'NULL as warehouse_name'),
                 DB::raw($hasWhSource ? 'pl.warehouse_source' : 'NULL as warehouse_source'),
@@ -269,6 +282,8 @@ class PurchaseOrderController extends Controller
                 DB::raw($hasSubinvName ? 'pl.subinventory_name' : 'NULL as subinventory_name'),
                 DB::raw($hasSubinvSource ? 'pl.subinventory_source' : 'NULL as subinventory_source'),
                 DB::raw('pl.qty_ordered as quantity'),
+                DB::raw(4hasQtyToInvoice ? 'pl.qty_to_invoice' : 'NULL as qty_to_invoice'),
+                DB::raw(4hasQtyToDeliver ? 'pl.qty_to_deliver' : 'NULL as qty_to_deliver'),
                 DB::raw($hasAmount ? 'pl.amount as amount' : 'NULL as amount'),
                 DB::raw($hasCatCode ? 'pl.category_code' : 'NULL as category_code'),
                 DB::raw($hasCategory ? 'pl.category' : 'NULL as category'),
@@ -351,7 +366,10 @@ class PurchaseOrderController extends Controller
         $hasCatCode = Schema::hasColumn('po_lines', 'category_code');
         $hasCategory = Schema::hasColumn('po_lines', 'category');
         $hasMatGrp = Schema::hasColumn('po_lines', 'material_group');
-        $hasSapStatus = Schema::hasColumn('po_lines', 'sap_order_status');
+        $hasSapStatus
+        \ = Schema::hasColumn('po_lines', 'qty_to_invoice');
+        \ = Schema::hasColumn('po_lines', 'qty_to_deliver');
+        \ = Schema::hasColumn('po_lines', 'storage_location');
 
         $query = DB::table('po_lines as pl')
             ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
@@ -360,13 +378,16 @@ class PurchaseOrderController extends Controller
                 DB::raw($hasVendorNumber ? "COALESCE(NULLIF(ph.vendor_number,''), split_part(ph.supplier, ' - ', 1)) as vendor_number" : 'NULL as vendor_number'), DB::raw('ph.supplier as vendor_name'),
                 DB::raw("COALESCE(pl.line_no,'') as line_number"),
                 DB::raw('pl.model_code as item_code'), DB::raw('pl.item_desc as item_description'),
+                DB::raw(\ ? 'pl.storage_location' : 'NULL as storage_location'),
                 DB::raw($hasWhCode ? 'pl.warehouse_code' : 'NULL as warehouse_code'),
                 DB::raw($hasWhName ? 'pl.warehouse_name' : 'NULL as warehouse_name'),
                 DB::raw($hasWhSource ? 'pl.warehouse_source' : 'NULL as warehouse_source'),
                 DB::raw($hasSubinvCode ? 'pl.subinventory_code' : 'NULL as subinventory_code'),
                 DB::raw($hasSubinvName ? 'pl.subinventory_name' : 'NULL as subinventory_name'),
                 DB::raw($hasSubinvSource ? 'pl.subinventory_source' : 'NULL as subinventory_source'),
-                DB::raw('pl.qty_ordered as quantity'), DB::raw($hasAmount ? 'pl.amount as amount' : 'NULL as amount'),
+                DB::raw('pl.qty_ordered as quantity'),
+                DB::raw(\ ? 'pl.qty_to_invoice' : 'NULL as qty_to_invoice'),
+                DB::raw(\ ? 'pl.qty_to_deliver' : 'NULL as qty_to_deliver'), DB::raw($hasAmount ? 'pl.amount as amount' : 'NULL as amount'),
                 DB::raw($hasCatCode ? 'pl.category_code' : 'NULL as category_code'),
                 DB::raw($hasCategory ? 'pl.category' : 'NULL as category'),
                 DB::raw($hasMatGrp ? 'pl.material_group' : 'NULL as material_group'),
@@ -660,3 +681,7 @@ class PurchaseOrderController extends Controller
         return $redir;
     }
 }
+
+
+
+

@@ -18,6 +18,7 @@ class OpenPoValidator
     {
         $groups = [];
         $errorCount = 0;
+        $seqPerPo = [];
 
         // build hs master checker (prefer hs_codes if exists, otherwise hs_code_pk_mappings)
         $hsTable = DB::getSchemaBuilder()->hasTable('hs_codes') ? 'hs_codes' : (DB::getSchemaBuilder()->hasTable('hs_code_pk_mappings') ? 'hs_code_pk_mappings' : null);
@@ -35,9 +36,10 @@ class OpenPoValidator
             $model = trim((string) ($r['ITEM_CODE'] ?? ''));
             $itemDesc = trim((string) ($r['ITEM_DESC'] ?? ''));
             $qtyRaw = $r['QTY'] ?? null;
-            // Delivery date (required for forecast allocation) - source provides DELIV_DATE in dd-mm-yyyy
+            // Delivery date (required for forecast allocation)
             $eta = trim((string) ($r['DELIV_DATE'] ?? ($r['ETA_DATE'] ?? '')));
             $uom = trim((string) ($r['UOM'] ?? '')) ?: null;
+            $plantCode = trim((string) ($r['PLANT_CODE'] ?? '')) ?: null;
             // optional operational columns
             $whCode = trim((string) ($r['WH_CODE'] ?? '')) ?: null;
             $whName = trim((string) ($r['WH_NAME'] ?? '')) ?: null;
@@ -58,27 +60,46 @@ class OpenPoValidator
             $currency = trim((string) ($r['CURRENCY'] ?? '')) ?: null;
             $note = null; // could embed other fields if needed
             $hsInput = trim((string) ($r['HS_CODE'] ?? ''));
+            // PO Listed specific
+            $storageLoc = trim((string) ($r['STORAGE_LOCATION'] ?? '')) ?: null;
+            $qtyToInvRaw = $r['QTY_TO_INVOICE'] ?? null;
+            $qtyToDelRaw = $r['QTY_TO_DELIVER'] ?? null;
+            $monthHint = trim((string) ($r['MONTH'] ?? '')) ?: null;
 
             $errors = [];
 
             if ($po === '') { $errors[] = 'Kolom PO_DOC kosong'; }
             if ($model === '') { $errors[] = 'Kolom ITEM_CODE kosong'; }
 
-            // date parse
+            // date parse (support dd-mm-yyyy, general strings, and Excel serial number)
+            $excelSerialToDate = static function ($v): ?string {
+                if (!is_numeric($v)) { return null; }
+                // Excel epoch 1899-12-30
+                try {
+                    $base = Carbon::create(1899, 12, 30);
+                    return $base->copy()->addDays((int) $v)->toDateString();
+                } catch (\Throwable $e) { return null; }
+            };
             $poDateNorm = null; $etaNorm = null;
             if ($poDate !== '') {
-                try { $poDateNorm = Carbon::parse($poDate)->toDateString(); } catch (\Throwable $e) { $errors[] = 'CREATED_DATE tidak valid (gunakan YYYY-MM-DD)'; }
+                $poDateNorm = $excelSerialToDate($poDate);
+                if (!$poDateNorm) {
+                    try { $poDateNorm = Carbon::parse($poDate)->toDateString(); } catch (\Throwable $e) { $errors[] = 'CREATED_DATE tidak valid (gunakan YYYY-MM-DD)'; }
+                }
             } else {
                 // tolerate missing date; leave null
                 $poDateNorm = null;
             }
             if ($eta !== '') {
                 // Prefer strict dd-mm-yyyy per input spec; fallback to Carbon::parse for robustness
-                try {
-                    $etaNorm = Carbon::createFromFormat('d-m-Y', $eta)->toDateString();
-                } catch (\Throwable $e1) {
-                    try { $etaNorm = Carbon::parse($eta)->toDateString(); }
-                    catch (\Throwable $e2) { $errors[] = 'DELIV_DATE tidak valid (gunakan dd-mm-yyyy)'; }
+                $etaNorm = $excelSerialToDate($eta);
+                if (!$etaNorm) {
+                    try {
+                        $etaNorm = Carbon::createFromFormat('d-m-Y', $eta)->toDateString();
+                    } catch (\Throwable $e1) {
+                        try { $etaNorm = Carbon::parse($eta)->toDateString(); }
+                        catch (\Throwable $e2) { $errors[] = 'DELIV_DATE tidak valid (gunakan dd-mm-yyyy)'; }
+                    }
                 }
             }
 
@@ -89,6 +110,16 @@ class OpenPoValidator
                 if ($num !== '' && is_numeric($num)) { $qty = (float)$num; }
             }
             if (!is_numeric($qty) || $qty <= 0) { $errors[] = 'QTY tidak valid (> 0)'; }
+
+            $qtyToInvoice = null; $qtyToDeliver = null;
+            if ($qtyToInvRaw !== null && $qtyToInvRaw !== '') {
+                $num = preg_replace('/[^0-9.\-]/', '', (string)$qtyToInvRaw);
+                if ($num !== '' && is_numeric($num)) { $qtyToInvoice = (float)$num; }
+            }
+            if ($qtyToDelRaw !== null && $qtyToDelRaw !== '') {
+                $num = preg_replace('/[^0-9.\-]/', '', (string)$qtyToDelRaw);
+                if ($num !== '' && is_numeric($num)) { $qtyToDeliver = (float)$num; }
+            }
 
             // HS resolve/validate
             $hsCode = null; $expectedHs = null;
@@ -137,8 +168,16 @@ class OpenPoValidator
                     'vendor_number' => $vendorNo,
                     'currency' => $currency,
                     'note' => $note,
+                    'month_hint' => $monthHint,
                     'lines' => [],
                 ];
+                $seqPerPo[$po] = 0;
+            }
+
+            // Derive line number if missing: 10, 20, 30, ... per PO
+            if ($lineNo === '') {
+                $seqPerPo[$po] = ($seqPerPo[$po] ?? 0) + 10;
+                $lineNo = (string) $seqPerPo[$po];
             }
 
             $groups[$po]['lines'][] = [
@@ -150,6 +189,10 @@ class OpenPoValidator
                 'qty_ordered' => $qty,
                 'uom' => $uom,
                 'eta_date' => $etaNorm,
+                'plant_code' => $plantCode,
+                'storage_location' => $storageLoc,
+                'qty_to_invoice' => $qtyToInvoice,
+                'qty_to_deliver' => $qtyToDeliver,
                 'wh_code' => $whCode,
                 'wh_name' => $whName,
                 'wh_source' => $whSource,
