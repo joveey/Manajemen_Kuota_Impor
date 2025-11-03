@@ -44,8 +44,8 @@
             <form method="GET" class="row g-3 align-items-end">
                 <div class="col-md-3">
                     <label class="form-label">Pengguna</label>
-                    <select name="user_id" class="form-select">
-                        <option value="">All</option>
+                    <select name="user_id" class="form-select select2" data-placeholder="Semua pengguna">
+                        <option value="">Semua</option>
                         @foreach($users as $id => $name)
                             <option value="{{ $id }}" @selected(request('user_id') == $id)>{{ $name }}</option>
                         @endforeach
