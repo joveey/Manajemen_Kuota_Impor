@@ -93,23 +93,20 @@ class RolePermissionSeeder extends Seeder
             ]
         );
 
-        $managerRole = Role::firstOrCreate(
-            ['name' => 'manager'],
-            [
-                'display_name' => 'Manager',
-                'description' => 'Administration-focused. Full user management; read-only operational & overview.',
-                'is_active' => true,
-            ]
-        );
-
-        $editorRole = Role::firstOrCreate(
-            ['name' => 'editor'],
-            [
-                'display_name' => 'Editor',
-                'description' => 'Manages quota, PO, master data, and reports (no administration access).',
-                'is_active' => true,
-            ]
-        );
+        // Ensure only the roles we need are present
+        // Drop legacy roles we no longer use
+        try {
+            foreach (['manager', 'editor'] as $obsolete) {
+                if ($role = Role::where('name', $obsolete)->first()) {
+                    $role->permissions()->detach();
+                    $role->users()->detach();
+                    $role->delete();
+                    $this->command?->info("[OK] Removed obsolete role: {$obsolete}.");
+                }
+            }
+        } catch (\Throwable $e) {
+            // ignore if relations not available during early seeding
+        }
 
         $userRole = Role::firstOrCreate(
             ['name' => 'user'],
@@ -140,17 +137,6 @@ class RolePermissionSeeder extends Seeder
         // Assign permission sets based on the final specification.
         $adminRole->permissions()->sync(array_values($permissionIds));
         $this->command?->info('[OK] Admin role: all permissions assigned.');
-
-        $managerRole->permissions()->sync($pluckPermissions([
-            'read limited', // hanya operational
-        ]));
-        $this->command?->info('[OK] Manager role: limited read (no administration).');
-
-        $editorRole->permissions()->sync($pluckPermissions([
-            'create',
-            'read', // full read
-        ]));
-        $this->command?->info('[OK] Editor role: global create + read all.');
 
         $userRole->permissions()->sync($pluckPermissions([
             'read limited',
