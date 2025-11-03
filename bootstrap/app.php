@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\CheckActiveUser;
+use App\Http\Middleware\AuditLogMiddleware;
 use App\Http\Middleware\PermissionMiddleware;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\ForbidRoleMiddleware;
@@ -29,11 +30,13 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => PermissionMiddleware::class,
             'active.user' => CheckActiveUser::class,
             'forbid-role' => ForbidRoleMiddleware::class,
+            'audit' => AuditLogMiddleware::class,
         ]);
         
         // Apply to web middleware group
         $middleware->web(append: [
             CheckActiveUser::class,
+            AuditLogMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
