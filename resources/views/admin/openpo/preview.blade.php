@@ -24,6 +24,28 @@
           </div>
         </div>
         <div class="card-body">
+          @if ($errors->any())
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+              <ul class="mb-0">
+                @foreach ($errors->all() as $error)
+                  <li>{{ $error }}</li>
+                @endforeach
+              </ul>
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          @endif
+          @if (session('status'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+              {{ session('status') }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          @endif
+          @if (session('warning'))
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+              {{ session('warning') }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          @endif
           @if (($summary['error_count'] ?? 0) > 0)
             <div class="alert alert-warning">There are errors in the data. Fix them before publishing.</div>
           @endif
@@ -79,10 +101,17 @@
               <table class="table table-sm table-striped">
                 <thead>
                   <tr>
-                    <th>#</th><th>LINE_NO</th><th>ITEM_CODE</th><th>ITEM_DESC</th><th>HS_CODE</th><th>QTY</th><th>UOM</th><th>DELIV_DATE</th>
-                    <th>WH_CODE</th><th>WH_NAME</th><th>WH_SOURCE</th>
-                    <th>SUBINV_CODE</th><th>SUBINV_NAME</th><th>SUBINV_SOURCE</th>
-                    <th>AMOUNT</th><th>CAT_PO</th><th>CAT_DESC</th><th>MAT_GRP</th><th>SAP_STATUS</th>
+                    <th>#</th>
+                    <th>LINE_NO</th>
+                    <th>ITEM_CODE</th>
+                    <th>HEADER TEXT</th>
+                    <th>STORAGE LOCATION</th>
+                    <th>ORDER QTY</th>
+                    <th>TO INVOICE</th>
+                    <th>TO DELIVER</th>
+                    <th>DELIVERY DATE</th>
+                    <th>PLANT</th>
+                    <th>HS_CODE</th>
                     <th>Status</th>
                     <th>Notes</th>
                   </tr>
@@ -94,21 +123,13 @@
                       <td>{{ $ln['line_no'] ?? '' }}</td>
                       <td>{{ $ln['model_code'] }}</td>
                       <td>{{ $ln['item_desc'] ?? '' }}</td>
-                      <td>{{ $ln['hs_code'] }}</td>
+                      <td>{{ $ln['storage_location'] ?? '' }}</td>
                       <td>{{ $ln['qty_ordered'] }}</td>
-                      <td>{{ $ln['uom'] }}</td>
+                      <td>{{ $ln['qty_to_invoice'] ?? '' }}</td>
+                      <td>{{ $ln['qty_to_deliver'] ?? '' }}</td>
                       <td>{{ $ln['eta_date'] }}</td>
-                      <td>{{ $ln['wh_code'] ?? '' }}</td>
-                      <td>{{ $ln['wh_name'] ?? '' }}</td>
-                      <td>{{ $ln['wh_source'] ?? '' }}</td>
-                      <td>{{ $ln['subinv_code'] ?? '' }}</td>
-                      <td>{{ $ln['subinv_name'] ?? '' }}</td>
-                      <td>{{ $ln['subinv_source'] ?? '' }}</td>
-                      <td>{{ isset($ln['amount']) ? (is_numeric($ln['amount']) ? number_format($ln['amount'], 2) : $ln['amount']) : '' }}</td>
-                      <td>{{ $ln['cat_code'] ?? '' }}</td>
-                      <td>{{ $ln['cat_desc'] ?? '' }}</td>
-                      <td>{{ $ln['mat_grp'] ?? '' }}</td>
-                      <td>{{ $ln['sap_status'] ?? '' }}</td>
+                      <td>{{ $ln['plant_code'] ?? '' }}</td>
+                      <td>{{ $ln['hs_code'] }}</td>
                       <td>
                         <span class="badge {{ $ln['validation_status']==='ok' ? 'bg-success' : 'bg-danger' }}">{{ strtoupper($ln['validation_status']) }}</span>
                       </td>

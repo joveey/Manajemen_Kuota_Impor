@@ -48,10 +48,10 @@
         <div class="card-header fw-semibold">Required Format</div>
         <div class="card-body">
           <ul>
-            <li>Sheet: <code>List PO</code></li>
-            <li>Required headers: <code>PO_DOC</code>, <code>CREATED_DATE</code>, <code>VENDOR_NO</code>, <code>VENDOR_NAME</code>, <code>LINE_NO</code>, <code>ITEM_CODE</code>, <code>ITEM_DESC</code>, <code>QTY</code></li>
-            <li>Optional headers: <code>WH_CODE</code>, <code>WH_NAME</code>, <code>SUBINV_CODE</code>, <code>SUBINV_NAME</code>, <code>WH_SOURCE</code>, <code>SUBINV_SOURCE</code>, <code>AMOUNT</code>, <code>CAT_PO</code>, <code>CAT_DESC</code>, <code>MAT_GRP</code>, <code>HS_CODE</code>.</li>
-            <li>HS_CODE may be empty; if empty it will be resolved from the model -> HS mapping. You can include a sheet <code>mapping hs code by model</code> with headers <code>MODEL</code>, <code>HS_CODE</code> to update the mapping while also using it during validation.</li>
+            <li>Accepts "PO Listed" export or legacy <code>List PO</code>.</li>
+            <li>PO Listed headers (case-insensitive): <code>Purchasing Document</code>, <code>Material</code>, <code>Order Quantity</code>, <code>Delivery Date</code>, <code>Document Date</code>, <code>Vendor/supplying plant</code>, <code>header text</code>, <code>Plant</code>, <code>Storage Location</code>, <code>Still to be invoiced (qty)</code>, <code>Still to be delivered (qty)</code>.</li>
+            <li>Legacy headers still supported: <code>PO_DOC</code>, <code>CREATED_DATE</code>, <code>DELIV_DATE</code>, <code>LINE_NO</code>, <code>ITEM_CODE</code>, <code>ITEM_DESC</code>, <code>QTY</code>.</li>
+            <li>HS Code is optional; if omitted it will be resolved from the existing Model → HS mapping.</li>
           </ul>
         </div>
       </div>
