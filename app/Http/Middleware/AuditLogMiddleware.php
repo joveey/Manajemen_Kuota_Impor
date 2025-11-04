@@ -16,7 +16,17 @@ class AuditLogMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
+        $t0 = microtime(true);
         $response = $next($request);
+        $durationMs = (int) round((microtime(true) - $t0) * 1000);
+        $status = null;
+        try {
+            if (method_exists($response, 'getStatusCode')) {
+                $status = (int) $response->getStatusCode();
+            }
+        } catch (\Throwable) {
+            $status = null;
+        }
 
         // Avoid logging the audit log listing itself to prevent noise/loops
         $routeName = optional($request->route())->getName();
@@ -29,13 +39,13 @@ class AuditLogMiddleware
         $shouldLog = !in_array($method, ['GET', 'HEAD', 'OPTIONS'], true);
 
         if ($shouldLog) {
-            $this->logRequest($request, $routeName);
+            $this->logRequest($request, $routeName, $status, $durationMs);
         }
 
         return $response;
     }
 
-    protected function logRequest(Request $request, ?string $routeName): void
+    protected function logRequest(Request $request, ?string $routeName, ?int $responseStatus = null, ?int $durationMs = null): void
     {
         try {
             $user = $request->user();
@@ -47,6 +57,10 @@ class AuditLogMiddleware
             if (is_array($extra)) {
                 $input = array_merge($input, $this->sanitize($extra));
             }
+
+            // Add response metadata (status, duration) for observability
+            if ($responseStatus !== null) { $input['response_status'] = $responseStatus; }
+            if ($durationMs !== null)    { $input['duration_ms'] = $durationMs; }
 
             AuditLog::create([
                 'user_id'    => $user?->id,
