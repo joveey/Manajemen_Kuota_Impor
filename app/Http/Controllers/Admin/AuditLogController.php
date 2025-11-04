@@ -63,8 +63,8 @@ class AuditLogController extends Controller
                         optional($log->created_at)->format('Y-m-d H:i:s'),
                         optional($log->user)->name ?? 'Guest',
                         $label($log->method),
-                        $log->path,
-                        audit_route_label($log->route_name),
+                        audit_page_label($log->route_name, $log->path),
+                        audit_activity_label($log->route_name, $log->method, $log->description),
                         $log->ip_address,
                         $detail,
                     ]);
@@ -108,8 +108,8 @@ class AuditLogController extends Controller
                 $sheet->setCellValue('A'.$row, optional($log->created_at)->format('Y-m-d H:i:s'));
                 $sheet->setCellValue('B'.$row, optional($log->user)->name ?? 'Guest');
                 $sheet->setCellValue('C'.$row, $label($log->method));
-                $sheet->setCellValue('D'.$row, (string) $log->path);
-                $sheet->setCellValue('E'.$row, (string) audit_route_label($log->route_name));
+                $sheet->setCellValue('D'.$row, (string) audit_page_label($log->route_name, $log->path));
+                $sheet->setCellValue('E'.$row, (string) audit_activity_label($log->route_name, $log->method, $log->description));
                 $sheet->setCellValue('F'.$row, (string) $log->ip_address);
                 $sheet->setCellValue('G'.$row, (string) $detail);
                 $row++;
@@ -207,12 +207,57 @@ class AuditLogController extends Controller
 
     protected function applyFilters(Request $request, \Illuminate\Database\Eloquent\Builder $query): void
     {
+        // Date range via preset dropdown takes precedence over from/to
+        if ($request->filled('range')) {
+            $range = strtolower((string) $request->string('range'));
+            $today = Carbon::today();
+                        switch ($range) {
+                case 'today':
+                    $query->whereBetween('created_at', [$today->copy()->startOfDay(), $today->copy()->endOfDay()]);
+                    break;
+                case '2d':
+                    // last 2 days including today
+                    $from = $today->copy()->subDays(1)->startOfDay();
+                    $to = $today->copy()->endOfDay();
+                    $query->whereBetween('created_at', [$from, $to]);
+                    break;
+                case '3d':
+                    $from = $today->copy()->subDays(2)->startOfDay();
+                    $to = $today->copy()->endOfDay();
+                    $query->whereBetween('created_at', [$from, $to]);
+                    break;
+                case '7d':
+                    $from = $today->copy()->subDays(6)->startOfDay();
+                    $to = $today->copy()->endOfDay();
+                    $query->whereBetween('created_at', [$from, $to]);
+                    break;
+                case '30d':
+                    $from = $today->copy()->subDays(29)->startOfDay();
+                    $to = $today->copy()->endOfDay();
+                    $query->whereBetween('created_at', [$from, $to]);
+                    break;
+                case 'custom':
+                default:
+                    // fall through to from/to handling below
+                    break;
+            }
+        }
         if ($request->filled('user_id')) {
             $query->where('user_id', $request->integer('user_id'));
         }
         if ($request->filled('method')) {
             $m = strtoupper((string) $request->string('method'));
             switch ($m) {
+                case 'LOGIN':
+                    $query->where(function ($q) {
+                        $q->where('path', 'like', '/login%');
+                    });
+                    break;
+                case 'LOGOUT':
+                    $query->where(function ($q) {
+                        $q->where('path', 'like', '/logout%');
+                    });
+                    break;
                 case 'CREATE':
                 case 'TAMBAH':
                 case 'MENAMBAH':
@@ -290,3 +335,5 @@ class AuditLogController extends Controller
         }
     }
 }
+
+
