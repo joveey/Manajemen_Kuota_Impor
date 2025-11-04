@@ -173,10 +173,9 @@ class PurchaseOrderController extends Controller
         return redirect()->route('admin.purchase-orders.document', ['poNumber' => $purchaseOrder->po_number]);
     }
 
-    public function showDocument(string $poNumber): View
+        public function showDocument(string $poNumber): View
     {
         $poNumber = trim($poNumber);
-
         if ($poNumber === '') {
             abort(404);
         }
@@ -184,12 +183,8 @@ class PurchaseOrderController extends Controller
         $hasHeaderVendorNumber = Schema::hasColumn('po_headers', 'vendor_number');
 
         $headerSelect = [
-            'id',
-            'po_number',
-            'po_date',
-            'supplier',
+            'id', 'po_number', 'po_date', 'supplier',
         ];
-
         if ($hasHeaderVendorNumber) {
             $headerSelect[] = 'vendor_number';
         }
@@ -199,16 +194,13 @@ class PurchaseOrderController extends Controller
             if ($explicit !== '') {
                 return $explicit;
             }
-
             if (!is_string($supplier)) {
                 return null;
             }
-
             $supplier = trim($supplier);
             if ($supplier === '') {
                 return null;
             }
-
             $parts = preg_split('/\s*-\s*/', $supplier, 2);
             if (!empty($parts)) {
                 $candidate = trim((string) $parts[0]);
@@ -216,11 +208,9 @@ class PurchaseOrderController extends Controller
                     return $candidate;
                 }
             }
-
             if (preg_match('/\b([0-9]{4,})\b/', $supplier, $matches)) {
                 return $matches[1];
             }
-
             return null;
         };
 
@@ -243,10 +233,10 @@ class PurchaseOrderController extends Controller
 
             $header->display_vendor_number = $resolveVendorNumber($header->vendor_number ?? null, $header->supplier ?? null);
             $header->display_date = $displayDate;
-
             return $header;
         });
 
+        // Optional po_lines columns
         $hasWhCode = Schema::hasColumn('po_lines', 'warehouse_code');
         $hasWhName = Schema::hasColumn('po_lines', 'warehouse_name');
         $hasWhSource = Schema::hasColumn('po_lines', 'warehouse_source');
@@ -255,16 +245,16 @@ class PurchaseOrderController extends Controller
         $hasSubinvSource = Schema::hasColumn('po_lines', 'subinventory_source');
         $hasAmount = Schema::hasColumn('po_lines', 'amount');
         $hasCatCode = Schema::hasColumn('po_lines', 'category_code');
-         = Schema::hasColumn('po_lines', 'category');
-         = Schema::hasColumn('po_lines', 'material_group');
-         = Schema::hasColumn('po_lines', 'sap_order_status');
-         = Schema::hasColumn('po_lines', 'qty_to_invoice');
-         = Schema::hasColumn('po_lines', 'qty_to_deliver');
-         = Schema::hasColumn('po_lines', 'storage_location');
+        $hasCategory = Schema::hasColumn('po_lines', 'category');
+        $hasMatGrp = Schema::hasColumn('po_lines', 'material_group');
+        $hasSapStatus = Schema::hasColumn('po_lines', 'sap_order_status');
+        $hasQtyToInvoice = Schema::hasColumn('po_lines', 'qty_to_invoice');
+        $hasQtyToDeliver = Schema::hasColumn('po_lines', 'qty_to_deliver');
+        $hasStorageLocation = Schema::hasColumn('po_lines', 'storage_location');
 
- = DB::table('po_lines as pl')
+        $lineQuery = DB::table('po_lines as pl')
             ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
-            ->select(array_filter([
+            ->select([
                 DB::raw('pl.id as line_id'),
                 DB::raw('ph.po_number'),
                 DB::raw('ph.po_date as order_date'),
@@ -274,22 +264,22 @@ class PurchaseOrderController extends Controller
                 DB::raw("COALESCE(pl.line_no,'') as line_number"),
                 DB::raw('pl.model_code as item_code'),
                 DB::raw('pl.item_desc as item_description'),
-                DB::raw(4hasStorageLocation ? 'pl.storage_location' : 'NULL as storage_location'),
-                DB::raw($hasWhCode ? 'pl.warehouse_code' : 'NULL as warehouse_code'),
-                DB::raw($hasWhName ? 'pl.warehouse_name' : 'NULL as warehouse_name'),
-                DB::raw($hasWhSource ? 'pl.warehouse_source' : 'NULL as warehouse_source'),
-                DB::raw($hasSubinvCode ? 'pl.subinventory_code' : 'NULL as subinventory_code'),
-                DB::raw($hasSubinvName ? 'pl.subinventory_name' : 'NULL as subinventory_name'),
-                DB::raw($hasSubinvSource ? 'pl.subinventory_source' : 'NULL as subinventory_source'),
+                DB::raw($hasStorageLocation ? 'pl.storage_location' : 'NULL as storage_location'),
+                $hasWhCode ? DB::raw('pl.warehouse_code') : DB::raw('NULL as warehouse_code'),
+                $hasWhName ? DB::raw('pl.warehouse_name') : DB::raw('NULL as warehouse_name'),
+                $hasWhSource ? DB::raw('pl.warehouse_source') : DB::raw('NULL as warehouse_source'),
+                $hasSubinvCode ? DB::raw('pl.subinventory_code') : DB::raw('NULL as subinventory_code'),
+                $hasSubinvName ? DB::raw('pl.subinventory_name') : DB::raw('NULL as subinventory_name'),
+                $hasSubinvSource ? DB::raw('pl.subinventory_source') : DB::raw('NULL as subinventory_source'),
                 DB::raw('pl.qty_ordered as quantity'),
-                DB::raw(4hasQtyToInvoice ? 'pl.qty_to_invoice' : 'NULL as qty_to_invoice'),
-                DB::raw(4hasQtyToDeliver ? 'pl.qty_to_deliver' : 'NULL as qty_to_deliver'),
-                DB::raw($hasAmount ? 'pl.amount as amount' : 'NULL as amount'),
-                DB::raw($hasCatCode ? 'pl.category_code' : 'NULL as category_code'),
-                DB::raw($hasCategory ? 'pl.category' : 'NULL as category'),
-                DB::raw($hasMatGrp ? 'pl.material_group' : 'NULL as material_group'),
-                DB::raw($hasSapStatus ? 'pl.sap_order_status' : 'NULL as sap_order_status'),
-            ]))
+                $hasQtyToInvoice ? DB::raw('pl.qty_to_invoice') : DB::raw('NULL as qty_to_invoice'),
+                $hasQtyToDeliver ? DB::raw('pl.qty_to_deliver') : DB::raw('NULL as qty_to_deliver'),
+                $hasAmount ? DB::raw('pl.amount as amount') : DB::raw('NULL as amount'),
+                $hasCatCode ? DB::raw('pl.category_code') : DB::raw('NULL as category_code'),
+                $hasCategory ? DB::raw('pl.category') : DB::raw('NULL as category'),
+                $hasMatGrp ? DB::raw('pl.material_group') : DB::raw('NULL as material_group'),
+                $hasSapStatus ? DB::raw('pl.sap_order_status') : DB::raw('NULL as sap_order_status'),
+            ])
             ->where('ph.po_number', $poNumber)
             ->orderByDesc('ph.po_date')
             ->orderBy('pl.line_no');
@@ -300,9 +290,7 @@ class PurchaseOrderController extends Controller
             } catch (\Throwable $th) {
                 $line->display_order_date = null;
             }
-
             $line->vendor_number = $resolveVendorNumber($line->vendor_number ?? null, $line->vendor_name ?? null);
-
             return $line;
         });
 
@@ -319,7 +307,6 @@ class PurchaseOrderController extends Controller
             $first = $dates->min();
             /** @var \Illuminate\Support\Carbon|null $last */
             $last = $dates->max();
-
             if ($first && $last) {
                 $dateRange = $first->equalTo($last)
                     ? $first->format('d M Y')
@@ -329,8 +316,6 @@ class PurchaseOrderController extends Controller
 
         $primaryVendorName = $headers->pluck('supplier')->filter()->unique()->implode(', ');
         $primaryVendorNumber = $headers->pluck('display_vendor_number')->filter()->unique()->implode(', ');
-
-        // Try to resolve internal PO record for this PO number (if exists)
         $internalPO = PurchaseOrder::with(['product'])->where('po_number', $poNumber)->first();
 
         return view('admin.purchase_order.document', [
@@ -353,7 +338,7 @@ class PurchaseOrderController extends Controller
             ->with('status', 'Purchase Order has been deleted successfully.');
     }
 
-    public function export(Request $request)
+        public function export(Request $request)
     {
         $hasVendorNumber = Schema::hasColumn('po_headers', 'vendor_number');
         $hasWhCode = Schema::hasColumn('po_lines', 'warehouse_code');
@@ -366,10 +351,10 @@ class PurchaseOrderController extends Controller
         $hasCatCode = Schema::hasColumn('po_lines', 'category_code');
         $hasCategory = Schema::hasColumn('po_lines', 'category');
         $hasMatGrp = Schema::hasColumn('po_lines', 'material_group');
-        $hasSapStatus
-        \ = Schema::hasColumn('po_lines', 'qty_to_invoice');
-        \ = Schema::hasColumn('po_lines', 'qty_to_deliver');
-        \ = Schema::hasColumn('po_lines', 'storage_location');
+        $hasSapStatus = Schema::hasColumn('po_lines', 'sap_order_status');
+        $hasQtyToInvoice = Schema::hasColumn('po_lines', 'qty_to_invoice');
+        $hasQtyToDeliver = Schema::hasColumn('po_lines', 'qty_to_deliver');
+        $hasStorageLocation = Schema::hasColumn('po_lines', 'storage_location');
 
         $query = DB::table('po_lines as pl')
             ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
@@ -378,28 +363,29 @@ class PurchaseOrderController extends Controller
                 DB::raw($hasVendorNumber ? "COALESCE(NULLIF(ph.vendor_number,''), split_part(ph.supplier, ' - ', 1)) as vendor_number" : 'NULL as vendor_number'), DB::raw('ph.supplier as vendor_name'),
                 DB::raw("COALESCE(pl.line_no,'') as line_number"),
                 DB::raw('pl.model_code as item_code'), DB::raw('pl.item_desc as item_description'),
-                DB::raw(\ ? 'pl.storage_location' : 'NULL as storage_location'),
-                DB::raw($hasWhCode ? 'pl.warehouse_code' : 'NULL as warehouse_code'),
-                DB::raw($hasWhName ? 'pl.warehouse_name' : 'NULL as warehouse_name'),
-                DB::raw($hasWhSource ? 'pl.warehouse_source' : 'NULL as warehouse_source'),
-                DB::raw($hasSubinvCode ? 'pl.subinventory_code' : 'NULL as subinventory_code'),
-                DB::raw($hasSubinvName ? 'pl.subinventory_name' : 'NULL as subinventory_name'),
-                DB::raw($hasSubinvSource ? 'pl.subinventory_source' : 'NULL as subinventory_source'),
+                $hasStorageLocation ? DB::raw('pl.storage_location') : null,
+                $hasWhCode ? DB::raw('pl.warehouse_code') : null,
+                $hasWhName ? DB::raw('pl.warehouse_name') : null,
+                $hasWhSource ? DB::raw('pl.warehouse_source') : null,
+                $hasSubinvCode ? DB::raw('pl.subinventory_code') : null,
+                $hasSubinvName ? DB::raw('pl.subinventory_name') : null,
+                $hasSubinvSource ? DB::raw('pl.subinventory_source') : null,
                 DB::raw('pl.qty_ordered as quantity'),
-                DB::raw(\ ? 'pl.qty_to_invoice' : 'NULL as qty_to_invoice'),
-                DB::raw(\ ? 'pl.qty_to_deliver' : 'NULL as qty_to_deliver'), DB::raw($hasAmount ? 'pl.amount as amount' : 'NULL as amount'),
-                DB::raw($hasCatCode ? 'pl.category_code' : 'NULL as category_code'),
-                DB::raw($hasCategory ? 'pl.category' : 'NULL as category'),
-                DB::raw($hasMatGrp ? 'pl.material_group' : 'NULL as material_group'),
-                DB::raw($hasSapStatus ? 'pl.sap_order_status' : 'NULL as sap_order_status'),
+                $hasQtyToInvoice ? DB::raw('pl.qty_to_invoice') : null,
+                $hasQtyToDeliver ? DB::raw('pl.qty_to_deliver') : null,
+                $hasAmount ? DB::raw('pl.amount as amount') : DB::raw('NULL as amount'),
+                $hasCatCode ? DB::raw('pl.category_code') : null,
+                $hasCategory ? DB::raw('pl.category') : null,
+                $hasMatGrp ? DB::raw('pl.material_group') : null,
+                $hasSapStatus ? DB::raw('pl.sap_order_status') : null,
             ]))
             ->orderByDesc('ph.po_date')->orderBy('ph.po_number')->orderBy('pl.line_no');
 
         if ($request->filled('period')) {
             $period = (string) $request->string('period');
-            if (preg_match('/^\d{4}-\d{2}$/', $period)) {
+            if (preg_match('/^\\d{4}-\\d{2}$/', $period)) {
                 $query->whereRaw("to_char(ph.po_date, 'YYYY-MM') = ?", [$period]);
-            } elseif (preg_match('/^\d{4}$/', $period)) {
+            } elseif (preg_match('/^\\d{4}$/', $period)) {
                 $query->whereRaw("to_char(ph.po_date, 'YYYY') = ?", [$period]);
             }
         }
@@ -415,31 +401,12 @@ class PurchaseOrderController extends Controller
         }
 
         $filename = 'purchase_orders_'.now()->format('Ymd_His').'.csv';
-
         return response()->streamDownload(function () use ($query) {
             $out = fopen('php://output', 'w');
             fputcsv($out, [
-                'PO_DOC',
-                'CREATED_DATE',
-                'VENDOR_NO',
-                'VENDOR_NAME',
-                'LINE_NO',
-                'ITEM_CODE',
-                'ITEM_DESC',
-                'WH_CODE',
-                'WH_NAME',
-                'WH_SOURCE',
-                'SUBINV_CODE',
-                'SUBINV_NAME',
-                'SUBINV_SOURCE',
-                'QTY',
-                'AMOUNT',
-                'CAT_PO',
-                'CAT_DESC',
-                'MAT_GRP',
-                'SAP_STATUS',
+                'PO_DOC','CREATED_DATE','VENDOR_NO','VENDOR_NAME','LINE_NO','ITEM_CODE','ITEM_DESC',
+                'WH_CODE','WH_NAME','WH_SOURCE','SUBINV_CODE','SUBINV_NAME','SUBINV_SOURCE','QTY','AMOUNT','CAT_PO','CAT_DESC','MAT_GRP','SAP_STATUS'
             ]);
-
             $query->chunk(500, function ($rows) use ($out) {
                 foreach ($rows as $po) {
                     fputcsv($out, [
@@ -448,8 +415,8 @@ class PurchaseOrderController extends Controller
                         $po->vendor_number,
                         $po->vendor_name,
                         $po->line_number,
-                        $po->item_code ?? $po->product?->code,
-                        $po->item_description ?? $po->product?->name,
+                        $po->item_code,
+                        $po->item_description,
                         $po->warehouse_code,
                         $po->warehouse_name,
                         $po->warehouse_source,
@@ -466,9 +433,7 @@ class PurchaseOrderController extends Controller
                 }
             });
             fclose($out);
-        }, $filename, [
-            'Content-Type' => 'text/csv',
-        ]);
+        }, $filename, ['Content-Type' => 'text/csv']);
     }
 
     public function createManual(): View
@@ -681,6 +646,7 @@ class PurchaseOrderController extends Controller
         return $redir;
     }
 }
+
 
 
 
