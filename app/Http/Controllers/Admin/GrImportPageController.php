@@ -32,6 +32,17 @@ class GrImportPageController extends Controller
         $api = app(ImportController::class);
         $resp = $api->uploadGr($request);
         $payload = json_decode($resp->getContent(), true) ?: [];
+        // Surface summary numbers to AuditLogMiddleware for richer details
+        try {
+            $request->attributes->set('audit_extra', [
+                'file' => $request->file('file')?->getClientOriginalName(),
+                'inserted' => (int) ($payload['valid_rows'] ?? 0),
+                'errors' => (int) ($payload['error_rows'] ?? 0),
+                'count' => (int) ($payload['total_rows'] ?? 0),
+            ]);
+        } catch (\Throwable) {
+            // ignore if request attributes unavailable
+        }
         if (isset($payload['error'])) {
             return back()->withErrors(['file' => $payload['error']])->withInput();
         }

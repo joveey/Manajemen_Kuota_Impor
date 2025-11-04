@@ -42,6 +42,12 @@ class AuditLogMiddleware
 
             $input = $this->sanitize($request->all());
 
+            // Merge optional, controller-provided audit extras
+            $extra = $request->attributes->get('audit_extra');
+            if (is_array($extra)) {
+                $input = array_merge($input, $this->sanitize($extra));
+            }
+
             AuditLog::create([
                 'user_id'    => $user?->id,
                 'method'     => strtoupper($request->getMethod()),
@@ -81,4 +87,3 @@ class AuditLogMiddleware
         return $clean;
     }
 }
-

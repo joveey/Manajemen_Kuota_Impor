@@ -44,14 +44,14 @@ class AuditLogController extends Controller
 
         return response()->streamDownload(function () use ($query) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Waktu', 'Pengguna', 'Aksi', 'Halaman', 'Fitur', 'IP', 'Detail']);
+            fputcsv($out, ['Time', 'User', 'Action', 'Page', 'Feature', 'IP', 'Detail']);
 
             $label = function ($method) {
                 switch (strtoupper((string)$method)) {
-                    case 'POST': return 'Menambah';
+                    case 'POST': return 'Create';
                     case 'PUT':
-                    case 'PATCH': return 'Mengubah';
-                    case 'DELETE': return 'Menghapus';
+                    case 'PATCH': return 'Update';
+                    case 'DELETE': return 'Delete';
                     default: return strtoupper((string)$method);
                 }
             };
@@ -64,7 +64,7 @@ class AuditLogController extends Controller
                         optional($log->user)->name ?? 'Guest',
                         $label($log->method),
                         audit_page_label($log->route_name, $log->path),
-                        audit_activity_label($log->route_name, $log->method, $log->description),
+                        str_replace(['�?"','�?�'], [' - ', ' • '], audit_activity_label($log->route_name, $log->method, $log->description)),
                         $log->ip_address,
                         $detail,
                     ]);
@@ -85,7 +85,7 @@ class AuditLogController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Audit Logs');
 
-        $headers = ['Waktu', 'Pengguna', 'Aksi', 'Halaman', 'Fitur', 'IP', 'Detail'];
+        $headers = ['Time', 'User', 'Action', 'Page', 'Feature', 'IP', 'Detail'];
         $sheet->fromArray($headers, null, 'A1');
         $sheet->getStyle('A1:G1')->getFont()->setBold(true);
         $sheet->getStyle('A1:G1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -94,10 +94,10 @@ class AuditLogController extends Controller
         $row = 2;
         $label = function ($method) {
             switch (strtoupper((string)$method)) {
-                case 'POST': return 'Menambah';
+                case 'POST': return 'Create';
                 case 'PUT':
-                case 'PATCH': return 'Mengubah';
-                case 'DELETE': return 'Menghapus';
+                case 'PATCH': return 'Update';
+                case 'DELETE': return 'Delete';
                 default: return strtoupper((string)$method);
             }
         };
@@ -109,7 +109,7 @@ class AuditLogController extends Controller
                 $sheet->setCellValue('B'.$row, optional($log->user)->name ?? 'Guest');
                 $sheet->setCellValue('C'.$row, $label($log->method));
                 $sheet->setCellValue('D'.$row, (string) audit_page_label($log->route_name, $log->path));
-                $sheet->setCellValue('E'.$row, (string) audit_activity_label($log->route_name, $log->method, $log->description));
+                $sheet->setCellValue('E'.$row, (string) str_replace(['�?"','�?�'], [' - ', ' • '], audit_activity_label($log->route_name, $log->method, $log->description)));
                 $sheet->setCellValue('F'.$row, (string) $log->ip_address);
                 $sheet->setCellValue('G'.$row, (string) $detail);
                 $row++;
@@ -155,20 +155,20 @@ class AuditLogController extends Controller
         foreach ($desc as $key => $value) {
             if (in_array($key, $blacklist, true)) continue;
 
-            $label = match ($key) {
-                'file', 'files' => 'Berkas',
-                'name' => 'Nama',
-                'email' => 'Email',
-                'note', 'notes' => 'Catatan',
-                default => ucfirst(str_replace(['_', '-'], ' ', (string) $key)),
-            };
+        $label = match ($key) {
+            'file', 'files' => 'File',
+            'name' => 'Name',
+            'email' => 'Email',
+            'note', 'notes' => 'Note',
+            default => ucfirst(str_replace(['_', '-'], ' ', (string) $key)),
+        };
 
             $val = $value;
-            if (is_string($val) && str_starts_with($val, 'uploaded_file:')) {
-                $val = 'Berkas diunggah: '.substr($val, strlen('uploaded_file:'));
-            } elseif (is_bool($val)) {
-                $val = $val ? 'Ya' : 'Tidak';
-            } elseif (is_array($val)) {
+        if (is_string($val) && str_starts_with($val, 'uploaded_file:')) {
+            $val = 'Uploaded file: '.substr($val, strlen('uploaded_file:'));
+        } elseif (is_bool($val)) {
+            $val = $val ? 'Yes' : 'No';
+        } elseif (is_array($val)) {
                 $flat = [];
                 foreach ($val as $v) {
                     if (is_scalar($v)) { $flat[] = (string) $v; }
@@ -221,8 +221,8 @@ class AuditLogController extends Controller
                     $to = $today->copy()->endOfDay();
                     $query->whereBetween('created_at', [$from, $to]);
                     break;
-                case '3d':
-                    $from = $today->copy()->subDays(2)->startOfDay();
+                case '15d':
+                    $from = $today->copy()->subDays(14)->startOfDay();
                     $to = $today->copy()->endOfDay();
                     $query->whereBetween('created_at', [$from, $to]);
                     break;
@@ -335,5 +335,6 @@ class AuditLogController extends Controller
         }
     }
 }
+
 
 

@@ -130,6 +130,9 @@ class ImportController extends Controller
                     'status'=>'normalized',
                 ]);
                 $valid++;
+                if (count($sampleRows) < 3) {
+                    $sampleRows[] = array_merge(compact('po','ln','inv','date','qty','cat'), $opt);
+                }
             }
 
             $import->fill(['total_rows'=>$total,'valid_rows'=>$valid,'error_rows'=>$error]);
@@ -140,6 +143,31 @@ class ImportController extends Controller
             $import->markAs(\App\Models\Import::STATUS_FAILED, 'Exception: '.$e->getMessage());
             return response()->json(['error'=>'Import failed'], 500);
         }
+
+        // Attach summary details for audit logging
+        $request->attributes->set('audit_extra', [
+            'file' => (string) $original,
+            'inserted' => (int) $valid,
+            'errors' => (int) $error,
+            'count' => (int) $total,
+        ]);
+
+        // Attach summary for audit logging including tables/columns and sample rows
+        $request->attributes->set('audit_extra', [
+            'file' => (string) $original,
+            'inserted' => (int) $valid,
+            'errors' => (int) $error,
+            'count' => (int) $total,
+            'tables' => [
+                'imports' => [
+                    'insert' => ['type','period_key','source_filename','stored_path','status','created_by']
+                ],
+                'import_items' => [
+                    'insert' => ['import_id','row_index','raw_json','normalized_json','errors_json','status']
+                ],
+            ],
+            'sample_rows' => $sampleRows,
+        ]);
 
         return response()->json(['import_id'=>$import->id,'status'=>$import->status,'total_rows'=>$total,'valid_rows'=>$valid,'error_rows'=>$error]);
     }
@@ -178,6 +206,14 @@ class ImportController extends Controller
             $import->markAs(\App\Models\Import::STATUS_FAILED, 'Publish failed: '.$e->getMessage());
             return response()->json(['error'=>'Publish failed'], 500);
         }
+        // Attach publish summary for audit logging
+        $request->attributes->set('audit_extra', [
+            'file' => (string) ($import->source_filename ?? ''),
+            'inserted' => (int) $published,
+            'skipped' => (int) $skipped,
+            'count' => (int) ($published + $skipped),
+        ]);
+
         return response()->json(['ok'=>true]);
     }
 
@@ -320,7 +356,7 @@ class ImportController extends Controller
 
         $highestRow = (int) $sheet->getHighestRow();
 
-        $total=0; $valid=0; $error=0;
+        $total=0; $valid=0; $error=0; $sampleRows = [];
         \Illuminate\Support\Facades\DB::beginTransaction();
         try {
             for ($row=2; $row<=$highestRow; $row++) {
@@ -407,6 +443,7 @@ class ImportController extends Controller
         try {
             $now = now();
             $published = 0; $skipped = 0;
+            $sampleRows = [];
             foreach ($items as $it) {
                 $j = $it->normalized_json ?? [];
                 $po = (string)($j['po'] ?? '');
@@ -445,6 +482,16 @@ class ImportController extends Controller
                     'created_at'=>$now,
                     'updated_at'=>$now,
                 ]);
+
+                // Keep up to 3 sample keys for audit display (avoid huge payload)
+                if (count($sampleRows) < 3) {
+                    $sampleRows[] = [
+                        'po_no' => $po,
+                        'line_no' => $ln,
+                        'receive_date' => $date,
+                        'qty' => $qty,
+                    ];
+                }
 
                 // Update per-line actual cache
                 $newReceived = (float)($pl->qty_received ?? 0) + $qty;
@@ -501,6 +548,23 @@ class ImportController extends Controller
             $import->markAs(\App\Models\Import::STATUS_FAILED, 'Publish failed: '.$e->getMessage());
             return response()->json(['error'=>'Publish failed'], 500);
         }
+        // Attach publish summary plus affected tables/columns for the audit log
+        $request->attributes->set('audit_extra', [
+            'file' => (string) ($import->source_filename ?? ''),
+            'inserted' => (int) $published,
+            'skipped' => (int) $skipped,
+            'count' => (int) ($published + $skipped),
+            'tables' => [
+                'gr_receipts' => [
+                    'insert' => ['po_no','line_no','invoice_no','receive_date','qty', (\Illuminate\Support\Facades\Schema::hasColumn('gr_receipts','gr_unique') ? 'gr_unique' : null), 'cat_po']
+                ],
+                'po_lines' => [
+                    'update' => ['qty_received']
+                ],
+            ],
+            'sample_rows' => $sampleRows,
+        ]);
+
         return response()->json(['ok'=>true]);
     }
     public function uploadHsPk(Request $request)

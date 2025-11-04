@@ -26,17 +26,17 @@ if (! function_exists('audit_route_label')) {
             'quotas' => 'Quota',
             'openpo' => 'Open PO',
             'open-po' => 'Open PO',
-            'users' => 'Pengguna',
-            'roles' => 'Peran',
-            'permissions' => 'Izin',
-            'analytics' => 'Analitik',
-            'reports' => 'Laporan',
-            'mapping' => 'Pemetaan',
-            'mapped' => 'Sudah Pemetaan',
-            'unmapped' => 'Belum Pemetaan',
+            'users' => 'Users',
+            'roles' => 'Roles',
+            'permissions' => 'Permissions',
+            'analytics' => 'Analytics',
+            'reports' => 'Reports',
+            'mapping' => 'Mapping',
+            'mapped' => 'Mapped',
+            'unmapped' => 'Unmapped',
             'hs_pk' => 'HS PK',
             'hs-pk' => 'HS PK',
-            'po_progress' => 'Progres PO',
+            'po_progress' => 'PO Progress',
             'purchase_order' => 'Purchase Order',
             'purchase_orders' => 'Purchase Order',
             'master-data' => 'Master Data',
@@ -45,21 +45,21 @@ if (! function_exists('audit_route_label')) {
         ];
 
         $actionMap = [
-            'index' => 'Daftar',
-            'create' => 'Buat',
-            'store' => 'Simpan',
-            'edit' => 'Ubah',
-            'update' => 'Ubah',
-            'destroy' => 'Hapus',
-            'delete' => 'Hapus',
-            'show' => 'Lihat',
-            'upload' => 'Unggah',
-            'preview' => 'Pratinjau',
-            'publish' => 'Terbitkan',
+            'index' => 'List',
+            'create' => 'Create',
+            'store' => 'Store',
+            'edit' => 'Edit',
+            'update' => 'Update',
+            'destroy' => 'Destroy',
+            'delete' => 'Delete',
+            'show' => 'Show',
+            'upload' => 'Upload',
+            'preview' => 'Preview',
+            'publish' => 'Publish',
             'form' => 'Form',
-            'page' => 'Halaman',
-            'export' => 'Ekspor',
-            'import' => 'Impor',
+            'page' => 'Page',
+            'export' => 'Export',
+            'import' => 'Import',
         ];
 
         // Pick action from right-most known token
@@ -150,17 +150,31 @@ if (! function_exists('audit_activity_label')) {
 
         // Import GR upload
         if (isset($set['imports']) && isset($set['gr']) && (isset($set['upload']) || isset($set['import']))) {
-            $fname = $findUploaded($desc);
-            if ($fname) {
-                $extra = 'Berkas: '.$fname;
+            $parts = [];
+            if ($fname = $findUploaded($desc)) { $parts[] = 'File: '.$fname; }
+            foreach (['inserted' => 'Inserted', 'updated' => 'Updated', 'skipped' => 'Skipped', 'errors' => 'Errors'] as $k => $label) {
+                if (isset($desc[$k]) && is_numeric($desc[$k])) { $parts[] = $label.': '.(int)$desc[$k]; }
             }
+            if ($parts) { $extra = implode(' • ', $parts); }
         }
 
         // Import GR publish
         if (isset($set['imports']) && isset($set['gr']) && isset($set['publish'])) {
-            if (isset($desc['count']) && is_numeric($desc['count'])) {
-                $extra = 'Jumlah: '.(int) $desc['count'].' baris';
+            $parts = [];
+            foreach (['inserted' => 'Inserted', 'updated' => 'Updated', 'skipped' => 'Skipped', 'errors' => 'Errors', 'count' => 'Total'] as $k => $label) {
+                if (isset($desc[$k]) && is_numeric($desc[$k])) { $parts[] = $label.': '.(int)$desc[$k]; }
             }
+            if ($parts) { $extra = implode(' • ', $parts); }
+        }
+
+        // Open PO import
+        if ((isset($set['openpo']) || isset($set['open-po'])) && (isset($set['import']) || isset($set['upload']))) {
+            $parts = [];
+            if ($fname = $findUploaded($desc)) { $parts[] = 'File: '.$fname; }
+            foreach (['created' => 'Created', 'updated' => 'Updated', 'duplicated' => 'Duplicated', 'invalid' => 'Invalid'] as $k => $label) {
+                if (isset($desc[$k]) && is_numeric($desc[$k])) { $parts[] = $label.': '.(int)$desc[$k]; }
+            }
+            if ($parts) { $extra = implode(' • ', $parts); }
         }
 
         // Users

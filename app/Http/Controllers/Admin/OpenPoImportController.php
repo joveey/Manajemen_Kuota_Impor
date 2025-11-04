@@ -32,6 +32,11 @@ class OpenPoImportController extends Controller
         $storedPath = $file->storeAs('imports', now()->format('Ymd_His').'_'.\Illuminate\Support\Str::random(6).'_openpo.xlsx');
         $full = Storage::path($storedPath);
 
+        // Record uploaded filename for audit trail
+        $request->attributes->set('audit_extra', [
+            'file' => basename($storedPath),
+        ]);
+
         try {
             $payload = $reader->read($full);
             $rows = $payload['rows'] ?? [];
@@ -93,12 +98,13 @@ class OpenPoImportController extends Controller
 
         $groups = $result['groups'] ?? [];
         $modelMap = session('openpo.model_map', []);
+        $sampleRows = [];
         // Read publish mode as plain string (avoid Stringable so strict comparisons work)
         $mode = (string) $request->input('publish_mode', 'insert'); // 'insert' | 'replace'
         $inserted = 0; $skippedExisting = 0; $updatedExisting = 0; $replaced = 0; $leftoverAll = 0; $allocatedTotal = 0; $needsReallocCount = 0;
 
         try {
-            DB::transaction(function () use ($groups, $modelMap, $mode, &$inserted, &$skippedExisting, &$updatedExisting, &$replaced, &$leftoverAll, &$allocatedTotal, &$needsReallocCount) {
+            DB::transaction(function () use ($groups, $modelMap, $mode, &$inserted, &$skippedExisting, &$updatedExisting, &$replaced, &$leftoverAll, &$allocatedTotal, &$needsReallocCount, &$sampleRows) {
                 $hsTable = DB::getSchemaBuilder()->hasTable('hs_codes') ? 'hs_codes' : 'hs_code_pk_mappings';
                 $hsCodeCol = $hsTable === 'hs_codes' ? 'code' : 'hs_code';
                 $modelMapUpper = collect($modelMap ?? [])->mapWithKeys(fn($v,$k)=>[strtoupper((string)$k)=>$v])->all();
@@ -335,6 +341,17 @@ class OpenPoImportController extends Controller
                             }
                         }
 
+                        // capture up to 3 sample rows for audit details
+                        if (count($sampleRows) < 3) {
+                            $sampleRows[] = [
+                                'po_number' => (string) $poNumber,
+                                'line_no' => (string) ($line['line_no'] ?? ''),
+                                'model_code' => (string) ($line['model_code'] ?? ''),
+                                'qty_ordered' => (float) ($line['qty_ordered'] ?? 0),
+                                'eta_date' => (string) ($line['eta_date'] ?? ''),
+                            ];
+                        }
+
                         // Create/Update PurchaseOrder per PO line to drive forecast allocation
                         $product = Product::query()
                             ->whereRaw('LOWER(sap_model) = ?', [strtolower((string)$line['model_code'])])
@@ -432,6 +449,53 @@ class OpenPoImportController extends Controller
             return back()->withErrors(['publish' => 'Failed to publish: '.$e->getMessage()]);
         }
 
+        // Provide a concise summary to the audit logger, including tables/columns and sample rows
+        $request->attributes->set('audit_extra', [
+            'publish_mode' => (string) $mode,
+            'created' => (int) $inserted,
+            'updated' => (int) $updatedExisting,
+            'duplicated' => (int) $skippedExisting,
+            'replaced_headers' => (int) $replaced,
+            'allocated' => (int) $allocatedTotal,
+            'needs_reallocation' => (int) $needsReallocCount,
+            'tables' => [
+                'po_headers' => [
+                    ($mode === 'replace' ? 'upsert' : 'firstOrCreate') => [
+                        'po_number','po_date','supplier',
+                        (Schema::hasColumn('po_headers','vendor_number') ? 'vendor_number' : null),
+                        (Schema::hasColumn('po_headers','currency') ? 'currency' : null),
+                        (Schema::hasColumn('po_headers','note') ? 'note' : null),
+                        'published_at','created_by'
+                    ]
+                ],
+                'po_lines' => [
+                    ($mode === 'replace' ? 'insert' : 'insert/update') => [
+                        'item_desc','hs_code_id','qty_ordered','qty_received','uom','eta_date',
+                        (Schema::hasColumn('po_lines','warehouse_code') ? 'warehouse_code' : null),
+                        (Schema::hasColumn('po_lines','warehouse_name') ? 'warehouse_name' : null),
+                        (Schema::hasColumn('po_lines','warehouse_source') ? 'warehouse_source' : null),
+                        (Schema::hasColumn('po_lines','subinventory_code') ? 'subinventory_code' : null),
+                        (Schema::hasColumn('po_lines','subinventory_name') ? 'subinventory_name' : null),
+                        (Schema::hasColumn('po_lines','subinventory_source') ? 'subinventory_source' : null),
+                        (Schema::hasColumn('po_lines','amount') ? 'amount' : null),
+                        (Schema::hasColumn('po_lines','category_code') ? 'category_code' : null),
+                        (Schema::hasColumn('po_lines','category') ? 'category' : null),
+                        (Schema::hasColumn('po_lines','material_group') ? 'material_group' : null),
+                        (Schema::hasColumn('po_lines','sap_order_status') ? 'sap_order_status' : null),
+                        (Schema::hasColumn('po_lines','qty_to_invoice') ? 'qty_to_invoice' : null),
+                        (Schema::hasColumn('po_lines','qty_to_deliver') ? 'qty_to_deliver' : null),
+                        (Schema::hasColumn('po_lines','storage_location') ? 'storage_location' : null),
+                        (Schema::hasColumn('po_lines','forecast_allocated_at') ? 'forecast_allocated_at' : null),
+                        (Schema::hasColumn('po_lines','needs_reallocation') ? 'needs_reallocation' : null),
+                    ]
+                ],
+                'purchase_order_quota' => [
+                    'insert/update' => ['purchase_order_id','quota_id','allocated_qty']
+                ],
+            ],
+            'sample_rows' => $sampleRows,
+        ]);
+
         session()->forget('openpo.preview');
         session()->forget('openpo.model_map');
         session()->forget('openpo.rows');
@@ -447,4 +511,5 @@ class OpenPoImportController extends Controller
         return $redir;
     }
 }
+
 
