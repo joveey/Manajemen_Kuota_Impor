@@ -171,6 +171,8 @@
                                         'name' => 'Name',
                                         'email' => 'Email',
                                         'note', 'notes' => 'Note',
+                                        'duration_ms' => 'Duration (ms)',
+                                        'response_status' => 'Status',
                                         default => ucfirst(str_replace(['_', '-'], ' ', (string) $k)),
                                     };
 
