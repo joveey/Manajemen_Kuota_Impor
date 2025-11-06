@@ -1,0 +1,46 @@
+    // MANAJEMEN KUOTA IMPOR
+    // ============================================
+
+    // Removed master-data UI per request
+    // Route::resource('master-data', ProductController::class)->except(['show']);
+
+    // Disable manual create form; use Import Kuota page instead
+    Route::resource('quotas', QuotaController::class)->except(['create','store','show']);
+    Route::get('quotas/export/csv', [QuotaController::class, 'export'])->name('quotas.export');
+    Route::get('kuota', [QuotaController::class, 'index'])->name('kuota.index');
+    // Redirect legacy create routes to Import Kuota
+    Route::get('quotas/create', function(){
+        return redirect()->route('admin.imports.quotas.index')->with('warning','Form kuota manual dinonaktifkan. Gunakan Import Kuota.');
+    })->name('quotas.create');
+    Route::get('kuota/create', function(){
+        return redirect()->route('admin.imports.quotas.index')->with('warning','Form kuota manual dinonaktifkan. Gunakan Import Kuota.');
+    })->name('kuota.create');
+    // block legacy store endpoint
+    Route::post('kuota', function(){
+        return redirect()->route('admin.imports.quotas.index')->with('warning','Form kuota manual dinonaktifkan. Gunakan Import Kuota.');
+    })->name('kuota.store');
+    Route::get('kuota/{quota}/edit', [QuotaController::class, 'edit'])->name('kuota.edit');
+    Route::middleware(['permission:read reports'])->group(function () {
+        Route::get('reports/final', [FinalReportController::class, 'index'])->name('reports.final');
+        Route::get('reports/final/export/csv', [FinalReportController::class, 'exportCsv'])->name('reports.final.export.csv');
+    });
+
+    // Constrain route model binding for PurchaseOrder to numeric IDs to avoid clashes
+    Route::pattern('purchase_order', '[0-9]+');
+
+    // Quick Product -> HS (aksi cepat)
+    Route::middleware(['permission:product.create'])->group(function () {
+        Route::get('master-data/model-hs', [ProductQuickController::class, 'index'])->name('master.quick_hs.index');
+        Route::post('master-data/store-hs', [ProductQuickController::class, 'store'])->name('master.quick_hs.store');
+    });
+
+    Route::get('purchase-orders/doc/{poNumber}', [PurchaseOrderController::class, 'showDocument'])
+        ->name('purchase-orders.document');
+
+    Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'show', 'destroy']);
+    // Manual voyage inline update on PO lines (panel lama)
+    Route::post('purchase-orders/lines/{line}/voyage', [PurchaseOrderController::class, 'updateVoyage'])
+        ->name('purchase-orders.lines.voyage.update');
+
+    // Voyage page (dedicated management page)
+    Route::middleware(['auth', 'can:purchase.manage'])->group(function () {
