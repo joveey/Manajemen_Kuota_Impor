@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Quota;
+use App\Models\PoLine;
 
 class PurchaseOrderController extends Controller
 {
@@ -255,7 +256,8 @@ class PurchaseOrderController extends Controller
         $lineQuery = DB::table('po_lines as pl')
             ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
             ->select([
-                DB::raw('pl.id as line_id'),
+                DB::raw('pl.id as id'),
+                DB::raw('ph.id as header_id'),
                 DB::raw('ph.po_number'),
                 DB::raw('ph.po_date as order_date'),
                 DB::raw('pl.eta_date as deliv_date'),
@@ -338,7 +340,7 @@ class PurchaseOrderController extends Controller
             ->with('status', 'Purchase Order has been deleted successfully.');
     }
 
-        public function export(Request $request)
+    public function export(Request $request)
     {
         $hasVendorNumber = Schema::hasColumn('po_headers', 'vendor_number');
         $hasWhCode = Schema::hasColumn('po_lines', 'warehouse_code');
@@ -434,6 +436,24 @@ class PurchaseOrderController extends Controller
             });
             fclose($out);
         }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    public function updateVoyage(Request $request, PoLine $line): RedirectResponse
+    {
+        $data = $request->validate([
+            'voyage_bl' => ['nullable','string','max:100'],
+            'voyage_etd' => ['nullable','date'],
+            'voyage_eta' => ['nullable','date'],
+            'voyage_factory' => ['nullable','string','max:100'],
+            'voyage_status' => ['nullable','string','max:50'],
+            'voyage_issue_date' => ['nullable','date'],
+            'voyage_expired_date' => ['nullable','date'],
+            'voyage_remark' => ['nullable','string'],
+        ]);
+
+        $line->update($data);
+
+        return back()->with('status', 'Voyage info saved.');
     }
 
     public function createManual(): View
@@ -646,6 +666,8 @@ class PurchaseOrderController extends Controller
         return $redir;
     }
 }
+
+
 
 
 

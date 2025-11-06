@@ -153,6 +153,17 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         ->name('purchase-orders.document');
 
     Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'show', 'destroy']);
+    // Manual voyage inline update on PO lines (panel lama)
+    Route::post('purchase-orders/lines/{line}/voyage', [PurchaseOrderController::class, 'updateVoyage'])
+        ->name('purchase-orders.lines.voyage.update');
+
+    // Voyage page (dedicated management page)
+    Route::middleware(['auth', 'can:purchase.manage'])->group(function () {
+        Route::get('purchase-orders/{po}/voyage', [\App\Http\Controllers\Admin\PurchaseOrderVoyageController::class, 'index'])
+            ->name('purchase-orders.voyage.index');
+        Route::post('purchase-orders/{po}/voyage/bulk', [\App\Http\Controllers\Admin\PurchaseOrderVoyageController::class, 'bulkUpdate'])
+            ->name('purchase-orders.voyage.bulk');
+    });
     Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
     Route::post('purchase-orders/{purchaseOrder}/reallocate-quota', [PurchaseOrderController::class, 'reallocateQuota'])->name('purchase-orders.reallocate_quota');
 

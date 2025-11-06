@@ -508,8 +508,21 @@
         </div>
     @endif
 
-    <div class="table-wrapper">
-        <div class="table-shell">
+    <div class="row g-3 align-items-start">
+        <div class="col-lg-3">
+            <div class="card shadow-sm">
+                <div class="card-header fw-semibold">Voyage (Manual)</div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Kelola informasi voyage per line pada halaman khusus supaya lebih cepat dan rapi.</p>
+                    <a href="{{ route('admin.purchase-orders.voyage.index', ['po' => $poNumber]) }}" class="btn btn-outline-primary w-100">
+                        Kelola Voyage
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-9">
+            <div class="table-wrapper">
+                <div class="table-shell">
             <div class="table-shell__head">
                 <h5 class="table-shell__title"><i class="fas fa-table me-2"></i>Detail Line</h5>
                 <span class="table-shell__meta">{{ number_format($totals['count']) }} baris</span>
@@ -523,25 +536,18 @@
                     <table class="po-table">
                         <thead>
                             <tr>
-                                <th>PO Doc</th>
-                                <th>Created Date</th>
-                                <th>Deliv Date</th>
+                                <th>Purchasing Document</th>
+                                <th>Material</th>
+                                <th>Header Text</th>
+                                <th>Storage Location</th>
+                                <th class="text-end">Order Qty</th>
+                                <th class="text-end">To Invoice</th>
+                                <th class="text-end">To Deliver</th>
+                                <th>Delivery Date</th>
+                                <th>Document Date</th>
                                 <th>Vendor No</th>
                                 <th>Vendor Name</th>
-                                <th>Line No</th>
-                                <th>Item Code</th>
-                                <th>Item Desc</th>
-                                <th>WH Code</th>
-                                <th>WH Name</th>
-                                <th>WH Source</th>
-                                <th>Subinv Code</th>
-                                <th>Subinv Name</th>
-                                <th>Subinv Source</th>
-                                <th class="text-end">Qty</th>
                                 <th class="text-end">Amount</th>
-                                <th>Cat PO</th>
-                                <th>Cat Desc</th>
-                                <th>Mat Grp</th>
                                 <th>SAP Status</th>
                             </tr>
                         </thead>
@@ -549,20 +555,16 @@
                             @forelse($lines as $line)
                                 <tr>
                                     <td>{{ $line->po_number }}</td>
-                                    <td>{{ optional($line->display_order_date)->format('d M Y') ?? '-' }}</td>
-                                    <td>{{ !empty($line->deliv_date) ? (\Illuminate\Support\Carbon::hasTestNow() ? \Illuminate\Support\Carbon::parse($line->deliv_date)->format('d M Y') : (\Illuminate\Support\Carbon::parse($line->deliv_date)->format('d M Y'))) : '-' }}</td>
-                                    <td>{{ $line->vendor_number ?? '-' }}</td>
-                                    <td>{{ $line->vendor_name ?? '-' }}</td>
-                                    <td>{{ $line->line_number !== '' ? $line->line_number : '-' }}</td>
                                     <td>{{ $line->item_code ?? '-' }}</td>
                                     <td>{{ $line->item_description ?? '-' }}</td>
-                                    <td>{{ $line->warehouse_code ?? '-' }}</td>
-                                    <td>{{ $line->warehouse_name ?? '-' }}</td>
-                                    <td>{{ $line->warehouse_source ?? '-' }}</td>
-                                    <td>{{ $line->subinventory_code ?? '-' }}</td>
-                                    <td>{{ $line->subinventory_name ?? '-' }}</td>
-                                    <td>{{ $line->subinventory_source ?? '-' }}</td>
+                                    <td>{{ $line->storage_location ?? '-' }}</td>
                                     <td class="text-end">{{ number_format((float) ($line->quantity ?? 0), 0) }}</td>
+                                    <td class="text-end">{{ isset($line->qty_to_invoice) ? number_format((float) $line->qty_to_invoice, 0) : '-' }}</td>
+                                    <td class="text-end">{{ isset($line->qty_to_deliver) ? number_format((float) $line->qty_to_deliver, 0) : '-' }}</td>
+                                    <td>{{ !empty($line->deliv_date) ? (\Illuminate\Support\Carbon::parse($line->deliv_date)->format('d M Y')) : '-' }}</td>
+                                    <td>{{ optional($line->display_order_date)->format('d M Y') ?? '-' }}</td>
+                                    <td>{{ $line->vendor_number ?? '-' }}</td>
+                                    <td>{{ $line->vendor_name ?? '-' }}</td>
                                     <td class="text-end">
                                         @if(!is_null($line->amount))
                                             {{ number_format((float) $line->amount, 2) }}
@@ -570,14 +572,11 @@
                                             -
                                         @endif
                                     </td>
-                                    <td>{{ $line->category_code ?? '-' }}</td>
-                                    <td>{{ $line->category ?? '-' }}</td>
-                                    <td>{{ $line->material_group ?? '-' }}</td>
                                     <td>{{ $line->sap_order_status ?? '-' }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="19" class="text-center text-muted py-4">No line data for this PO.</td>
+                                    <td colspan="13" class="text-center text-muted py-4">No line data for this PO.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -586,12 +585,32 @@
             </div>
         </div>
     </div>
+    </div>
 </div>
 @endsection
 
 @push('scripts')
 <script>
 (function() {
+    // Sidebar voyage form wiring
+    const form = document.getElementById('voyageForm');
+    const selectLine = document.getElementById('voyage_line');
+    const badge = document.getElementById('voyage_badge');
+    const fields = ['voyage_bl','voyage_etd','voyage_eta','voyage_factory','voyage_status','voyage_issue_date','voyage_expired_date','voyage_remark'];
+    function fillForm(data){
+        if(!data) return;
+        fields.forEach(function(n){ var el=form?.querySelector('[name="'+n+'"]'); if(!el) return; el.value = data[n.replace('voyage_','')] || ''; });
+        if(data.id && form){ form.action = data.id; }
+        var hasVoy = !!(data.etd || data.eta);
+        var inTransit = hasVoy && !!data.alloc && (parseInt(data.received||0) < parseInt(data.qty||0));
+        if(badge){ if(inTransit){ badge.classList.remove('d-none'); } else { badge.classList.add('d-none'); } }
+    }
+    selectLine?.addEventListener('change', function(){
+        var opt = selectLine.selectedOptions[0]; if(!opt) return;
+        var payload = {}; try { payload = JSON.parse(opt.getAttribute('data-json')||'{}'); } catch(e) { payload = {}; }
+        payload.id = "{{ route('admin.purchase-orders.lines.voyage.update', ['line' => 'LINE_ID']) }}".replace('LINE_ID', String(opt.value));
+        fillForm(payload);
+    });
     const tableScroll = document.getElementById('tableScroll');
     const indicator = document.getElementById('scrollIndicator');
 

@@ -1,0 +1,73 @@
+/* --- Desktop table --- */
+.voyage-table-wrapper {
+  overflow-x: auto;
+}
+.voyage-table.table {
+  table-layout: fixed;
+  width: 100%;
+}
+.voyage-table th, .voyage-table td {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.voyage-table .col-line   { width: 72px;  }
+.voyage-table .col-mat    { width: 160px; }
+.voyage-table .col-desc   { width: 320px; }
+.voyage-table .col-qty    { width: 90px;  }
+.voyage-table .col-date   { width: 140px; }
+.voyage-table .col-text   { width: 160px; }
+.voyage-table .col-remark { width: 220px; }
+
+/* Sticky first columns */
+.voyage-table .sticky-col {
+  position: sticky;
+  background: #fff;
+  z-index: 2;
+}
+.voyage-table .sticky-col.line   { left: 0;  }
+.voyage-table .sticky-col.mat    { left: 72px; }
+.voyage-table .sticky-shadow {
+  box-shadow: 4px 0 8px rgba(0,0,0,.06);
+}
+
+.voyage-table input[type="text"],
+.voyage-table input[type="date"],
+.voyage-table select,
+.voyage-table .flatpickr-input {
+  width: 100%;
+  max-width: 100%;
+}
+/* Ensure flatpickr alt inputs inside cards stretch */
+.voyage-card .flatpickr-input { width: 100%; }
+
+/* --- Mobile cards --- */
+@media (max-width: 991.98px) {
+  .voyage-desktop { display: none !important; }
+  .voyage-mobile  { display: block !important; }
+}
+@media (min-width: 992px) {
+  .voyage-desktop { display: block !important; }
+  .voyage-mobile  { display: none !important; }
+}
+
+.voyage-card {
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+.voyage-card .row-gap { row-gap: .5rem; }
+.voyage-card label { font-size: .78rem; margin-bottom: .25rem; color: #6c757d; }
+
+.bottom-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background: rgba(255,255,255,.98);
+  border-top: 1px solid #e9ecef;
+  padding: .5rem .75rem;
+  display: flex;
+  gap: .5rem;
+  justify-content: flex-end;
+}
