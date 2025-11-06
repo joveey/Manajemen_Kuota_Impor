@@ -289,11 +289,6 @@
                     </td>
                     <td class="text-end">
                         <div class="table-actions">
-                            @can('update quota')
-                                <a href="{{ route('admin.quotas.edit', $quota) }}" class="action-icon action-icon--edit" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                            @endcan
                             @can('delete quota')
                                 <form action="{{ route('admin.quotas.destroy', $quota) }}" method="POST" onsubmit="return confirm('Delete this quota?');">
                                     @csrf
