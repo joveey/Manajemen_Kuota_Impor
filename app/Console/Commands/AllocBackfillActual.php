@@ -28,7 +28,11 @@ class AllocBackfillActual extends Command
 
         DB::table('gr_receipts as gr')
             ->join('po_headers as ph','gr.po_no','=','ph.po_number')
-            ->join('po_lines as pl', function($j){ $j->on('pl.po_header_id','=','ph.id'); $j->on('pl.line_no','=','gr.line_no'); })
+            ->join('po_lines as pl', function($j){
+                $j->on('pl.po_header_id','=','ph.id');
+                // Normalize line numbers to avoid '030' vs 30 mismatches (PostgreSQL)
+                $j->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','','g') AS int) = CAST(regexp_replace(CAST(gr.line_no AS text),'[^0-9]','','g') AS int)");
+            })
             ->whereBetween('gr.receive_date', [$start->toDateString(), $end->toDateString()])
             ->select([
                 'gr.id as gr_id',

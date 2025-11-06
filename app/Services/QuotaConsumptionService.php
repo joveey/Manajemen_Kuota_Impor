@@ -48,8 +48,14 @@ class QuotaConsumptionService
         $lines = DB::table('po_lines as pl')
             ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
             ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
-            ->leftJoinSub($inv, 'inv', function($j){ $j->on('ph.po_number','=','inv.po_no')->on('pl.line_no','=','inv.line_no'); })
-            ->leftJoinSub($gr, 'gr', function($j){ $j->on('ph.po_number','=','gr.po_no')->on('pl.line_no','=','gr.line_no'); })
+            ->leftJoinSub($inv, 'inv', function($j){
+                $j->on('ph.po_number','=','inv.po_no')
+                  ->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''), '[^0-9]', '', 'g') AS INTEGER) = CAST(regexp_replace(CAST(inv.line_no as text), '[^0-9]', '', 'g') AS INTEGER)");
+            })
+            ->leftJoinSub($gr, 'gr', function($j){
+                $j->on('ph.po_number','=','gr.po_no')
+                  ->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''), '[^0-9]', '', 'g') AS INTEGER) = CAST(regexp_replace(CAST(gr.line_no as text), '[^0-9]', '', 'g') AS INTEGER)");
+            })
             ->get([
                 'ph.po_number as po_no',
                 'pl.line_no',
