@@ -56,6 +56,20 @@
                         <form method="POST" action="{{ route('admin.imports.quotas.manual.add') }}" class="row g-3">
                             @csrf
                             <div class="col-12">
+                                <label for="manual-quota-no" class="form-label">Quota No.</label>
+                                <input
+                                    type="text"
+                                    id="manual-quota-no"
+                                    name="quota_no"
+                                    value="{{ old('quota_no') }}"
+                                    class="form-control @error('quota_no') is-invalid @enderror"
+                                    placeholder="e.g., 04.PI-76.25.0108"
+                                    required
+                                >
+                                <div class="form-text">Nomor kuota unik yang akan menjadi key.</div>
+                                @error('quota_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-12">
                                 <label for="manual-hs" class="form-label">HS Code</label>
                                 <select
                                     id="manual-hs"
@@ -78,12 +92,6 @@
                                 <label class="form-label">Description</label>
                                 <input type="text" id="manual-hs-desc" class="form-control" value="{{ $selectedHsCode ? ($selectedHsOption['desc'] ?? '') : '' }}" readonly>
                                 <div class="form-text">Description is automatically filled based on the HS code.</div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <label for="manual-letter" class="form-label">Letter No (optional)</label>
-                                <input type="text" id="manual-letter" name="letter_no" value="{{ old('letter_no') }}" class="form-control @error('letter_no') is-invalid @enderror" maxlength="100">
-                                @error('letter_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 
                             <div class="col-md-6">
@@ -131,9 +139,9 @@
                             <table class="table mb-0">
                                 <thead class="table-light">
                                     <tr>
+                                        <th>Quota No.</th>
                                         <th>HS Code</th>
                                         <th>Description</th>
-                                        <th>Letter No</th>
                                         <th class="text-end">Quantity</th>
                                         <th>Period</th>
                                         <th class="text-center" style="width: 90px;">Actions</th>
@@ -142,6 +150,7 @@
                                 <tbody>
                                     @forelse ($manualPreview as $item)
                                         <tr>
+                                            <td>{{ $item['quota_no'] ?? '-' }}</td>
                                             <td>{{ $item['hs_code'] ?? '-' }}</td>
                                             <td>
                                                 @php
@@ -166,9 +175,8 @@
                                                         if ($d !== '' && stripos($d,'PK')===false && strtoupper($d)!=='ACCESORY') { $friendly = $d.' PK'; }
                                                     }
                                                 @endphp
-                                                {{ $friendly !== '' ? $friendly : '-' }}
+                                            {{ $friendly !== '' ? $friendly : '-' }}
                                             </td>
-                                            <td>{{ $item['letter_no'] ?? '-' }}</td>
                                             <td class="text-end">{{ number_format($item['quantity'] ?? 0, 0) }}</td>
                                             <td>
                                                 {{ $item['period_start'] ?? '-' }} -
@@ -186,7 +194,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="6" class="text-center text-muted py-4">
+                                            <td colspan="5" class="text-center text-muted py-4">
                                                 No quotas in the preview yet. Add them using the form on the left.
                                             </td>
                                         </tr>
@@ -225,10 +233,9 @@
                     <table class="table mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>Quota</th>
+                                <th>Quota No.</th>
                                 <th>HS Code</th>
                                 <th>Description</th>
-                                <th>Letter No</th>
                                 <th class="text-end">Quantity</th>
                                 <th>Period</th>
                                 <th>Created</th>
@@ -243,7 +250,7 @@
                                     }
                                 @endphp
                                 <tr>
-                                    <td>{{ $quota->display_number }}</td>
+                                    <td>{{ $quota->quota_number }}</td>
                                     <td>{{ $hsDisplay !== '' ? $hsDisplay : '-' }}</td>
                                     <td>
                                         @php
@@ -268,7 +275,6 @@
                                         @endphp
                                         {{ $friendly2 !== '' ? $friendly2 : '-' }}
                                     </td>
-                                    <td>{{ $quota->source_document ?? '-' }}</td>
                                     <td class="text-end">{{ number_format((float) $quota->total_allocation, 0) }}</td>
                                     <td>
                                         {{ optional($quota->period_start)->format('d-m-Y') ?? '-' }}
