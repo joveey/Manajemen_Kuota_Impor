@@ -851,15 +851,15 @@ class ImportController extends Controller
             $key = strtoupper(trim($val));
             if ($key !== '') { $headers[$key] = $col; $headerOrder[] = $key; }
         }
-        // Basic required columns
-        foreach (['LETTER_NO','CATEGORY_LABEL','ALLOCATION'] as $reqCol) {
+        // Basic required columns (LETTER_NO no longer required)
+        foreach (['CATEGORY_LABEL','ALLOCATION'] as $reqCol) {
             if (!isset($headers[$reqCol])) {
-                $import->markAs(Import::STATUS_FAILED, 'Required columns not found: LETTER_NO, CATEGORY_LABEL, ALLOCATION');
-                return response()->json(['error' => 'Required columns not found: LETTER_NO, CATEGORY_LABEL, ALLOCATION'], 422);
+                $import->markAs(Import::STATUS_FAILED, 'Required columns not found: CATEGORY_LABEL, ALLOCATION');
+                return response()->json(['error' => 'Required columns not found: CATEGORY_LABEL, ALLOCATION'], 422);
             }
         }
 
-        $colLetter = $headers['LETTER_NO'];
+        $colLetter = $headers['LETTER_NO'] ?? null;
         $colLabel = $headers['CATEGORY_LABEL'];
         $colAlloc = $headers['ALLOCATION'];
         $colStart = $headers['PERIOD_START'] ?? null;
@@ -916,12 +916,12 @@ class ImportController extends Controller
                     $raw[$h] = $sheet->getCell([$col, $row])->getFormattedValue();
                 }
 
-                $letterNo = trim((string)($raw['LETTER_NO'] ?? ''));
+                $letterNo = $colLetter ? trim((string)($raw['LETTER_NO'] ?? '')) : '';
                 $label = trim((string)($raw['CATEGORY_LABEL'] ?? ''));
                 $allocRaw = $raw['ALLOCATION'] ?? null;
 
                 // If empty row
-                if ($letterNo === '' && $label === '' && ($allocRaw === null || $allocRaw === '')) {
+                if ($label === '' && ($allocRaw === null || $allocRaw === '')) {
                     continue;
                 }
 
@@ -989,7 +989,6 @@ class ImportController extends Controller
                     'row_index' => $row,
                     'raw_json' => $raw,
                     'normalized_json' => [
-                        'letter_no' => $letterNo,
                         'category_label' => $label,
                         'min_pk' => $min,
                         'max_pk' => $max,
@@ -1051,7 +1050,6 @@ class ImportController extends Controller
                     foreach ($rows as $item) {
                         $norm = $item->normalized_json ?? [];
 
-                        $letterNo = trim((string)($norm['letter_no'] ?? ''));
                         $label = trim((string)($norm['category_label'] ?? ''));
                         $min = $norm['min_pk'] ?? null;
                         $max = $norm['max_pk'] ?? null;
@@ -1061,15 +1059,13 @@ class ImportController extends Controller
                         $pStart = $norm['period_start'] ?? null;
                         $pEnd = $norm['period_end'] ?? null;
 
-                        if ($letterNo === '' || $label === '' || !is_numeric($alloc) || (int)$alloc <= 0 || !$pStart || !$pEnd) {
+                        if ($label === '' || !is_numeric($alloc) || (int)$alloc <= 0 || !$pStart || !$pEnd) {
                             $skipped++;
                             continue;
                         }
 
-                        // Find existing quota by unique key.
-                        // TODO: If quotas has a dedicated 'letter_no' column, use it instead of 'source_document'.
+                        // Find existing quota by unique key (label + period)
                         $existing = DB::table('quotas')
-                            ->where('source_document', $letterNo)
                             ->where('government_category', $label)
                             ->where('period_start', $pStart)
                             ->where('period_end', $pEnd)
@@ -1104,7 +1100,6 @@ class ImportController extends Controller
                                 'actual_remaining' => (int)$alloc,   // initialize only on insert
                                 'status' => 'available',
                                 'is_active' => true,
-                                'source_document' => $letterNo, // store letter_no here; see TODO above
                                 'min_pk' => $min,
                                 'max_pk' => $max,
                                 'is_min_inclusive' => $minIncl,
