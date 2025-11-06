@@ -215,4 +215,22 @@ class Quota extends Model
         $raw = trim((string) ($this->quota_number ?? ''));
         return $raw !== '' ? $raw : 'QUOTA-XXXXXX';
     }
+
+    // Timeline-based status derived from period_start/period_end relative to now
+    public function statusRelativeTo(?\DateTimeInterface $date = null): string
+    {
+        $date = $date ? \Illuminate\Support\Carbon::parse($date) : now();
+        $start = $this->period_start ? \Illuminate\Support\Carbon::parse($this->period_start) : null;
+        $end = $this->period_end ? \Illuminate\Support\Carbon::parse($this->period_end) : null;
+
+        if ($start && $date->lt($start)) { return 'upcoming'; }
+        if ($end && $date->gt($end)) { return 'expired'; }
+        if ($start || $end) { return 'current'; }
+        return 'unknown';
+    }
+
+    public function getTimelineStatusAttribute(): string
+    {
+        return $this->statusRelativeTo();
+    }
 }

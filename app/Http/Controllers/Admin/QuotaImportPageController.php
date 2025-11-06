@@ -140,13 +140,14 @@ class QuotaImportPageController extends Controller
         abort_unless(Schema::hasTable('hs_code_pk_mappings'), 404);
 
         $data = $request->validate([
+            'quota_no' => ['required', 'string', 'max:100', 'regex:/^[A-Za-z0-9\.\-\/]+$/'],
             'hs_code' => ['required', 'string', 'max:50'],
-            'letter_no' => ['nullable', 'string', 'max:100'],
             'quantity' => ['required', 'numeric', 'min:0.0001'],
             'period_start' => ['required', 'date_format:Y-m-d'],
             'period_end' => ['required', 'date_format:Y-m-d', 'after_or_equal:period_start'],
         ], [
             'quantity.min' => 'Quantity harus lebih besar dari 0.',
+            'quota_no.regex' => 'Quota No. hanya boleh berisi huruf/angka, titik, garis miring, dan strip.'
         ]);
 
         $hsRowQuery = DB::table('hs_code_pk_mappings')
@@ -172,19 +173,21 @@ class QuotaImportPageController extends Controller
         $desc = $this->normalizePkDesc($desc, $hsRow->pk_capacity);
 
         $preview = session('quotas.manual.preview', []);
-        $duplicateKey = sprintf('%s|%s|%s|%s', $hsRow->hs_code, $data['letter_no'] ?? '', $data['period_start'], $data['period_end']);
+        // Key untuk preview berbasis periode (dan HS) agar konsisten dengan key bisnis
+        $quotaNo = \Illuminate\Support\Str::upper(trim((string) $data['quota_no']));
+        $duplicateKey = sprintf('%s|%s|%s', (string)$hsRow->hs_code, (string)$data['period_start'], (string)$data['period_end']);
         foreach ($preview as $item) {
             if (($item['duplicate_key'] ?? null) === $duplicateKey) {
-                return back()->withErrors(['hs_code' => 'Data dengan kombinasi HS, letter, dan periode yang sama sudah ada di preview.'])->withInput();
+                return back()->withErrors(['period_start' => 'Data untuk HS & periode yang sama sudah ada di preview.'])->withInput();
             }
         }
 
         $preview[] = [
             'id' => (string) Str::uuid(),
+            'quota_no' => $quotaNo,
             'hs_code' => $hsRow->hs_code,
             'hs_desc' => $desc,
             'pk_anchor' => (float) $hsRow->pk_capacity,
-            'letter_no' => $data['letter_no'] ?? null,
             'quantity' => (float) $data['quantity'],
             'period_start' => $data['period_start'],
             'period_end' => $data['period_end'],
@@ -235,14 +238,14 @@ class QuotaImportPageController extends Controller
 
         DB::transaction(function () use ($preview, &$applied, &$skipped) {
             foreach ($preview as $item) {
+                $quotaNo = \Illuminate\Support\Str::upper(trim((string) ($item['quota_no'] ?? '')));
                 $hsCode = (string) ($item['hs_code'] ?? '');
-                $letterNo = trim((string) ($item['letter_no'] ?? ''));
                 $quantity = (float) ($item['quantity'] ?? 0);
                 $periodStart = $item['period_start'] ?? null;
                 $periodEnd = $item['period_end'] ?? null;
                 $desc = (string) ($item['hs_desc'] ?? '');
 
-                if ($hsCode === '' || !$periodStart || !$periodEnd || $quantity <= 0) {
+                if ($quotaNo === '' || $hsCode === '' || !$periodStart || !$periodEnd || $quantity <= 0) {
                     $skipped++;
                     continue;
                 }
@@ -250,16 +253,8 @@ class QuotaImportPageController extends Controller
                 $label = $desc !== '' ? $desc : 'HS '.$hsCode;
                 $now = now();
 
-                $existingQuery = DB::table('quotas')
-                    ->where('period_start', $periodStart)
-                    ->where('period_end', $periodEnd)
-                    ->where('government_category', $label);
-
-                if ($letterNo !== '') {
-                    $existingQuery->where('source_document', $letterNo);
-                }
-
-                $existing = $existingQuery->first();
+                // Cari berdasarkan Quota No. sebagai key
+                $existing = DB::table('quotas')->where('quota_number', $quotaNo)->first();
 
                 $baseFields = [
                     'government_category' => $label,
@@ -272,31 +267,23 @@ class QuotaImportPageController extends Controller
 
                 if ($existing) {
                     $update = $baseFields;
-                    if ($letterNo !== '') {
-                        $update['source_document'] = $letterNo;
-                    }
                     DB::table('quotas')->where('id', $existing->id)->update($update);
                     $applied++;
                     continue;
                 }
 
-                // Insert then update quota_number using the ID for unified format
+                // Insert with provided Quota No. (no auto-generation)
                 $name = 'Quota HS '.$hsCode.' '.$periodStart.'-'.$periodEnd;
-
-                $tmpNumber = 'TMP-'.Str::uuid()->toString();
-                $id = DB::table('quotas')->insertGetId(array_merge($baseFields, [
-                    'quota_number' => $tmpNumber,
+                DB::table('quotas')->insert(array_merge($baseFields, [
+                    'quota_number' => $quotaNo,
                     'name' => $name,
                     'status' => 'available',
                     'is_active' => true,
-                    'source_document' => $letterNo !== '' ? $letterNo : null,
                     'forecast_remaining' => (int) round($quantity),
                     'actual_remaining' => (int) round($quantity),
                     'notes' => $notesValue !== '' ? $notesValue : null,
                     'created_at' => $now,
                 ]));
-                $formatted = sprintf('QUOTA-%06d', (int) $id);
-                DB::table('quotas')->where('id', $id)->update(['quota_number' => $formatted]);
                 $applied++;
             }
         });

@@ -279,11 +279,27 @@
             <div class="summary-tile__label">Total Qty</div>
             <div class="summary-tile__value">{{ number_format($totals['quantity'], 0) }}</div>
         </div>
+        
+        @php
+            $quotaStatusLabel = '-';
+            $quotaStatusClass = '';
+            if (isset($internalPO) && $internalPO) {
+                $allocs = $internalPO->allocatedQuotas()->get();
+                $counts = ['current'=>0,'upcoming'=>0,'expired'=>0,'unknown'=>0];
+                foreach ($allocs as $q) {
+                    $s = $q->timeline_status ?? 'unknown';
+                    if (!isset($counts[$s])) { $counts[$s] = 0; }
+                    $counts[$s]++;
+                }
+                if (($counts['current'] ?? 0) > 0) { $quotaStatusLabel = 'Current'; $quotaStatusClass = 'text-success'; }
+                elseif (($counts['upcoming'] ?? 0) > 0 && ($counts['expired'] ?? 0) === 0) { $quotaStatusLabel = 'Upcoming'; $quotaStatusClass = 'text-primary'; }
+                elseif (($counts['expired'] ?? 0) > 0 && ($counts['upcoming'] ?? 0) === 0) { $quotaStatusLabel = 'Expired'; $quotaStatusClass = 'text-danger'; }
+                elseif (($counts['upcoming'] ?? 0) > 0 || ($counts['expired'] ?? 0) > 0) { $quotaStatusLabel = 'Mixed'; $quotaStatusClass = 'text-warning'; }
+            }
+        @endphp
         <div class="summary-tile">
-            <div class="summary-tile__label">Total Amount</div>
-            <div class="summary-tile__value">
-                {{ !is_null($totals['amount']) ? number_format($totals['amount'], 2) : '-' }}
-            </div>
+            <div class="summary-tile__label">Quota Status</div>
+            <div class="summary-tile__value {{ $quotaStatusClass }}">{{ $quotaStatusLabel }}</div>
         </div>
     </div>
 
@@ -314,7 +330,7 @@
                                     <select name="source_quota_id" id="doc_source_quota_id" class="form-select" required>
                                         @foreach($currentAllocs as $q)
                                             <option value="{{ $q->id }}" data-allocated="{{ (int) $q->pivot->allocated_qty }}">
-                                                {{ $q->display_number }} - Alloc: {{ number_format((int) $q->pivot->allocated_qty) }} (Period: {{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
+                                                {{ $q->quota_number }} - Alloc: {{ number_format((int) $q->pivot->allocated_qty) }} (Period: {{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
                                             </option>
                                         @endforeach
                                     </select>
@@ -331,7 +347,7 @@
                                         <option value="" disabled selected hidden>Select quota</option>
                                         @foreach($candidateQuotas as $q)
                                             <option value="{{ $q->id }}" data-start="{{ optional($q->period_start)->format('Y-m-d') }}" data-end="{{ optional($q->period_end)->format('Y-m-d') }}" data-avail="{{ (int) $q->forecast_remaining }}">
-                                                {{ $q->display_number }} - Remaining: {{ number_format((int) $q->forecast_remaining) }} ({{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
+                                                {{ $q->quota_number }} - Remaining: {{ number_format((int) $q->forecast_remaining) }} ({{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
                                             </option>
                                         @endforeach
                                     </select>
@@ -462,7 +478,7 @@
                                     }
                                 @endphp
                                 <tr>
-                                    <td>{{ $q->display_number }}</td>
+                                    <td>{{ $q->quota_number }}</td>
                                     <td>{{ $friendly !== '' ? $friendly : '-' }}</td>
                                     <td>
                                         {{ optional($q->period_start)->format('d-m-Y') ?? '-' }}
@@ -547,8 +563,6 @@
                                 <th>Document Date</th>
                                 <th>Vendor No</th>
                                 <th>Vendor Name</th>
-                                <th class="text-end">Amount</th>
-                                <th>SAP Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -565,18 +579,10 @@
                                     <td>{{ optional($line->display_order_date)->format('d M Y') ?? '-' }}</td>
                                     <td>{{ $line->vendor_number ?? '-' }}</td>
                                     <td>{{ $line->vendor_name ?? '-' }}</td>
-                                    <td class="text-end">
-                                        @if(!is_null($line->amount))
-                                            {{ number_format((float) $line->amount, 2) }}
-                                        @else
-                                            -
-                                        @endif
-                                    </td>
-                                    <td>{{ $line->sap_order_status ?? '-' }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="13" class="text-center text-muted py-4">No line data for this PO.</td>
+                                    <td colspan="11" class="text-center text-muted py-4">No line data for this PO.</td>
                                 </tr>
                             @endforelse
                         </tbody>
