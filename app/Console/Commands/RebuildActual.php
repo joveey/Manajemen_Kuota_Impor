@@ -32,7 +32,10 @@ class RebuildActual extends Command
         // Identify affected quotas by GR and by period overlap
         $qidsByGr = DB::table('gr_receipts as gr')
             ->join('po_headers as ph','gr.po_no','=','ph.po_number')
-            ->join('po_lines as pl', function($j){ $j->on('pl.po_header_id','=','ph.id'); $j->on('pl.line_no','=','gr.line_no'); })
+            ->join('po_lines as pl', function($j){
+                $j->on('pl.po_header_id','=','ph.id');
+                $j->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','','g') AS int) = CAST(regexp_replace(CAST(gr.line_no AS text),'[^0-9]','','g') AS int)");
+            })
             ->whereBetween('gr.receive_date', [$startStr, $endStr])
             ->distinct()
             ->pluck('ph.id'); // placeholder for existence check
@@ -87,4 +90,3 @@ class RebuildActual extends Command
         return Command::SUCCESS;
     }
 }
-

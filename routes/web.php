@@ -44,6 +44,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('permission:read dashboard')
         ->name('dashboard');
+
+    // Visual Dashboard API endpoint (used by dashboard view scripts)
+    Route::get('/api/dashboard/summary', [DashboardController::class, 'summary'])
+        ->name('api.dashboard.summary');
 });
 
 // Rute Profil Pengguna
@@ -62,6 +66,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('permission:read dashboard')
         ->name('dashboard');
+    // Visual Dashboard API (admin-scoped mirror)
+    Route::get('/api/dashboard/summary', [DashboardController::class, 'summary'])
+        ->name('api.dashboard.summary');
     
     // Users Management - Requires user permissions
     Route::middleware(['permission:read users'])->group(function () {

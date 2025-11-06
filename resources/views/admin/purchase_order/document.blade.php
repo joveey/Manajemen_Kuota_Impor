@@ -513,9 +513,9 @@
             <div class="card shadow-sm">
                 <div class="card-header fw-semibold">Voyage (Manual)</div>
                 <div class="card-body">
-                    <p class="text-muted mb-3">Kelola informasi voyage per line pada halaman khusus supaya lebih cepat dan rapi.</p>
+                    <p class="text-muted mb-3">Manage per-line voyage information on a dedicated page for faster, cleaner updates.</p>
                     <a href="{{ route('admin.purchase-orders.voyage.index', ['po' => $poNumber]) }}" class="btn btn-outline-primary w-100">
-                        Kelola Voyage
+                        Manage Voyage
                     </a>
                 </div>
             </div>

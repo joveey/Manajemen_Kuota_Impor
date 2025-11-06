@@ -82,7 +82,7 @@ class ImportController extends Controller
         $colD = $headers['INVOICE_DATE'];
         $colQ = $headers['QTY'];
 
-        $total=0; $valid=0; $error=0;
+        $total=0; $valid=0; $error=0; $sampleRows = [];
 
         \Illuminate\Support\Facades\DB::beginTransaction();
         try {
@@ -131,7 +131,7 @@ class ImportController extends Controller
                 ]);
                 $valid++;
                 if (count($sampleRows) < 3) {
-                    $sampleRows[] = array_merge(compact('po','ln','inv','date','qty','cat'), $opt);
+                    $sampleRows[] = compact('po','ln','inv','date','qty');
                 }
             }
 
@@ -180,10 +180,10 @@ class ImportController extends Controller
         }
 
         $items = $import->items()->where('status','normalized')->get(['normalized_json']);
+        $published = 0; $skipped = 0; $rows = [];
         \Illuminate\Support\Facades\DB::beginTransaction();
         try {
             $now = now();
-            $rows = [];
             foreach ($items as $it) {
                 $j = $it->normalized_json ?? [];
                 $rows[] = [
@@ -198,6 +198,7 @@ class ImportController extends Controller
             }
             if (!empty($rows)) {
                 \Illuminate\Support\Facades\DB::table('invoices')->upsert($rows, ['po_no','line_no','invoice_no','qty'], ['invoice_date','updated_at']);
+                $published = count($rows);
             }
             $import->markAs(\App\Models\Import::STATUS_PUBLISHED, 'Published '.count($rows).' rows');
             \Illuminate\Support\Facades\DB::commit();
@@ -462,12 +463,13 @@ class ImportController extends Controller
                 $exists = $existsQ->exists();
                 if ($exists) { $skipped++; continue; }
 
-                // Lock the PO line to update received qty atomically
+                // Lock and resolve the PO line using numeric-normalized line match (handles '030' vs 30)
                 $pl = \Illuminate\Support\Facades\DB::table('po_lines as pl')
                     ->join('po_headers as ph','pl.po_header_id','=','ph.id')
-                    ->where('ph.po_number',$po)->where('pl.line_no',$ln)
+                    ->where('ph.po_number',$po)
+                    ->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''), '[^0-9]', '', 'g') AS INTEGER) = CAST(regexp_replace(?, '[^0-9]', '', 'g') AS INTEGER)", [$ln])
                     ->select('pl.id','pl.qty_received','pl.model_code')->lockForUpdate()->first();
-                if (!$pl) { $skipped++; continue; }
+                // Allow unmatched: we still insert GR row; cache update will be skipped
 
                 // Insert journal row
                 \Illuminate\Support\Facades\DB::table('gr_receipts')->insert([
@@ -493,12 +495,17 @@ class ImportController extends Controller
                     ];
                 }
 
-                // Update per-line actual cache
-                $newReceived = (float)($pl->qty_received ?? 0) + $qty;
-                \Illuminate\Support\Facades\DB::table('po_lines')->where('id',$pl->id)->update([
-                    'qty_received' => $newReceived,
-                    'updated_at' => $now,
-                ]);
+                // Recompute per-line actual cache from GR (normalized) if matched
+                if ($pl) {
+                    $lineSum = (float) \Illuminate\Support\Facades\DB::table('gr_receipts')
+                        ->where('po_no', $po)
+                        ->whereRaw("CAST(regexp_replace(CAST(line_no as text), '[^0-9]', '', 'g') AS INTEGER) = CAST(regexp_replace(?, '[^0-9]', '', 'g') AS INTEGER)", [$ln])
+                        ->sum('qty');
+                    \Illuminate\Support\Facades\DB::table('po_lines')->where('id',$pl->id)->update([
+                        'qty_received' => $lineSum,
+                        'updated_at' => $now,
+                    ]);
+                }
 
                 // Actual deduction by receipt date based on product mapping and period
                 try {

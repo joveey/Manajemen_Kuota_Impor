@@ -37,29 +37,26 @@ class PurchaseOrderController extends Controller
         $hasStorageLocation = Schema::hasColumn('po_lines', 'storage_location');
 
         $qtyOrderedExprBase = $hasQtyOrdered ? 'COALESCE(pl.qty_ordered,0)' : '0';
-        $qtyReceivedExprBase = $hasQtyReceived ? 'COALESCE(pl.qty_received,0)' : '0';
 
         $sumQtyOrderedExpr = "SUM($qtyOrderedExprBase)";
-        $sumQtyReceivedExpr = "SUM($qtyReceivedExprBase)";
+        // Received will be computed from GR (normalized by line number) via leftJoinSub
         $sumQtyToInvoiceExpr = $hasQtyToInvoice ? 'SUM(COALESCE(pl.qty_to_invoice,0))' : 'NULL';
         $sumQtyToDeliverExpr = $hasQtyToDeliver ? 'SUM(COALESCE(pl.qty_to_deliver,0))' : 'NULL';
         $storagesExpr = $hasStorageLocation ? "STRING_AGG(DISTINCT NULLIF(pl.storage_location,''), ', ')" : 'NULL';
-        $sumOutstandingExpr = $hasQtyReceived
-            ? "SUM(GREATEST($qtyOrderedExprBase - $qtyReceivedExprBase,0))"
-            : '0';
+        // Outstanding uses GR-based received
+        $sumOutstandingExpr = "SUM(GREATEST($qtyOrderedExprBase - COALESCE(grn.qty,0),0))";
 
-        $statusExpr = $hasQtyReceived
-            ? sprintf(
-                "CASE WHEN %s >= %s AND %s > 0 THEN '%s' WHEN %s > 0 THEN '%s' ELSE '%s' END",
-                $sumQtyReceivedExpr,
-                $sumQtyOrderedExpr,
-                $sumQtyOrderedExpr,
-                PurchaseOrder::STATUS_COMPLETED,
-                $sumQtyReceivedExpr,
-                PurchaseOrder::STATUS_PARTIAL,
-                PurchaseOrder::STATUS_ORDERED
-            )
-            : sprintf("'%s'", PurchaseOrder::STATUS_ORDERED);
+        // Status uses GR-based received as well
+        $statusExpr = sprintf(
+            "CASE WHEN %s >= %s AND %s > 0 THEN '%s' WHEN %s > 0 THEN '%s' ELSE '%s' END",
+            'COALESCE(SUM(grn.qty),0)',
+            $sumQtyOrderedExpr,
+            $sumQtyOrderedExpr,
+            PurchaseOrder::STATUS_COMPLETED,
+            'COALESCE(SUM(grn.qty),0)',
+            PurchaseOrder::STATUS_PARTIAL,
+            PurchaseOrder::STATUS_ORDERED
+        );
 
         $select = [
             DB::raw('ph.po_number as po_number'),
@@ -72,7 +69,7 @@ class PurchaseOrderController extends Controller
             DB::raw('COUNT(DISTINCT ph.id) as header_count'),
             DB::raw('COUNT(pl.id) as total_lines'),
             DB::raw("$sumQtyOrderedExpr as total_qty_ordered"),
-            DB::raw("$sumQtyReceivedExpr as total_qty_received"),
+            DB::raw('COALESCE(SUM(grn.qty),0) as total_qty_received'),
             DB::raw("$sumOutstandingExpr as total_qty_outstanding"),
             DB::raw("$sumQtyToInvoiceExpr as total_qty_to_invoice"),
             DB::raw("$sumQtyToDeliverExpr as total_qty_to_deliver"),
@@ -92,8 +89,18 @@ class PurchaseOrderController extends Controller
             $select[] = DB::raw("NULL as sap_statuses");
         }
 
+        // Build normalized GR subquery grouped by (po_no, ln)
+        $grn = DB::table('gr_receipts')
+            ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','','g') AS INTEGER) AS ln")
+            ->selectRaw('SUM(qty) as qty')
+            ->groupBy('po_no','ln');
+
         $query = DB::table('po_headers as ph')
             ->leftJoin('po_lines as pl', 'pl.po_header_id', '=', 'ph.id')
+            ->leftJoinSub($grn, 'grn', function($j){
+                $j->on('grn.po_no','=','ph.po_number')
+                  ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','','g') AS INTEGER)");
+            })
             ->select($select)
             ->groupBy('ph.po_number');
 
@@ -666,7 +673,6 @@ class PurchaseOrderController extends Controller
         return $redir;
     }
 }
-
 
 
 

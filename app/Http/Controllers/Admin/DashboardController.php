@@ -44,12 +44,18 @@ class DashboardController extends Controller
 
         try {
             // In-Transit = max(inv - gr, 0)
-            $inv = \DB::table('invoices')->select('po_no','line_no', \DB::raw('SUM(qty) as qty'))->groupBy('po_no','line_no');
-            $gr  = \DB::table('gr_receipts')->select('po_no','line_no', \DB::raw('SUM(qty) as qty'))->groupBy('po_no','line_no');
-            $sum = \DB::table('po_lines as pl')
+            $inv = DB::table('invoices')->select('po_no','line_no', DB::raw('SUM(qty) as qty'))->groupBy('po_no','line_no');
+            $gr  = DB::table('gr_receipts')->select('po_no','line_no', DB::raw('SUM(qty) as qty'))->groupBy('po_no','line_no');
+            $sum = DB::table('po_lines as pl')
                 ->join('po_headers as ph','pl.po_header_id','=','ph.id')
-                ->leftJoinSub($inv,'inv',function($j){$j->on('ph.po_number','=','inv.po_no')->on('pl.line_no','=','inv.line_no');})
-                ->leftJoinSub($gr,'gr',function($j){$j->on('ph.po_number','=','gr.po_no')->on('pl.line_no','=','gr.line_no');})
+                ->leftJoinSub($inv,'inv',function($j){
+                    $j->on('ph.po_number','=','inv.po_no')
+                      ->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''), '[^0-9]', '', 'g') AS INTEGER) = CAST(regexp_replace(CAST(inv.line_no as text), '[^0-9]', '', 'g') AS INTEGER)");
+                })
+                ->leftJoinSub($gr,'gr',function($j){
+                    $j->on('ph.po_number','=','gr.po_no')
+                      ->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''), '[^0-9]', '', 'g') AS INTEGER) = CAST(regexp_replace(CAST(gr.line_no as text), '[^0-9]', '', 'g') AS INTEGER)");
+                })
                 ->selectRaw('SUM(GREATEST(COALESCE(inv.qty,0)-COALESCE(gr.qty,0),0)) as s')->value('s');
             $metrics['in_transit_qty'] = (float) $sum;
         } catch (\Throwable $e) { $metrics['in_transit_qty'] = 0; }
