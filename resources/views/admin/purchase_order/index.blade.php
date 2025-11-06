@@ -364,7 +364,7 @@
     <div class="page-header">
         <div>
             <h1 class="page-header__title">Purchase Orders</h1>
-            <p class="page-header__subtitle">Track purchase order status, shipment progress, and customer details in one concise view.</p>
+            <p class="page-header__subtitle">Track purchase order status, shipment progress, and customer details.</p>
         </div>
         <div class="page-header__actions">
             <a href="{{ route('admin.purchase-orders.export', request()->query()) }}" class="page-header__button page-header__button--outline">
@@ -376,7 +376,7 @@
 
     <div class="summary-grid">
         <div class="summary-tile">
-            <span class="summary-tile__label">Total POs</span>
+            <span class="summary-tile__label">Total PO</span>
             <span class="summary-tile__value">{{ number_format($stats['total_po']) }}</span>
         </div>
         <div class="summary-tile">
@@ -396,7 +396,7 @@
     <form method="GET" class="filter-panel">
         <div class="filter-panel__control">
             <label class="form-label text-muted small mb-1">Period</label>
-            <input type="text" name="period" value="{{ request('period') }}" class="form-control" placeholder="YYYY-MM">
+            <input type="text" name="period" value="{{ request('period') }}" class="form-control" placeholder="MM-YYYY">
         </div>
         <div class="filter-panel__control">
             <label class="form-label text-muted small mb-1">Status</label>
