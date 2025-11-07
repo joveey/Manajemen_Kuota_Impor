@@ -900,7 +900,7 @@
                         </div>
                         <div class="stat-label">In-Transit</div>
                         <div class="stat-number">{{ number_format($metrics['in_transit_qty'] ?? 0) }}</div>
-                        <p class="stat-meta">Invoice - GR</p>
+                        <p class="stat-meta">Shipping: {{ number_format($metrics['in_transit_shipping_qty'] ?? 0) }} | Not Ship Yet: {{ number_format($metrics['in_transit_not_ship_yet_qty'] ?? 0) }}</p>
                     </div>
                 </div>
                 <div class="col-12 col-md-6 col-lg">
@@ -946,7 +946,7 @@
                 </div>
                 <div class="stat-label">PO This Month</div>
                 <div class="stat-number">{{ number_format($poStats['this_month']) }}</div>
-                <p class="stat-meta">Need Shipment: {{ number_format($poStats['need_shipment']) }} | In Transit: {{ number_format($poStats['in_transit']) }}</p>
+                <p class="stat-meta">Need Shipment: {{ number_format($poStats['need_shipment']) }} | Shipping: {{ number_format($poStats['in_transit_shipping']) }} | Not Ship Yet: {{ number_format($poStats['in_transit_not_ship_yet']) }}</p>
             </div>
         </div>
         <div class="col-12 col-md-6 col-xl-3">

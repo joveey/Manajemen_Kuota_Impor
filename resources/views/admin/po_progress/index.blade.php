@@ -21,7 +21,7 @@
                     <button class="btn btn-primary w-100" type="submit"><i class="fas fa-search me-2"></i>Search</button>
                 </div>
                 <div class="col-md-3 text-end small text-muted">
-                    Read-only: Ordered | Shipped | Received | In-Transit | Remaining
+                    Read-only: Ordered | Shipped | Received | In-Transit (Shipping/Not Ship Yet) | Remaining
                 </div>
             </form>
         </div>
@@ -45,6 +45,8 @@
                     <div class="badge rounded-pill" style="background:#e8f0ff;color:#1d4ed8;border:1px solid #c9dcff;">Shipped <span class="ms-1 fw-semibold">{{ fmt_qty($sum['shipped_total']) }}</span></div>
                     <div class="badge rounded-pill" style="background:#e8faee;color:#15803d;border:1px solid #bbf7d0;">Received <span class="ms-1 fw-semibold">{{ fmt_qty($sum['received_total']) }}</span></div>
                     <div class="badge rounded-pill text-bg-info p-2">In-Transit <span class="ms-1 fw-semibold">{{ fmt_qty(max($sum['in_transit'],0)) }}</span></div>
+                    <div class="badge rounded-pill" style="background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;">Shipping <span class="ms-1 fw-semibold">{{ fmt_qty(max($sum['in_transit_shipping'] ?? 0,0)) }}</span></div>
+                    <div class="badge rounded-pill" style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;">Not Ship Yet <span class="ms-1 fw-semibold">{{ fmt_qty(max($sum['in_transit_not_ship_yet'] ?? 0,0)) }}</span></div>
                     <div class="badge rounded-pill text-bg-warning p-2">Remaining <span class="ms-1 fw-semibold">{{ fmt_qty(max($sum['remaining'],0)) }}</span></div>
                 </div>
             </div>
@@ -68,6 +70,8 @@
                                         <span class="badge text-bg-secondary">Shipped: {{ fmt_qty($ln['shipped_total']) }}</span>
                                         <span class="badge text-bg-success">Received: {{ fmt_qty($ln['received_total']) }}</span>
                                         <span class="badge text-bg-info">In-Transit: {{ fmt_qty($ln['in_transit']) }}</span>
+                                        <span class="badge" style="background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;">Shipping: {{ fmt_qty($ln['in_transit_shipping'] ?? 0) }}</span>
+                                        <span class="badge" style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;">Not Ship Yet: {{ fmt_qty($ln['in_transit_not_ship_yet'] ?? 0) }}</span>
                                         <span class="badge text-bg-warning">Remaining: {{ fmt_qty($ln['remaining']) }}</span>
                                         <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#{{ $cid }}" aria-expanded="false" aria-controls="{{ $cid }}">Details</button>
                                     </div>
