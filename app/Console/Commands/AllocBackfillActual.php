@@ -58,6 +58,24 @@ class AllocBackfillActual extends Command
                             ->orWhereRaw('LOWER(code) = ?', [strtolower($r->model_code)])
                             ->first();
                     }
+                    // Fallback: enrich or synthesize product from PO line's HS mapping
+                    if (!$product || ($product && $product->pk_capacity === null)) {
+                        $hsRow = DB::table('po_lines as pl')
+                            ->leftJoin('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
+                            ->join('po_headers as ph','pl.po_header_id','=','ph.id')
+                            ->where('ph.po_number',$r->po_no)
+                            ->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','','g') AS int) = CAST(regexp_replace(CAST(? AS text),'[^0-9]','','g') AS int)", [$r->line_no])
+                            ->select('hs.hs_code','hs.pk_capacity')
+                            ->first();
+                        if ($hsRow) {
+                            $pseudo = new Product();
+                            $pseudo->hs_code = $hsRow->hs_code ?? null;
+                            $pseudo->pk_capacity = $hsRow->pk_capacity ?? null;
+                            $product = $product ?: $pseudo;
+                            if ($product && ($product->pk_capacity === null)) { $product->pk_capacity = $pseudo->pk_capacity; }
+                            if ($product && (empty($product->hs_code))) { $product->hs_code = $pseudo->hs_code; }
+                        }
+                    }
                     if (!$product) { $noQuota++; continue; }
 
                     $date = (string) $r->receive_date;

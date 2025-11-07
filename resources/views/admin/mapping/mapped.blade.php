@@ -81,8 +81,8 @@
                       $isPrimaryAny = (bool) $items->contains(fn($it) => (bool) ($it->is_primary ?? false));
                     @endphp
                     <span class="badge rounded-pill text-bg-light border me-1 mb-1">
-                      {{ $m->quota?->display_number ?? 'Unknown' }}
-                      @if($m->is_primary)
+                      {{ $first->quota?->display_number ?? 'Unknown' }}
+                      @if($isPrimaryAny)
                         <small class="text-success ms-1">Primary</small>
                       @endif
                     </span>
