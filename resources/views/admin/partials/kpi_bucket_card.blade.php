@@ -14,11 +14,21 @@
     $periodStart = optional($q->period_start)->format('M Y') ?? '-';
     $periodEnd = optional($q->period_end)->format('M Y') ?? '-';
     $category = $q->government_category ?? $q->display_number ?? 'Quota';
+    $displayCategory = trim((string) $category);
+    if ($displayCategory !== '') {
+        $upper = strtoupper($displayCategory);
+        if (stripos($displayCategory, 'PK') === false
+            && $upper !== 'ACC'
+            && !str_contains($upper, 'ACCESSORY')
+            && !str_contains($upper, 'ACCESORY')) {
+            $displayCategory .= ' PK';
+        }
+    }
 @endphp
 <div class="kpi-card">
     <div class="kpi-card__header">
         <div>
-            <div class="kpi-card__title">{{ $category }}</div>
+            <div class="kpi-card__title">{{ $displayCategory }}</div>
             <div class="kpi-card__period">Period: {{ $periodStart }} - {{ $periodEnd }}</div>
         </div>
     </div>

@@ -763,7 +763,7 @@
                     $operationalActive = (
                         request()->routeIs('admin.openpo.*') ||
                         request()->routeIs('admin.po_progress.index') ||
-                        request()->routeIs('admin.imports.invoices.*') ||
+                        
                         request()->routeIs('admin.imports.gr.*') ||
                         ($canPORead && request()->is('admin/purchase-orders*'))
                     );
@@ -886,10 +886,7 @@
                                     <span>Shipments &amp; Receipts</span>
                                 </a>
                                 @can('po.create')
-                                    <a href="{{ route('admin.imports.invoices.index') }}" class="nav-link {{ request()->routeIs('admin.imports.invoices.*') ? 'active' : '' }}">
-                                        <span class="nav-icon"><i class="fas fa-file-invoice"></i></span>
-                                        <span>Import Invoice (optional)</span>
-                                    </a>
+                                    
                                     <a href="{{ route('admin.imports.gr.index') }}" class="nav-link {{ request()->routeIs('admin.imports.gr.*') ? 'active' : '' }}">
                                         <span class="nav-icon"><i class="fas fa-receipt"></i></span>
                                         <span>Import GR</span>
