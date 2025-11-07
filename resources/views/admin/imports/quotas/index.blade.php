@@ -66,7 +66,7 @@
                                     placeholder="e.g., 04.PI-76.25.0108"
                                     required
                                 >
-                                <div class="form-text">Nomor kuota unik yang akan menjadi key.</div>
+                                <div class="form-text">Quota No. boleh diulang dan periode yang sama akan membuat entri baru.</div>
                                 @error('quota_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
                             <div class="col-12">

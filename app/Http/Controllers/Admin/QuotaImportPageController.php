@@ -167,20 +167,16 @@ class QuotaImportPageController extends Controller
         }
 
         $desc = $this->hsHasDesc ? ($hsRow->desc ?? '') : '';
+        if (strtoupper((string) $hsRow->hs_code) === 'ACC') {
+            $desc = 'Accesory';
+        }
         if ($desc === '') {
             $desc = $this->formatPkLabel($hsRow->pk_capacity);
         }
         $desc = $this->normalizePkDesc($desc, $hsRow->pk_capacity);
 
         $preview = session('quotas.manual.preview', []);
-        // Key untuk preview berbasis periode (dan HS) agar konsisten dengan key bisnis
         $quotaNo = \Illuminate\Support\Str::upper(trim((string) $data['quota_no']));
-        $duplicateKey = sprintf('%s|%s|%s', (string)$hsRow->hs_code, (string)$data['period_start'], (string)$data['period_end']);
-        foreach ($preview as $item) {
-            if (($item['duplicate_key'] ?? null) === $duplicateKey) {
-                return back()->withErrors(['period_start' => 'Data untuk HS & periode yang sama sudah ada di preview.'])->withInput();
-            }
-        }
 
         $preview[] = [
             'id' => (string) Str::uuid(),
@@ -191,7 +187,6 @@ class QuotaImportPageController extends Controller
             'quantity' => (float) $data['quantity'],
             'period_start' => $data['period_start'],
             'period_end' => $data['period_end'],
-            'duplicate_key' => $duplicateKey,
         ];
 
         session(['quotas.manual.preview' => $preview]);
@@ -252,38 +247,25 @@ class QuotaImportPageController extends Controller
 
                 $label = $desc !== '' ? $desc : 'HS '.$hsCode;
                 $now = now();
+                $notesValue = $this->buildHsNotesTag($hsCode);
+                $name = 'Quota HS '.$hsCode.' '.$periodStart.'-'.$periodEnd;
 
-                // Cari berdasarkan Quota No. sebagai key
-                $existing = DB::table('quotas')->where('quota_number', $quotaNo)->first();
-
-                $baseFields = [
+                // Selalu insert record baru agar periode yang sama tetap tercatat sebagai entri terpisah
+                DB::table('quotas')->insert([
+                    'quota_number' => $quotaNo,
+                    'name' => $name,
                     'government_category' => $label,
                     'total_allocation' => (int) round($quantity),
                     'period_start' => $periodStart,
                     'period_end' => $periodEnd,
-                    'updated_at' => $now,
-                ];
-                $notesValue = trim('HS '.$hsCode);
-
-                if ($existing) {
-                    $update = $baseFields;
-                    DB::table('quotas')->where('id', $existing->id)->update($update);
-                    $applied++;
-                    continue;
-                }
-
-                // Insert with provided Quota No. (no auto-generation)
-                $name = 'Quota HS '.$hsCode.' '.$periodStart.'-'.$periodEnd;
-                DB::table('quotas')->insert(array_merge($baseFields, [
-                    'quota_number' => $quotaNo,
-                    'name' => $name,
                     'status' => 'available',
                     'is_active' => true,
                     'forecast_remaining' => (int) round($quantity),
                     'actual_remaining' => (int) round($quantity),
-                    'notes' => $notesValue !== '' ? $notesValue : null,
+                    'notes' => $notesValue,
                     'created_at' => $now,
-                ]));
+                    'updated_at' => $now,
+                ]);
                 $applied++;
             }
         });
@@ -317,6 +299,12 @@ class QuotaImportPageController extends Controller
             'count' => count($preview),
             'total_quantity' => $totalQty,
         ];
+    }
+
+    protected function buildHsNotesTag(?string $hsCode): ?string
+    {
+        $code = strtoupper(trim((string) $hsCode));
+        return $code === '' ? null : 'HS '.$code;
     }
 
     protected function formatPkLabel(?float $anchor): string
