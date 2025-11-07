@@ -40,9 +40,9 @@
       <select id="status-filter" name="status" class="form-select">
         <option value="">All statuses</option>
         @php $cur = (string) request('status', ''); @endphp
-        <option value="Booked" {{ $cur==='Booked'?'selected':'' }}>Booked</option>
-        <option value="On Vessel" {{ $cur==='On Vessel'?'selected':'' }}>On Vessel</option>
-        <option value="Arrived" {{ $cur==='Arrived'?'selected':'' }}>Arrived</option>
+        <option value="Finish" {{ $cur==='Finish'?'selected':'' }}>Finish</option>
+        <option value="Shipping" {{ $cur==='Shipping'?'selected':'' }}>Shipping</option>
+        <option value="Not Ship Yet" {{ $cur==='Not Ship Yet'?'selected':'' }}>Not Ship Yet</option>
       </select>
     </div>
     <div>
@@ -91,6 +91,7 @@
               <select class="form-select form-select-sm v-status">
                 <option value=""></option>
                 <option value="Finish" {{ $s==='finish' ? 'selected' : '' }}>Finish</option>
+                <option value="Shipping" {{ $s==='shipping' ? 'selected' : '' }}>Shipping</option>
                 <option value="Not Ship Yet" {{ $s==='not ship yet' ? 'selected' : '' }}>Not Ship Yet</option>
               </select>
             </td>
@@ -137,6 +138,7 @@
             <select class="form-select form-select-sm v-status">
               <option value=""></option>
               <option value="Finish" {{ $s==='finish' ? 'selected' : '' }}>Finish</option>
+              <option value="Shipping" {{ $s==='shipping' ? 'selected' : '' }}>Shipping</option>
               <option value="Not Ship Yet" {{ $s==='not ship yet' ? 'selected' : '' }}>Not Ship Yet</option>
             </select>
           </div>
