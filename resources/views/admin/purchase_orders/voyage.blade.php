@@ -91,6 +91,7 @@
               <select class="form-select form-select-sm v-status">
                 <option value=""></option>
                 <option value="Finish" {{ $s==='finish' ? 'selected' : '' }}>Finish</option>
+                <option value="Shipping" {{ $s==='shipping' ? 'selected' : '' }}>Shipping</option>
                 <option value="Not Ship Yet" {{ $s==='not ship yet' ? 'selected' : '' }}>Not Ship Yet</option>
               </select>
             </td>
@@ -137,6 +138,7 @@
             <select class="form-select form-select-sm v-status">
               <option value=""></option>
               <option value="Finish" {{ $s==='finish' ? 'selected' : '' }}>Finish</option>
+              <option value="Shipping" {{ $s==='shipping' ? 'selected' : '' }}>Shipping</option>
               <option value="Not Ship Yet" {{ $s==='not ship yet' ? 'selected' : '' }}>Not Ship Yet</option>
             </select>
           </div>

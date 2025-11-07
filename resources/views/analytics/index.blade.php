@@ -29,10 +29,8 @@
             <a href="{{ route('analytics.export.csv', request()->query()) }}" class="page-header__button page-header__button--outline">
                 <i class="fas fa-file-csv me-2"></i>CSV
             </a>
-            <a href="{{ route('analytics.export.xlsx', request()->query()) }}" class="page-header__button page-header__button--outline">
                 <i class="fas fa-file-excel me-2"></i>XLSX
             </a>
-            <a href="{{ route('analytics.export.pdf', request()->query()) }}" class="page-header__button page-header__button--outline">
                 <i class="fas fa-file-pdf me-2"></i>PDF
             </a>
         </div>

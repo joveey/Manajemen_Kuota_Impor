@@ -201,7 +201,7 @@
         <i class="fas fa-file-import"></i>
         Import Quotas
       </a>
-      <a href="{{ route('admin.quotas.export') }}" class="action-pill action-pill--outline">
+      <a href="{{ route('admin.quotas.export.csv', ['year' => request('year', now()->year)]) }}" class="action-pill action-pill--outline">
         <i class="fas fa-download"></i>
         Export CSV
       </a>
