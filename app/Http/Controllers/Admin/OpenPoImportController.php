@@ -267,8 +267,7 @@ class OpenPoImportController extends Controller
                                 $updatedExisting++;
 
                                 if ($delta !== 0) {
-                                    // Forecast allocation should be based on PO date (not ETA)
-                                    $allocDate = ($payload['po_date'] ?? $po->order_date ?? now()->toDateString());
+                                    $allocDate = $line['eta_date'] ?? ($payload['po_date'] ?? $po->order_date ?? now()->toDateString());
                                     $candidates = \App\Models\Quota::query()
                                         ->where('is_active', true)
                                         ->whereDate('period_start', '<=', $allocDate)
@@ -391,8 +390,7 @@ class OpenPoImportController extends Controller
                         // Allocate per line quantity by delivery date WITHOUT carry-over
                         $lineQty = (int) ($line['qty_ordered'] ?? 0);
                         if ($lineQty > 0 && (empty($poLine->forecast_allocated_at))) {
-                            // Forecast allocation should be based on PO date (not ETA)
-                            $allocDate = ($payload['po_date'] ?? $po->order_date ?? now()->toDateString());
+                            $allocDate = $line['eta_date'] ?? ($payload['po_date'] ?? $po->order_date ?? now()->toDateString());
 
                             // Find single matching quota for the delivery date
                             $candidates = \App\Models\Quota::query()
@@ -513,4 +511,5 @@ class OpenPoImportController extends Controller
         return $redir;
     }
 }
+
 

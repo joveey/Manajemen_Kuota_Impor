@@ -73,8 +73,6 @@ class PoProgressController extends Controller
                     'shipped_total' => 0.0,
                     'received_total'=> 0.0,
                     'in_transit'    => 0.0,
-                    'in_transit_shipping' => 0.0,
-                    'in_transit_not_ship_yet' => 0.0,
                     'remaining'     => 0.0,
                 ];
 
@@ -124,9 +122,6 @@ class PoProgressController extends Controller
                     foreach ($grByLine[$key] ?? [] as $e) { $receivedTotal += (float) $e['qty']; }
 
                     $lineInTransit = max($shippedTotal - $receivedTotal, 0.0);
-                    $v = strtolower(trim((string) ($line->voyage_status ?? '')));
-                    $lineShipIT = ($v === 'shipping') ? $lineInTransit : 0.0;
-                    $lineNotShipIT = ($v === 'shipping') ? 0.0 : $lineInTransit; // treat others/blank as Not Ship Yet
                     $lineRemaining = max($ordered - $receivedTotal, 0.0);
 
                     $linesOut[] = [
@@ -138,8 +133,6 @@ class PoProgressController extends Controller
                         'shipped_total' => $shippedTotal,
                         'received_total' => $receivedTotal,
                         'in_transit' => $lineInTransit,
-                        'in_transit_shipping' => $lineShipIT,
-                        'in_transit_not_ship_yet' => $lineNotShipIT,
                         'remaining' => $lineRemaining,
                         'events' => $computedRows,
                     ];
@@ -152,11 +145,6 @@ class PoProgressController extends Controller
 
                 // Derive totals with non-negative constraints
                 $summary['in_transit'] = max($summary['shipped_total'] - $summary['received_total'], 0.0);
-                // Aggregate split using per-line computed values
-                foreach ($linesOut as $ln) {
-                    $summary['in_transit_shipping'] += (float) ($ln['in_transit_shipping'] ?? 0);
-                    $summary['in_transit_not_ship_yet'] += (float) ($ln['in_transit_not_ship_yet'] ?? 0);
-                }
                 $summary['remaining']  = max($summary['ordered_total'] - $summary['received_total'], 0.0);
 
                 $poData[$poNo] = [
@@ -179,3 +167,4 @@ class PoProgressController extends Controller
         ]);
     }
 }
+
