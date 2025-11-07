@@ -68,12 +68,20 @@
               </td>
               <td>{{ $p->category ?: '-' }}</td>
               <td>
-                @if($p->quotaMappings->isEmpty())
+                @php
+                  // De-duplicate related quota badges by quota_id and preserve Primary label
+                  $grouped = $p->quotaMappings->groupBy('quota_id');
+                @endphp
+                @if($grouped->isEmpty())
                   <span class="text-muted">-</span>
                 @else
-                  @foreach($p->quotaMappings as $m)
+                  @foreach($grouped as $quotaId => $items)
+                    @php
+                      $first = $items->first();
+                      $isPrimaryAny = (bool) $items->contains(fn($it) => (bool) ($it->is_primary ?? false));
+                    @endphp
                     <span class="badge rounded-pill text-bg-light border me-1 mb-1">
-                      {{ $m->quota?->quota_number ?? 'Unknown' }}
+                      {{ $m->quota?->display_number ?? 'Unknown' }}
                       @if($m->is_primary)
                         <small class="text-success ms-1">Primary</small>
                       @endif
