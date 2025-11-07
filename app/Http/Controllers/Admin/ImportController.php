@@ -179,7 +179,8 @@ class ImportController extends Controller
             return response()->json(['error'=>'Import not ready'], 422);
         }
 
-        $items = $import->items()->where('status','normalized')->get(['normalized_json']);
+        // Fetch row_index as well to allow distinguishing identical rows within one import
+        $items = $import->items()->where('status','normalized')->get(['normalized_json','row_index']);
         $published = 0; $skipped = 0; $rows = [];
         \Illuminate\Support\Facades\DB::beginTransaction();
         try {
@@ -439,12 +440,13 @@ class ImportController extends Controller
         if ($import->status !== \App\Models\Import::STATUS_READY) {
             return response()->json(['error'=>'Import not ready'], 422);
         }
-        $items = $import->items()->where('status','normalized')->get(['normalized_json']);
+        $items = $import->items()->where('status','normalized')->get(['normalized_json','row_index']);
         \Illuminate\Support\Facades\DB::beginTransaction();
         try {
             $now = now();
             $published = 0; $skipped = 0;
             $sampleRows = [];
+            $occurrence = [];
             foreach ($items as $it) {
                 $j = $it->normalized_json ?? [];
                 $po = (string)($j['po'] ?? '');
@@ -453,13 +455,25 @@ class ImportController extends Controller
                 $qty = (float)($j['qty'] ?? 0);
                 $cat = (string)($j['cat'] ?? '');
                 $inv = $j['inv'] ?? null;
-                $uk = sha1($po.$ln.$date.$qty);
+                // Build a more specific key so separate receipts on same day with same qty are not collapsed
+                $lnNorm = preg_replace('/[^0-9]/', '', (string)$ln) ?: (string)$ln;
+                $invNorm = is_string($inv) ? trim($inv) : '';
+                $catNorm = is_string($cat) ? trim($cat) : '';
+                $baseKey = implode('|', [(string)$po, (string)$lnNorm, (string)$date, (string)((float)$qty), (string)$invNorm, (string)$catNorm]);
+                $occurrence[$baseKey] = ($occurrence[$baseKey] ?? 0) + 1;
+                $seq = $occurrence[$baseKey];
+                // Stable per-file unique key: base attributes + sequential occurrence in the file
+                $uk = sha1($baseKey.'#'.$seq);
 
-                // Idempotent: skip if exists (prefer gr_unique if column exists; fallback to composite key)
+                // Idempotent: when gr_unique column exists, rely ONLY on gr_unique to allow multiple same-day/same-qty receipts
                 $useUniq = \Illuminate\Support\Facades\Schema::hasColumn('gr_receipts','gr_unique');
                 $existsQ = \Illuminate\Support\Facades\DB::table('gr_receipts');
-                if ($useUniq) { $existsQ->where('gr_unique',$uk); }
-                else { $existsQ->where(['po_no'=>$po,'line_no'=>$ln,'receive_date'=>$date,'qty'=>$qty]); }
+                if ($useUniq) {
+                    $existsQ->where('gr_unique', $uk);
+                } else {
+                    $existsQ->where(['po_no'=>$po,'line_no'=>$ln,'receive_date'=>$date,'qty'=>$qty]);
+                    if ($invNorm !== '') { $existsQ->where('invoice_no', $invNorm); }
+                }
                 $exists = $existsQ->exists();
                 if ($exists) { $skipped++; continue; }
 
@@ -468,7 +482,7 @@ class ImportController extends Controller
                     ->join('po_headers as ph','pl.po_header_id','=','ph.id')
                     ->where('ph.po_number',$po)
                     ->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''), '[^0-9]', '', 'g') AS INTEGER) = CAST(regexp_replace(?, '[^0-9]', '', 'g') AS INTEGER)", [$ln])
-                    ->select('pl.id','pl.qty_received','pl.model_code')->lockForUpdate()->first();
+                    ->select('pl.id','pl.qty_received','pl.model_code','pl.hs_code_id')->lockForUpdate()->first();
                 // Allow unmatched: we still insert GR row; cache update will be skipped
 
                 // Insert journal row
@@ -510,10 +524,26 @@ class ImportController extends Controller
                 // Actual deduction by receipt date based on product mapping and period
                 try {
                     $product = null;
-                    if (!empty($pl->model_code)) {
+                    if ($pl && !empty($pl->model_code)) {
                         $product = \App\Models\Product::whereRaw('LOWER(sap_model) = ?', [strtolower($pl->model_code)])
                             ->orWhereRaw('LOWER(code) = ?', [strtolower($pl->model_code)])
                             ->first();
+                    }
+                    // Fallback: if product not found or missing PK/HS, derive from PO line's HS mapping
+                    if (!$product || ($product && $product->pk_capacity === null)) {
+                        $hsRow = null;
+                        if ($pl && isset($pl->hs_code_id) && $pl->hs_code_id) {
+                            $hsRow = \Illuminate\Support\Facades\DB::table('hs_code_pk_mappings')->where('id', $pl->hs_code_id)->first(['hs_code','pk_capacity']);
+                        }
+                        if ($hsRow) {
+                            $pseudo = new \App\Models\Product();
+                            $pseudo->hs_code = $hsRow->hs_code ?? null;
+                            $pseudo->pk_capacity = $hsRow->pk_capacity ?? null;
+                            $product = $product ?: $pseudo;
+                            // If existing product lacks PK/HS, enrich it for matching purposes
+                            if ($product && ($product->pk_capacity === null)) { $product->pk_capacity = $pseudo->pk_capacity; }
+                            if ($product && (empty($product->hs_code))) { $product->hs_code = $pseudo->hs_code; }
+                        }
                     }
                     if ($product) {
                         $periodDate = $date; // YYYY-MM-DD
@@ -524,10 +554,14 @@ class ImportController extends Controller
                             ->get()
                             ->first(function ($q) use ($product) { return $q->matchesProduct($product); });
                         if ($quota) {
-                            // Idempotent check via meta.gr_unique
+                            // Idempotent check via meta.gr_unique (supports legacy keys)
+                            $legacyKey = sha1($po.$ln.$date.$qty); // legacy before occurrence-based key
                             $existsHist = \Illuminate\Support\Facades\DB::table('quota_histories')
                                 ->where('change_type','actual_decrease')
-                                ->where('meta->gr_unique', $uk)
+                                ->where(function($qq) use ($uk, $legacyKey){
+                                    $qq->where('meta->gr_unique', $uk)
+                                       ->orWhere('meta->gr_unique', $legacyKey);
+                                })
                                 ->exists();
                             if (!$existsHist) {
                                 $quota->decrementActual((int)$qty, sprintf('GR %s/%s pada %s', $po, $ln, $date), null, new \DateTimeImmutable($date), null, [

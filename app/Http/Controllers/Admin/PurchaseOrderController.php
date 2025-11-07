@@ -43,8 +43,9 @@ class PurchaseOrderController extends Controller
         $sumQtyToInvoiceExpr = $hasQtyToInvoice ? 'SUM(COALESCE(pl.qty_to_invoice,0))' : 'NULL';
         $sumQtyToDeliverExpr = $hasQtyToDeliver ? 'SUM(COALESCE(pl.qty_to_deliver,0))' : 'NULL';
         $storagesExpr = $hasStorageLocation ? "STRING_AGG(DISTINCT NULLIF(pl.storage_location,''), ', ')" : 'NULL';
-        // Outstanding uses GR-based received
-        $sumOutstandingExpr = "SUM(GREATEST($qtyOrderedExprBase - COALESCE(grn.qty,0),0))";
+        // Outstanding at PO level: max(total ordered - total received, 0)
+        // Avoid per-line clipping which can overstate outstanding when some lines are over-received
+        $sumOutstandingExpr = "GREATEST(SUM($qtyOrderedExprBase) - COALESCE(SUM(grn.qty),0), 0)";
 
         // Status uses GR-based received as well
         $statusExpr = sprintf(
@@ -673,7 +674,6 @@ class PurchaseOrderController extends Controller
         return $redir;
     }
 }
-
 
 
 
