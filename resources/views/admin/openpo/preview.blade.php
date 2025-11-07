@@ -79,6 +79,19 @@
         $errorCount = collect($lines)->filter(function($ln){
             return strtolower((string)($ln['validation_status'] ?? '')) !== 'ok';
         })->count();
+        // Count lines that specifically have missing HS mapping for the model
+        // A PO is considered having missing HS when any line's model
+        // does not have a mapping in the master (products.hs_code or model_hs_mappings),
+        // regardless of whether the file provided an HS code.
+        $missingHsCount = collect($lines)->filter(function($ln) use ($productHsMap){
+            $modelKey = strtoupper((string)($ln['model_code'] ?? ''));
+            $hasMasterMap = isset($productHsMap) && is_array($productHsMap)
+                ? (string)($productHsMap[$modelKey] ?? '') !== ''
+                : false;
+            $notes = strtolower((string)($ln['validation_notes'] ?? ''));
+            $hintNoMap = str_contains($notes, 'model_code belum punya hs mapping') || str_contains($notes, 'hs mapping');
+            return ($modelKey !== '') && (!$hasMasterMap || $hintNoMap);
+        })->count();
       @endphp
       <div class="accordion-item mb-2">
         <h2 class="accordion-header" id="h{{ $i }}">
@@ -90,6 +103,9 @@
                 <span class="badge bg-info text-dark">Qty: {{ (float)$totalQty }}</span>
                 @if($errorCount > 0)
                   <span class="badge bg-danger" title="Number of rows with errors">Err: {{ $errorCount }}</span>
+                @endif
+                @if($missingHsCount > 0)
+                  <span class="badge bg-warning text-dark" title="Rows missing model → HS mapping">No HS: {{ $missingHsCount }}</span>
                 @endif
               </div>
             </div>
@@ -138,8 +154,14 @@
                         @php
                           $notes = strtolower((string)($ln['validation_notes'] ?? ''));
                           $needsModel = str_contains($notes, 'model_code belum punya hs mapping') || str_contains($notes, 'hs mapping');
+                          // Also treat as needs model when product master has no HS mapping for this model
+                          $modelKey = strtoupper((string)($ln['model_code'] ?? ''));
+                          $productHasHs = isset($productHsMap) && is_array($productHsMap)
+                            ? (string)($productHsMap[$modelKey] ?? '') !== ''
+                            : false;
+                          $showAddModel = (!$productHasHs) || $needsModel;
                         @endphp
-                        @if(($ln['validation_status'] ?? '') !== 'ok' && $needsModel && auth()->user()?->can('product.create') && Route::has('admin.master.quick_hs.index'))
+                        @if($showAddModel && auth()->user()?->can('product.create') && Route::has('admin.master.quick_hs.index'))
                           <div class="mt-2">
                             <a class="btn btn-sm btn-outline-primary" href="{{ route('admin.master.quick_hs.index', [
                                 'model' => $ln['model_code'],

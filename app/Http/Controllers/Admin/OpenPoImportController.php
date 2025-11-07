@@ -49,6 +49,30 @@ class OpenPoImportController extends Controller
         // Keep raw rows so we can re-validate after fixing mappings without re-uploading
         session(['openpo.preview' => $result, 'openpo.model_map' => $modelMap, 'openpo.rows' => $rows]);
 
+        // Prefetch current product -> HS mapping to hint the preview about missing model mappings
+        try {
+            $modelKeys = [];
+            foreach (($result['groups'] ?? []) as $g) {
+                foreach (($g['lines'] ?? []) as $ln) {
+                    $m = strtoupper((string)($ln['model_code'] ?? ''));
+                    if ($m !== '') { $modelKeys[$m] = true; }
+                }
+            }
+            $models = array_keys($modelKeys);
+            $productHsMap = [];
+            if (!empty($models)) {
+                $rows2 = DB::table('products')
+                    ->select(['sap_model','code','hs_code'])
+                    ->whereIn('sap_model', $models)
+                    ->orWhereIn('code', $models)
+                    ->get();
+                foreach ($rows2 as $pr) {
+                    if (!empty($pr->sap_model)) { $productHsMap[strtoupper((string)$pr->sap_model)] = (string)($pr->hs_code ?? ''); }
+                    if (!empty($pr->code)) { $productHsMap[strtoupper((string)$pr->code)] = (string)($pr->hs_code ?? ''); }
+                }
+            }
+        } catch (\Throwable $e) { $productHsMap = []; }
+
         return view('admin.openpo.preview', [
             'summary' => [
                 'groups' => count($result['groups']),
@@ -56,6 +80,7 @@ class OpenPoImportController extends Controller
                 'error_count' => (int) $result['error_count'],
             ],
             'result' => $result,
+            'productHsMap' => $productHsMap,
         ]);
     }
 
@@ -83,7 +108,31 @@ class OpenPoImportController extends Controller
             'error_count' => (int) ($result['error_count'] ?? 0),
         ];
 
-        return view('admin.openpo.preview', compact('summary', 'result'));
+        // Prefetch current product -> HS mapping for the models in this preview
+        try {
+            $modelKeys = [];
+            foreach (($result['groups'] ?? []) as $g) {
+                foreach (($g['lines'] ?? []) as $ln) {
+                    $m = strtoupper((string)($ln['model_code'] ?? ''));
+                    if ($m !== '') { $modelKeys[$m] = true; }
+                }
+            }
+            $models = array_keys($modelKeys);
+            $productHsMap = [];
+            if (!empty($models)) {
+                $rows2 = DB::table('products')
+                    ->select(['sap_model','code','hs_code'])
+                    ->whereIn('sap_model', $models)
+                    ->orWhereIn('code', $models)
+                    ->get();
+                foreach ($rows2 as $pr) {
+                    if (!empty($pr->sap_model)) { $productHsMap[strtoupper((string)$pr->sap_model)] = (string)($pr->hs_code ?? ''); }
+                    if (!empty($pr->code)) { $productHsMap[strtoupper((string)$pr->code)] = (string)($pr->hs_code ?? ''); }
+                }
+            }
+        } catch (\Throwable $e) { $productHsMap = []; }
+
+        return view('admin.openpo.preview', compact('summary', 'result', 'productHsMap'));
     }
 
     public function publish(Request $request): RedirectResponse
@@ -511,5 +560,4 @@ class OpenPoImportController extends Controller
         return $redir;
     }
 }
-
 
