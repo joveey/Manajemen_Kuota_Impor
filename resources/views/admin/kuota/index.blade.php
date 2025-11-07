@@ -250,40 +250,64 @@
             @forelse($quotas as $quota)
                 @php
                     $allocation = (int) ($quota->total_allocation ?? 0);
-                    $forecastRemaining = (int) ($quota->forecast_remaining ?? 0);
-                    $status = ['SAFE', '#d1fae5', '#047857', '#10b981'];
-                    $state = 'safe';
-                    $consumed = max($allocation - $forecastRemaining, 0);
-                    $pct = $allocation > 0 ? round(($consumed / $allocation) * 100) : 0; // 0..100
-                    $ratio = $allocation > 0 ? ($forecastRemaining / $allocation) : 0;   // 0..1
-                    if ($forecastRemaining <= 0) { $status = ['DEPLETED','#fee2e2','#b91c1c','#ef4444']; $state='zero'; }
-                    elseif ($ratio < 0.5 && $ratio >= 0.2) { $status = ['WARNING','#fef3c7','#92400e','#f59e0b']; $state='warn'; }
-                    elseif ($ratio < 0.2) { $status = ['WARNING','#fef3c7','#92400e','#f59e0b']; $state='warn'; }
-                    else { $status = ['SAFE','#d1fae5','#047857','#10b981']; $state='safe'; }
+                    // Forecast metrics
+                    $forecastRemaining = max((int) ($quota->forecast_remaining ?? 0), 0);
+                    $forecastConsumed = max($allocation - $forecastRemaining, 0);
+                    $forecastPct = $allocation > 0 ? round(($forecastConsumed / $allocation) * 100) : 0;
+                    $forecastRatio = $allocation > 0 ? ($forecastRemaining / $allocation) : 0;
+                    $statusF = ['SAFE', '#d1fae5', '#047857', '#10b981'];
+                    $stateF = 'safe';
+                    if ($forecastRemaining <= 0) { $statusF = ['DEPLETED','#fee2e2','#b91c1c','#ef4444']; $stateF='zero'; }
+                    elseif ($forecastRatio < 0.5 && $forecastRatio >= 0.2) { $statusF = ['WARNING','#fef3c7','#92400e','#f59e0b']; $stateF='warn'; }
+                    elseif ($forecastRatio < 0.2) { $statusF = ['WARNING','#fef3c7','#92400e','#f59e0b']; $stateF='warn'; }
+                    // Actual metrics
+                    $actualRemaining = max((int) ($quota->actual_remaining ?? 0), 0);
+                    $actualConsumed = max((int) ($quota->actual_consumed ?? ($allocation - $actualRemaining)), 0);
+                    $actualPct = $allocation > 0 ? round(($actualConsumed / $allocation) * 100) : 0;
+                    $actualRatio = $allocation > 0 ? ($actualRemaining / $allocation) : 0;
+                    $statusA = ['SAFE', '#d1fae5', '#047857', '#10b981'];
+                    $stateA = 'safe';
+                    if ($actualRemaining <= 0) { $statusA = ['DEPLETED','#fee2e2','#b91c1c','#ef4444']; $stateA='zero'; }
+                    elseif ($actualRatio < 0.5 && $actualRatio >= 0.2) { $statusA = ['WARNING','#fef3c7','#92400e','#f59e0b']; $stateA='warn'; }
+                    elseif ($actualRatio < 0.2) { $statusA = ['WARNING','#fef3c7','#92400e','#f59e0b']; $stateA='warn'; }
                 @endphp
-                <tr data-state="{{ $state }}">
+                <tr data-state="{{ $stateF }}" data-state-forecast="{{ $stateF }}" data-state-actual="{{ $stateA }}">
                     <td>{{ $loop->iteration }}</td>
                     <td><strong>{{ $quota->quota_number }}</strong></td>
                     <td>{{ $quota->name }}</td>
                     <td class="text-end">{{ number_format($quota->total_allocation ?? 0) }}</td>
-                    <td class="text-end col-forecast">{{ number_format(max(($quota->forecast_consumed ?? 0),0)) }}</td>
-                    <td class="text-end col-forecast">{{ number_format(max(($quota->forecast_remaining ?? 0),0)) }}</td>
-                    <td class="text-end col-actual d-none">{{ number_format(max(($quota->actual_consumed ?? 0),0)) }}</td>
-                    <td class="text-end col-actual d-none">{{ number_format(max(($quota->actual_remaining ?? 0),0)) }}</td>
+                    <td class="text-end col-forecast">{{ number_format($forecastConsumed) }}</td>
+                    <td class="text-end col-forecast">{{ number_format($forecastRemaining) }}</td>
+                    <td class="text-end col-actual d-none">{{ number_format($actualConsumed) }}</td>
+                    <td class="text-end col-actual d-none">{{ number_format($actualRemaining) }}</td>
                     <td>{{ optional($quota->period_start)->format('M Y') ?? '-' }} - {{ optional($quota->period_end)->format('M Y') ?? '-' }}</td>
                     <td>
-                        {{-- New colored badge based on forecast ratio --}}
-                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs fw-semibold" style="background: {{ $status[1] }}; color: {{ $status[2] }};">
-                            {{ $status[0] }}
-                        </span>
-
-                        {{-- Progress bar (consumed vs allocation) --}}
-                        <div class="mt-2">
-                          <div class="h-2 w-100 bg-slate-200 rounded" style="height:8px;border-radius:6px;background:#e2e8f0;">
-                            <div class="h-2 rounded" style="height:8px;width: {{ $pct }}%;border-radius:6px;background: {{ $status[3] }};"></div>
+                        {{-- Forecast status --}}
+                        <div class="col-forecast">
+                          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs fw-semibold" style="background: {{ $statusF[1] }}; color: {{ $statusF[2] }};">
+                              {{ $statusF[0] }}
+                          </span>
+                          <div class="mt-2">
+                            <div class="h-2 w-100 bg-slate-200 rounded" style="height:8px;border-radius:6px;background:#e2e8f0;">
+                              <div class="h-2 rounded" style="height:8px;width: {{ $forecastPct }}%;border-radius:6px;background: {{ $statusF[3] }};"></div>
+                            </div>
+                            <div class="mt-1 text-[11px] text-slate-500">
+                              {{ number_format($forecastConsumed) }} / {{ number_format($allocation) }} ({{ $forecastPct }}%)
+                            </div>
                           </div>
-                          <div class="mt-1 text-[11px] text-slate-500">
-                            {{ number_format($consumed) }} / {{ number_format($allocation) }} ({{ $pct }}%)
+                        </div>
+                        {{-- Actual status --}}
+                        <div class="col-actual d-none">
+                          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs fw-semibold" style="background: {{ $statusA[1] }}; color: {{ $statusA[2] }};">
+                              {{ $statusA[0] }}
+                          </span>
+                          <div class="mt-2">
+                            <div class="h-2 w-100 bg-slate-200 rounded" style="height:8px;border-radius:6px;background:#e2e8f0;">
+                              <div class="h-2 rounded" style="height:8px;width: {{ $actualPct }}%;border-radius:6px;background: {{ $statusA[3] }};"></div>
+                            </div>
+                            <div class="mt-1 text-[11px] text-slate-500">
+                              {{ number_format($actualConsumed) }} / {{ number_format($allocation) }} ({{ $actualPct }}%)
+                            </div>
                           </div>
                         </div>
                     </td>
@@ -321,16 +345,21 @@
         </div>
         <div class="stat-card-modern">
             <span class="stat-card-modern__label">Units Used</span>
-            <span class="stat-card-modern__value">{{ number_format($summary['total_quota'] - $summary['forecast_remaining']) }}</span>
+            <span class="stat-card-modern__value col-forecast">{{ number_format($summary['total_quota'] - $summary['forecast_remaining']) }}</span>
+            <span class="stat-card-modern__value col-actual d-none">{{ number_format($summary['total_quota'] - $summary['actual_remaining']) }}</span>
         </div>
         <div class="stat-card-modern">
             @php
-                $percent = $summary['total_quota'] > 0
+                $percentF = $summary['total_quota'] > 0
                     ? (($summary['total_quota'] - $summary['forecast_remaining']) / $summary['total_quota']) * 100
+                    : 0;
+                $percentA = $summary['total_quota'] > 0
+                    ? (($summary['total_quota'] - $summary['actual_remaining']) / $summary['total_quota']) * 100
                     : 0;
             @endphp
             <span class="stat-card-modern__label">Usage Percentage</span>
-            <span class="stat-card-modern__value">{{ number_format($percent, 1) }}%</span>
+            <span class="stat-card-modern__value col-forecast">{{ number_format($percentF, 1) }}%</span>
+            <span class="stat-card-modern__value col-actual d-none">{{ number_format($percentA, 1) }}%</span>
         </div>
     </div>
   </div>
@@ -359,12 +388,18 @@
     document.querySelectorAll('.col-actual').forEach(el=>el.classList.add('d-none'));
     btnF.classList.add('btn-primary'); btnF.classList.remove('btn-outline-primary');
     btnA.classList.add('btn-outline-primary'); btnA.classList.remove('btn-primary');
+    document.querySelectorAll('tr[data-state-forecast]').forEach(row=>{
+      row.setAttribute('data-state', row.getAttribute('data-state-forecast'));
+    });
   };
   const showActual = () => {
     document.querySelectorAll('.col-forecast').forEach(el=>el.classList.add('d-none'));
     document.querySelectorAll('.col-actual').forEach(el=>el.classList.remove('d-none'));
     btnA.classList.add('btn-primary'); btnA.classList.remove('btn-outline-primary');
     btnF.classList.add('btn-outline-primary'); btnF.classList.remove('btn-primary');
+    document.querySelectorAll('tr[data-state-actual]').forEach(row=>{
+      row.setAttribute('data-state', row.getAttribute('data-state-actual'));
+    });
   };
   if(btnF && btnA){
     btnF.addEventListener('click', showForecast);

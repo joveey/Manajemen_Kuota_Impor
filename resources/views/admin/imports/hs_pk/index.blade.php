@@ -50,11 +50,11 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label" for="hs_code">HS_CODE</label>
-                                <input type="text" name="hs_code" id="hs_code" class="form-control" placeholder="example: 0101.21.00" value="{{ old('hs_code') }}" required>
+                                <input type="text" name="hs_code" id="hs_code" class="form-control" placeholder="e.g., 8415.10.20" value="{{ old('hs_code') }}" required>
                             </div>
                             <div class="col-md-5">
                                 <label class="form-label" for="pk_value">Description</label>
-                                <input type="text" name="pk_value" id="pk_value" class="form-control" placeholder="8-10, <8, >10, or 8" value="{{ old('pk_value') }}" required>
+                                <input type="text" name="pk_value" id="pk_value" class="form-control" value="{{ old('pk_value') }}" required>
                                 <small class="text-muted">Use the format: 8-10, &lt;8, &gt;10, or a single number.</small>
                             </div>
                             <div class="col-12">
