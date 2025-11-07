@@ -154,15 +154,27 @@ class DashboardController extends Controller
         try {
             // PO tanpa mapping (hs_code_id null)
             $unmappedPo = (int) \DB::table('po_lines')->whereNull('hs_code_id')->count();
-            if ($unmappedPo > 0) { $alerts[] = "PO tanpa mapping HS: $unmappedPo line"; }
+            if ($unmappedPo > 0) {
+                $alerts[] = $unmappedPo === 1
+                    ? '1 PO line without HS mapping'
+                    : ($unmappedPo.' PO lines without HS mapping');
+            }
         } catch (\Throwable $e) {}
         try {
             $lowQuota = \App\Models\Quota::whereColumn('forecast_remaining','<=', \DB::raw('total_allocation * 0.15'))->count();
-            if ($lowQuota > 0) { $alerts[] = "$lowQuota PK bucket mendekati habis (<15%)"; }
+            if ($lowQuota > 0) {
+                $alerts[] = $lowQuota === 1
+                    ? '1 PK bucket nearing depletion (<15%)'
+                    : ($lowQuota.' PK buckets nearing depletion (<15%)');
+            }
         } catch (\Throwable $e) {}
         try {
             $overGr = (int) \DB::table('po_lines')->whereColumn('qty_received','>','qty_ordered')->count();
-            if ($overGr > 0) { $alerts[] = "Ada $overGr line: GR melebihi ordered (perlu audit)"; }
+            if ($overGr > 0) {
+                $alerts[] = $overGr === 1
+                    ? '1 line: GR exceeds ordered (needs audit)'
+                    : ($overGr.' lines: GR exceeds ordered (needs audit)');
+            }
         } catch (\Throwable $e) {}
         // Statistics
         $totalUsers = User::count();
@@ -307,3 +319,5 @@ class DashboardController extends Controller
         ));
     }
 }
+
+
