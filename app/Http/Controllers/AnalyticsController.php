@@ -97,68 +97,7 @@ class AnalyticsController extends Controller
         return Response::stream($callback, 200, $headers);
     }
 
-    public function exportXlsx(Request $request)
-    {
-        $dataset = $this->buildDataset($request);
-
-        $labels = $dataset['labels'] ?? [];
-        $tableRows = $dataset['table']['rows'] ?? ($dataset['table'] ?? []);
-
-        if (!class_exists(\Maatwebsite\Excel\Facades\Excel::class)) {
-            return response("\n[Missing dependency] Install Laravel-Excel first: composer require maatwebsite/excel\n", 501);
-        }
-
-        $rows = collect($tableRows)->map(function ($row) use ($labels) {
-            return [
-                'Nomor Kuota' => $row['quota_number'] ?? '',
-                'Range PK' => $row['range_pk'] ?? '',
-                'Kuota Awal' => $row['initial_quota'] ?? 0,
-                ($labels['primary'] ?? 'Nilai') => $row['primary_value'] ?? 0,
-                ($labels['secondary'] ?? 'Sisa') => $row['secondary_value'] ?? 0,
-                ($labels['percentage'] ?? 'Persentase') => $row['percentage'] ?? 0,
-            ];
-        })->toArray();
-
-        $sheetTitle = ($dataset['mode'] ?? 'actual') === 'forecast'
-            ? 'Analytics Forecast'
-            : 'Analytics Actual';
-
-        $export = new class($rows, $sheetTitle) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithTitle {
-            private array $rows;
-            private string $title;
-            public function __construct(array $rows, string $title)
-            {
-                $this->rows = $rows;
-                $this->title = $title;
-            }
-            public function array(): array { return $this->rows; }
-            public function title(): string { return $this->title; }
-        };
-
-        $mode = $dataset['mode'] ?? 'actual';
-
-        return \Maatwebsite\Excel\Facades\Excel::download($export, 'analytics_'.$mode.'.xlsx');
-    }
-
-    public function exportPdf(Request $request)
-    {
-        $dataset = $this->buildDataset($request);
-
-        if (!class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
-            return response("\n[Missing dependency] Install dompdf first: composer require barryvdh/laravel-dompdf\n", 501);
-        }
-
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('analytics.pdf', [
-            'filters' => $dataset['filters'] ?? [],
-            'summary' => $dataset['summary'] ?? [],
-            'labels' => $dataset['labels'] ?? [],
-            'rows' => $dataset['table']['rows'] ?? ($dataset['table'] ?? []),
-        ])->setPaper('a4', 'portrait');
-
-        $mode = $dataset['mode'] ?? 'actual';
-
-        return $pdf->download('analytics_'.$mode.'.pdf');
-    }
+    // XLSX and PDF exports removed by request; keep CSV only.
 
     /**
      * @return array{
