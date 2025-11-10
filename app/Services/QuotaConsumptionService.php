@@ -65,6 +65,7 @@ class QuotaConsumptionService
                 'hs.pk_capacity',
                 'hs.hs_code as hs_code',
                 'ph.po_date',
+                'pl.voyage_etd', 'pl.voyage_eta',
             ]);
 
         $stats = [];
@@ -85,9 +86,10 @@ class QuotaConsumptionService
             if ($pk === null) { continue; }
 
             $ordered = (float) $ln->ordered;
-            $invQty = (float) $ln->invoiced;
             $recQty = (float) $ln->received;
-            $inTransit = max(min($invQty - $recQty, $ordered - $recQty), 0.0);
+            // In-transit per definisi baru: berdasarkan ETD/ETA manual, sebesar outstanding
+            $outstanding = max($ordered - $recQty, 0.0);
+            $inTransit = (!empty($ln->voyage_etd) || !empty($ln->voyage_eta)) ? $outstanding : 0.0;
 
             foreach ($quotasArr as $qid => $q) {
                 // Period filter: use PO date within [start,end] if defined
