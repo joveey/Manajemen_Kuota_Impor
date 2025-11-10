@@ -95,6 +95,34 @@
     }).join('');
   }
 
+  function fillHsPkSummary(tbodyId, payload){
+    var tb = q(tbodyId); if(!tb) return;
+    var rows = (payload && Array.isArray(payload.rows)) ? payload.rows : [];
+    if(!rows.length){ tb.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No data.</td></tr>'; return; }
+    tb.innerHTML = rows.map(function(r){
+      var approved = Number(r.approved)||0;
+      var consumed = Number(r.consumed_until_dec)||0;
+      var consumedPct = Number(r.consumed_pct)||0;
+      var balance = Number(r.balance_until_dec)||0;
+      var balancePct = Number(r.balance_pct)||0;
+      var jan = Number(r.consumed_next_jan)||0;
+      var pct = function(n){ return (Number(n)||0).toFixed(2)+'%'; };
+      return '<tr>'+
+        '<td>'+ escapeHtml(r.hs_code||'-') +'</td>'+
+        '<td>'+ escapeHtml(r.capacity_label||'') +'</td>'+
+        '<td class="text-end">'+ formatNumber(approved) +'</td>'+
+        '<td class="text-end">'+ formatNumber(consumed) +'<br><span style="color:#ef4444;font-weight:700">'+ pct(consumedPct) +'</span></td>'+
+        '<td class="text-end">'+ formatNumber(balance) +'<br><span class="text-muted">'+ pct(balancePct) +'</span></td>'+
+        '<td class="text-end">'+ formatNumber(jan) +'</td>'+
+      '</tr>';
+    }).join('');
+    try{
+      var totals = payload.totals || {};
+      var tA = document.getElementById('hsPkTotalApproved'); if(tA) tA.textContent = formatNumber(totals.approved||0);
+      var tC = document.getElementById('hsPkTotalConsumed'); if(tC) tC.textContent = formatNumber(totals.consumed_until_dec||0);
+    }catch(e){}
+  }
+
   window.initAnalyticsCharts = function(cfg){
     ready(function(){
       var barEl = q(cfg.barElId || 'analyticsBar');
@@ -118,6 +146,7 @@
               json.labels || defaultLabels
             );
           }catch(e){}
+          try{ fillHsPkSummary('hsPkSummaryBody', (json.summary && json.summary.hs_pk) ? json.summary.hs_pk : {rows:[]}); }catch(e){}
           try {
             var sum = json.summary || {};
             var nf = function(n){ n = Number(n)||0; return n.toLocaleString(); };

@@ -255,8 +255,6 @@ Route::middleware(['auth', 'verified', 'permission:read reports'])->prefix('anal
     Route::get('/', [AnalyticsController::class, 'index'])->name('index');
     Route::get('/data', [AnalyticsController::class, 'data'])->name('data');
     Route::get('/export/csv', [AnalyticsController::class, 'exportCsv'])->name('export.csv');
-    Route::get('/export/xlsx', [AnalyticsController::class, 'exportXlsx'])->name('export.xlsx');
-    Route::get('/export/pdf', [AnalyticsController::class, 'exportPdf'])->name('export.pdf');
 });
 // Audit Logs (admin-only read)
 Route::middleware(['web','auth'])->prefix('admin')->name('admin.')->group(function () {

@@ -29,12 +29,6 @@
             <a href="{{ route('analytics.export.csv', request()->query()) }}" class="page-header__button page-header__button--outline">
                 <i class="fas fa-file-csv me-2"></i>CSV
             </a>
-            <a href="{{ route('analytics.export.xlsx', request()->query()) }}" class="page-header__button page-header__button--outline">
-                <i class="fas fa-file-excel me-2"></i>XLSX
-            </a>
-            <a href="{{ route('analytics.export.pdf', request()->query()) }}" class="page-header__button page-header__button--outline">
-                <i class="fas fa-file-pdf me-2"></i>PDF
-            </a>
         </div>
     </div>
 
@@ -111,6 +105,44 @@
             </header>
             <div id="analyticsDonut" class="analytics-card__chart"></div>
         </article>
+    </section>
+
+    <section class="analytics-card">
+        <header class="analytics-card__header">
+            <div>
+                <h2 class="analytics-card__title">HS/PK Summary</h2>
+                <p class="analytics-card__subtitle">Ringkasan kuota dan realisasi berdasarkan HS Code dan kapasitas (PK).</p>
+            </div>
+            @php $y = (int) ($year ?? now()->year); @endphp
+            <span class="analytics-card__badge analytics-card__badge--muted">Until Dec-{{ $y }}, Jan-{{ $y+1 }}</span>
+        </header>
+        <div class="table-responsive">
+            <table class="analytics-table">
+                <thead>
+                    <tr>
+                        <th>Hs Code</th>
+                        <th>Capacity</th>
+                        <th class="text-end">Quota Approved</th>
+                        <th class="text-end">Quota Consumption until Dec-{{ $y }}</th>
+                        <th class="text-end">Balance Quota Until Dec</th>
+                        <th class="text-end">Quota Consumption Start Jan-{{ $y+1 }}</th>
+                    </tr>
+                </thead>
+                <tbody id="hsPkSummaryBody">
+                    <tr><td colspan="6" class="text-center text-muted py-4">Memuat ringkasan...</td></tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th>Total</th>
+                        <th></th>
+                        <th class="text-end" id="hsPkTotalApproved">-</th>
+                        <th class="text-end" id="hsPkTotalConsumed">-</th>
+                        <th></th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
     </section>
 
     <section class="analytics-card">

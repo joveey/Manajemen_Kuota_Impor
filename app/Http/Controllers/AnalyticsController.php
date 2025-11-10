@@ -72,6 +72,8 @@ class AnalyticsController extends Controller
         $primaryLabel = $labels['primary'] ?? 'Nilai';
         $secondaryLabel = $labels['secondary'] ?? 'Sisa';
         $percentageLabel = $labels['percentage'] ?? 'Persentase';
+        $filters = $dataset['filters'] ?? [];
+        $year = (int) ($filters['year'] ?? now()->year);
 
         $columns = ['Nomor Kuota', 'Range PK', 'Kuota Awal', $primaryLabel, $secondaryLabel, $percentageLabel];
         $rows = collect($tableRows)->map(function ($row) {
@@ -85,80 +87,46 @@ class AnalyticsController extends Controller
             ];
         })->toArray();
 
-        $callback = function () use ($columns, $rows) {
+        // HS/PK summary rows (added before details)
+        $hs = $dataset['summary']['hs_pk'] ?? ['rows' => [], 'totals' => []];
+        $hsRows = is_array($hs) ? ($hs['rows'] ?? []) : [];
+        $hsTotals = is_array($hs) ? ($hs['totals'] ?? []) : [];
+        $hsColumns = ['Hs Code','Capacity','Quota Approved','Quota Consumption until Dec-'.$year,'Consumption %','Balance Quota Until Dec','Balance %','Quota Consumption Start Jan-'.($year+1)];
+
+        $callback = function () use ($columns, $rows, $hsColumns, $hsRows, $hsTotals) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, $columns);
-            foreach ($rows as $r) {
-                fputcsv($out, $r);
+            // Section 1: HS/PK Summary
+            fputcsv($out, ['HS/PK Summary']);
+            fputcsv($out, $hsColumns);
+            foreach ($hsRows as $r) {
+                fputcsv($out, [
+                    $r['hs_code'] ?? '-',
+                    $r['capacity_label'] ?? '',
+                    $r['approved'] ?? 0,
+                    $r['consumed_until_dec'] ?? 0,
+                    $r['consumed_pct'] ?? 0,
+                    $r['balance_until_dec'] ?? 0,
+                    $r['balance_pct'] ?? 0,
+                    $r['consumed_next_jan'] ?? 0,
+                ]);
             }
+            if (!empty($hsRows)) {
+                fputcsv($out, ['Total', '', $hsTotals['approved'] ?? 0, $hsTotals['consumed_until_dec'] ?? 0, '', '', '', '']);
+            }
+
+            // Spacer
+            fputcsv($out, []);
+            // Section 2: Details per Quota
+            fputcsv($out, ['Details per Quota']);
+            fputcsv($out, $columns);
+            foreach ($rows as $r) { fputcsv($out, $r); }
             fclose($out);
         };
 
         return Response::stream($callback, 200, $headers);
     }
 
-    public function exportXlsx(Request $request)
-    {
-        $dataset = $this->buildDataset($request);
-
-        $labels = $dataset['labels'] ?? [];
-        $tableRows = $dataset['table']['rows'] ?? ($dataset['table'] ?? []);
-
-        if (!class_exists(\Maatwebsite\Excel\Facades\Excel::class)) {
-            return response("\n[Missing dependency] Install Laravel-Excel first: composer require maatwebsite/excel\n", 501);
-        }
-
-        $rows = collect($tableRows)->map(function ($row) use ($labels) {
-            return [
-                'Nomor Kuota' => $row['quota_number'] ?? '',
-                'Range PK' => $row['range_pk'] ?? '',
-                'Kuota Awal' => $row['initial_quota'] ?? 0,
-                ($labels['primary'] ?? 'Nilai') => $row['primary_value'] ?? 0,
-                ($labels['secondary'] ?? 'Sisa') => $row['secondary_value'] ?? 0,
-                ($labels['percentage'] ?? 'Persentase') => $row['percentage'] ?? 0,
-            ];
-        })->toArray();
-
-        $sheetTitle = ($dataset['mode'] ?? 'actual') === 'forecast'
-            ? 'Analytics Forecast'
-            : 'Analytics Actual';
-
-        $export = new class($rows, $sheetTitle) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithTitle {
-            private array $rows;
-            private string $title;
-            public function __construct(array $rows, string $title)
-            {
-                $this->rows = $rows;
-                $this->title = $title;
-            }
-            public function array(): array { return $this->rows; }
-            public function title(): string { return $this->title; }
-        };
-
-        $mode = $dataset['mode'] ?? 'actual';
-
-        return \Maatwebsite\Excel\Facades\Excel::download($export, 'analytics_'.$mode.'.xlsx');
-    }
-
-    public function exportPdf(Request $request)
-    {
-        $dataset = $this->buildDataset($request);
-
-        if (!class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
-            return response("\n[Missing dependency] Install dompdf first: composer require barryvdh/laravel-dompdf\n", 501);
-        }
-
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('analytics.pdf', [
-            'filters' => $dataset['filters'] ?? [],
-            'summary' => $dataset['summary'] ?? [],
-            'labels' => $dataset['labels'] ?? [],
-            'rows' => $dataset['table']['rows'] ?? ($dataset['table'] ?? []),
-        ])->setPaper('a4', 'portrait');
-
-        $mode = $dataset['mode'] ?? 'actual';
-
-        return $pdf->download('analytics_'.$mode.'.pdf');
-    }
+    // XLSX and PDF exports removed by request; keep CSV only.
 
     /**
      * @return array{
@@ -176,6 +144,11 @@ class AnalyticsController extends Controller
         [$start, $end] = $this->resolveRange($request);
         $mode = $this->resolveMode($request->query('mode'));
         $selectedPk = trim((string) $request->query('pk', ''));
+        $summaryYear = (int) ($request->query('year') ?: $end->year);
+        $yearStart = Carbon::create($summaryYear, 1, 1)->startOfDay();
+        $yearEnd = Carbon::create($summaryYear, 12, 31)->endOfDay();
+        $nextJanStart = $yearStart->copy()->addYear()->startOfYear();
+        $nextJanEnd = $nextJanStart->copy()->endOfMonth();
 
         if ($mode === 'forecast') {
             $rows = $this->buildForecastRows($start, $end, $selectedPk);
@@ -223,6 +196,9 @@ class AnalyticsController extends Controller
             $totalRemaining = max($totalAllocation - $totalUsage, 0);
         }
 
+        // Build HS/PK summary (approved vs consumption by HS bucket and next January)
+        $hsSummary = $this->buildHsPkSummary($yearStart, $yearEnd, $nextJanStart, $nextJanEnd);
+
         return [
             'mode' => $mode,
             'labels' => [
@@ -233,6 +209,7 @@ class AnalyticsController extends Controller
             'filters' => [
                 'start_date' => $start->toDateString(),
                 'end_date' => $end->toDateString(),
+                'year' => $summaryYear,
             ],
             'bar' => [
                 'categories' => $categories,
@@ -273,7 +250,8 @@ class AnalyticsController extends Controller
                 'secondary_label' => $secondaryLabel,
                 'percentage_label' => $percentageLabel,
                 'mode' => $mode,
-                ],
+                'hs_pk' => $hsSummary,
+            ],
         ];
     }
 
@@ -391,6 +369,134 @@ class AnalyticsController extends Controller
         // Append ' PK' for common numeric/range patterns
         if (preg_match('/[0-9<>-]/', $v)) { return $v.' PK'; }
         return $v;
+    }
+
+    /**
+     * Build HS/PK summary in the form of rows keyed by HS Code + capacity bucket.
+     * Columns: hs_code, capacity_label, approved, consumed_until_dec, consumed_pct,
+     *          balance_until_dec, balance_pct, consumed_next_jan
+     * Sums are computed from Quota.total_allocation and quota_histories (actual_decrease).
+     * The HS code is chosen from hs_code_pk_mappings for each PK bucket.
+     */
+    private function buildHsPkSummary(Carbon $yearStart, Carbon $yearEnd, Carbon $nextJanStart, Carbon $nextJanEnd): array
+    {
+        // 1) Classify quotas into standard buckets
+        $quotas = $this->queryQuotasByDateRange($yearStart, $yearEnd)->get(['id','government_category','total_allocation']);
+        $buckets = [
+            '<8' => ['ids' => [], 'approved' => 0.0],
+            '8-10' => ['ids' => [], 'approved' => 0.0],
+            '>10' => ['ids' => [], 'approved' => 0.0],
+        ];
+        foreach ($quotas as $q) {
+            $key = $this->normalizeBucketKey((string) $q->government_category);
+            if (!isset($buckets[$key])) { continue; }
+            $buckets[$key]['ids'][] = $q->id;
+            $buckets[$key]['approved'] += (float) ($q->total_allocation ?? 0);
+        }
+
+        // 2) For each bucket, compute actual consumption in the year and in next January
+        foreach ($buckets as $key => &$info) {
+            $ids = $info['ids'];
+            if (empty($ids)) { $info['consumed_year'] = 0.0; $info['consumed_next_jan'] = 0.0; continue; }
+            try {
+                $qty = DB::table('quota_histories')
+                    ->where('change_type', \App\Models\QuotaHistory::TYPE_ACTUAL_DECREASE)
+                    ->whereIn('quota_id', $ids)
+                    ->whereBetween('occurred_on', [$yearStart->toDateString(), $yearEnd->toDateString()])
+                    ->select(DB::raw('SUM(ABS(quantity_change)) as qty'))
+                    ->value('qty');
+                $info['consumed_year'] = (float) $qty;
+            } catch (\Throwable $e) { $info['consumed_year'] = 0.0; }
+            try {
+                $qtyJan = DB::table('quota_histories')
+                    ->where('change_type', \App\Models\QuotaHistory::TYPE_ACTUAL_DECREASE)
+                    ->whereIn('quota_id', $ids)
+                    ->whereBetween('occurred_on', [$nextJanStart->toDateString(), $nextJanEnd->toDateString()])
+                    ->select(DB::raw('SUM(ABS(quantity_change)) as qty'))
+                    ->value('qty');
+                $info['consumed_next_jan'] = (float) $qtyJan;
+            } catch (\Throwable $e) { $info['consumed_next_jan'] = 0.0; }
+        }
+        unset($info);
+
+        // 3) Map bucket -> example HS code from mapping table
+        $bucketHs = ['<8' => null, '8-10' => null, '>10' => null];
+        try {
+            if (DB::getSchemaBuilder()->hasTable('hs_code_pk_mappings')) {
+                $rows = DB::table('hs_code_pk_mappings')->select('hs_code','pk_capacity')->get();
+                $candidates = ['<8' => [], '8-10' => [], '>10' => []];
+                foreach ($rows as $r) {
+                    $pk = isset($r->pk_capacity) ? (float) $r->pk_capacity : null;
+                    if ($pk === null) { continue; }
+                    $label = $pk < 8 ? '<8' : ($pk > 10 ? '>10' : '8-10');
+                    $candidates[$label][] = (string) $r->hs_code;
+                }
+                foreach ($candidates as $label => $list) {
+                    sort($list, SORT_NATURAL);
+                    $bucketHs[$label] = $list[0] ?? null;
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        // 4) Assemble rows
+        $rows = [];
+        foreach (['<8','8-10','>10'] as $label) {
+            $info = $buckets[$label];
+            if (empty($info['ids'])) { continue; }
+            $approved = max(0.0, (float) $info['approved']);
+            $consumed = max(0.0, (float) $info['consumed_year']);
+            // Clamp to avoid percentages > 100% due to bad inputs
+            if ($approved > 0 && $consumed > $approved) { $consumed = $approved; }
+            $balance = max($approved - $consumed, 0.0);
+            $rows[] = [
+                'hs_code' => $bucketHs[$label] ?? '-',
+                'capacity_label' => $this->formatCapacityDisplay($label),
+                'approved' => round($approved, 2),
+                'consumed_until_dec' => round($consumed, 2),
+                'consumed_pct' => $approved > 0 ? round(($consumed / $approved) * 100, 2) : 0.0,
+                'balance_until_dec' => round($balance, 2),
+                'balance_pct' => $approved > 0 ? round(($balance / $approved) * 100, 2) : 0.0,
+                'consumed_next_jan' => round((float) ($info['consumed_next_jan'] ?? 0), 2),
+            ];
+        }
+
+        // Totals
+        $totApproved = array_sum(array_map(fn($r) => (float)$r['approved'], $rows));
+        $totConsumed = array_sum(array_map(fn($r) => (float)$r['consumed_until_dec'], $rows));
+
+        return [
+            'rows' => $rows,
+            'totals' => [
+                'approved' => round($totApproved, 2),
+                'consumed_until_dec' => round($totConsumed, 2),
+            ],
+        ];
+    }
+
+    private function normalizeBucketKey(string $label): string
+    {
+        $p = PkCategoryParser::parse($label);
+        $min = $p['min_pk']; $max = $p['max_pk'];
+        $minI = (bool)($p['min_incl'] ?? true); $maxI = (bool)($p['max_incl'] ?? true);
+        if ($min === null && $max !== null && (float)$max === 8.0 && $maxI === false) { return '<8'; }
+        if ($min !== null && (float)$min === 8.0 && $minI === true && $max !== null && (float)$max === 10.0 && $maxI === true) { return '8-10'; }
+        if ($max === null && $min !== null && (float)$min === 10.0 && $minI === false) { return '>10'; }
+        // Loose fallback by text
+        $s = strtoupper(str_replace(' ', '', $label));
+        if (str_starts_with($s, '<8')) return '<8';
+        if (str_contains($s, '8-10')) return '8-10';
+        if (str_starts_with($s, '>10')) return '>10';
+        return $label;
+    }
+
+    private function formatCapacityDisplay(string $bucketKey): string
+    {
+        return match ($bucketKey) {
+            '<8' => '< 8 HP',
+            '8-10' => '8 HP ~ 10 HP',
+            '>10' => '> 10 HP',
+            default => (string) $bucketKey,
+        };
     }
 
     private function resolveMode(?string $mode): string
