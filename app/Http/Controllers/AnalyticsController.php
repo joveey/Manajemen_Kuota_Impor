@@ -72,6 +72,8 @@ class AnalyticsController extends Controller
         $primaryLabel = $labels['primary'] ?? 'Nilai';
         $secondaryLabel = $labels['secondary'] ?? 'Sisa';
         $percentageLabel = $labels['percentage'] ?? 'Persentase';
+        $filters = $dataset['filters'] ?? [];
+        $year = (int) ($filters['year'] ?? now()->year);
 
         $columns = ['Nomor Kuota', 'Range PK', 'Kuota Awal', $primaryLabel, $secondaryLabel, $percentageLabel];
         $rows = collect($tableRows)->map(function ($row) {
@@ -85,12 +87,39 @@ class AnalyticsController extends Controller
             ];
         })->toArray();
 
-        $callback = function () use ($columns, $rows) {
+        // HS/PK summary rows (added before details)
+        $hs = $dataset['summary']['hs_pk'] ?? ['rows' => [], 'totals' => []];
+        $hsRows = is_array($hs) ? ($hs['rows'] ?? []) : [];
+        $hsTotals = is_array($hs) ? ($hs['totals'] ?? []) : [];
+        $hsColumns = ['Hs Code','Capacity','Quota Approved','Quota Consumption until Dec-'.$year,'Consumption %','Balance Quota Until Dec','Balance %','Quota Consumption Start Jan-'.($year+1)];
+
+        $callback = function () use ($columns, $rows, $hsColumns, $hsRows, $hsTotals) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, $columns);
-            foreach ($rows as $r) {
-                fputcsv($out, $r);
+            // Section 1: HS/PK Summary
+            fputcsv($out, ['HS/PK Summary']);
+            fputcsv($out, $hsColumns);
+            foreach ($hsRows as $r) {
+                fputcsv($out, [
+                    $r['hs_code'] ?? '-',
+                    $r['capacity_label'] ?? '',
+                    $r['approved'] ?? 0,
+                    $r['consumed_until_dec'] ?? 0,
+                    $r['consumed_pct'] ?? 0,
+                    $r['balance_until_dec'] ?? 0,
+                    $r['balance_pct'] ?? 0,
+                    $r['consumed_next_jan'] ?? 0,
+                ]);
             }
+            if (!empty($hsRows)) {
+                fputcsv($out, ['Total', '', $hsTotals['approved'] ?? 0, $hsTotals['consumed_until_dec'] ?? 0, '', '', '', '']);
+            }
+
+            // Spacer
+            fputcsv($out, []);
+            // Section 2: Details per Quota
+            fputcsv($out, ['Details per Quota']);
+            fputcsv($out, $columns);
+            foreach ($rows as $r) { fputcsv($out, $r); }
             fclose($out);
         };
 
@@ -414,8 +443,10 @@ class AnalyticsController extends Controller
         foreach (['<8','8-10','>10'] as $label) {
             $info = $buckets[$label];
             if (empty($info['ids'])) { continue; }
-            $approved = (float) $info['approved'];
-            $consumed = (float) $info['consumed_year'];
+            $approved = max(0.0, (float) $info['approved']);
+            $consumed = max(0.0, (float) $info['consumed_year']);
+            // Clamp to avoid percentages > 100% due to bad inputs
+            if ($approved > 0 && $consumed > $approved) { $consumed = $approved; }
             $balance = max($approved - $consumed, 0.0);
             $rows[] = [
                 'hs_code' => $bucketHs[$label] ?? '-',
