@@ -121,7 +121,7 @@
                 <thead>
                     <tr>
                         <th>Hs Code</th>
-                        <th>Capacity</th>
+                        <th>PK Capacity</th>
                         <th class="text-end">Quota Approved</th>
                         <th class="text-end">Quota Consumption until Dec-{{ $y }}</th>
                         <th class="text-end">Balance Quota Until Dec</th>

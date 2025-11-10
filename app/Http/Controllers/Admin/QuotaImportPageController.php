@@ -52,8 +52,55 @@ class QuotaImportPageController extends Controller
 
         $manualQuotas = Quota::query()
             ->orderByDesc('created_at')
-            ->limit(10)
+            ->limit(50)
             ->get();
+
+        // Build quota history summary (aggregated by quota_number)
+        $quotaHistorySummary = $manualQuotas->groupBy('quota_number')->map(function ($items, $quotaNo) {
+            $total = (float) $items->sum(fn ($q) => (float) ($q->total_allocation ?? 0));
+            $periodStart = $items->filter(fn ($q) => !empty($q->period_start))->min('period_start');
+            $periodEnd = $items->filter(fn ($q) => !empty($q->period_end))->max('period_end');
+            $created = $items->max('created_at');
+            return [
+                'quota_no' => $quotaNo,
+                'total_quantity' => $total,
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
+                'created_at' => $created,
+            ];
+        })->sortByDesc('created_at')->values()->all();
+
+        // Build details mapping per quota_number (HS + desc + qty)
+        $quotaHistoryDetails = $manualQuotas->groupBy('quota_number')->map(function ($items) {
+            return $items->map(function ($q) {
+                $hs = '';
+                $notes = trim((string) ($q->notes ?? ''));
+                if ($notes !== '' && str_starts_with($notes, 'HS')) { $hs = trim(substr($notes, 3)); }
+                $label = trim((string) ($q->government_category ?? ''));
+                // Normalize label similarly to view logic
+                try {
+                    $pp = \App\Support\PkCategoryParser::parse($label);
+                    $min = $pp['min_pk']; $max = $pp['max_pk'];
+                    $fmt = function($v){ return rtrim(rtrim(number_format((float)$v, 2, '.', ''), '0'), '.'); };
+                    if (!is_null($min) && !is_null($max)) {
+                        $label = ($min === $max) ? ($fmt($min).' PK') : ($fmt($min).'-'.$fmt($max).' PK');
+                    } elseif (!is_null($min) && is_null($max)) {
+                        $label = ($min >= 8 && $min < 10) ? '8-10 PK' : ('>'.$fmt($min).' PK');
+                    } elseif (is_null($min) && !is_null($max)) {
+                        $label = ($max <= 8) ? '<8 PK' : ('<'.$fmt($max).' PK');
+                    } elseif ($label !== '' && stripos($label,'PK')===false && strtoupper($label)!=='ACCESORY') {
+                        $label = $label.' PK';
+                    }
+                } catch (\Throwable $e) {}
+                return [
+                    'hs_code' => $hs,
+                    'desc' => $label,
+                    'quantity' => (float) ($q->total_allocation ?? 0),
+                    'period_start' => $q->period_start ? \Illuminate\Support\Carbon::parse($q->period_start)->format('d-m-Y') : null,
+                    'period_end' => $q->period_end ? \Illuminate\Support\Carbon::parse($q->period_end)->format('d-m-Y') : null,
+                ];
+            })->values()->all();
+        })->all();
 
         return view('admin.imports.quotas.index', [
             'recent' => $recent,
@@ -62,6 +109,8 @@ class QuotaImportPageController extends Controller
             'hsSeedOptions' => $seedOptions,
             'selectedHsOption' => $selectedHsOption,
             'manualQuotas' => $manualQuotas,
+            'quotaHistorySummary' => $quotaHistorySummary,
+            'quotaHistoryDetails' => $quotaHistoryDetails,
         ]);
     }
 
@@ -300,6 +349,8 @@ class QuotaImportPageController extends Controller
             'total_quantity' => $totalQty,
         ];
     }
+
+    // Removed temporary helper for dropdown on form; now using filter in history table instead
 
     protected function buildHsNotesTag(?string $hsCode): ?string
     {
