@@ -898,24 +898,7 @@
                     </div>
                 @endif
 
-                @if($canQuota)
-                    <div class="nav-group {{ ($quotaActive ?? false) ? 'is-open is-current' : '' }}" data-nav-group>
-                        <button type="button"
-                                class="nav-group__toggle"
-                                data-nav-toggle
-                                aria-expanded="{{ ($quotaActive ?? false) ? 'true' : 'false' }}"
-                                aria-controls="nav-group-quota">
-                            <span class="nav-title">Quota</span>
-                            <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
-                        </button>
-                        <div class="nav-group__body" id="nav-group-quota">
-                            <a href="{{ route('admin.quotas.index') }}" class="nav-link {{ request()->is('admin/quotas*') || request()->is('admin/Quota*') ? 'active' : '' }}">
-                                <span class="nav-icon"><i class="fas fa-percentage"></i></span>
-                                <span>Quota Management</span>
-                            </a>
-                        </div>
-                    </div>
-                @endif
+                {{-- Quota Management menu removed as requested; features moved to Import Quota --}}
 
                 @if($canReports)
                     <div class="nav-group {{ $reportsActive ? 'is-open is-current' : '' }}" data-nav-group>

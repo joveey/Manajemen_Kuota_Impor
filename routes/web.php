@@ -130,7 +130,11 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Also disable edit/update per request (read-only from UI)
     Route::resource('quotas', QuotaController::class)->except(['create','store','show','edit','update']);
     Route::get('quotas/export/csv', [QuotaController::class, 'export'])->name('quotas.export');
-    Route::get('kuota', [QuotaController::class, 'index'])->name('kuota.index');
+    // Halaman Quota Management sudah dipindahkan ke Import Kuota
+    Route::get('kuota', function(){
+        return redirect()->route('admin.imports.quotas.index')
+            ->with('status', 'Halaman Quota Management dipindahkan ke Import Kuota.');
+    })->name('kuota.index');
     // Redirect legacy create routes to Import Kuota
     Route::get('quotas/create', function(){
         return redirect()->route('admin.imports.quotas.index')->with('warning','Form kuota manual dinonaktifkan. Gunakan Import Kuota.');
@@ -196,7 +200,11 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('hs-pk/manual', [HsPkManualController::class, 'store'])->name('hs_pk.manual.store');
 
         Route::get('imports/quotas', [QuotaImportPageController::class, 'index'])->name('imports.quotas.index');
-        // Route::post('imports/quotas/upload', [QuotaImportPageController::class, 'uploadForm'])->name('imports.quotas.upload.form');
+        // CSV upload (Quota) – enabled on Import Quota page
+        Route::post('imports/quotas', [ImportController::class, 'uploadQuotas'])->name('imports.quotas.upload');
+        // Hapus semua kuota berdasarkan Quota No. (soft delete)
+        Route::delete('imports/quotas/delete-by-number', [QuotaImportPageController::class, 'deleteByNumber'])
+            ->name('imports.quotas.delete-number');
         Route::post('imports/quotas/manual/add', [QuotaImportPageController::class, 'addManual'])->name('imports.quotas.manual.add');
         Route::post('imports/quotas/manual/remove', [QuotaImportPageController::class, 'removeManual'])->name('imports.quotas.manual.remove');
         Route::post('imports/quotas/manual/reset', [QuotaImportPageController::class, 'resetManual'])->name('imports.quotas.manual.reset');
