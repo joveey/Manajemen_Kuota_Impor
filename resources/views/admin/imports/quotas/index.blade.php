@@ -50,6 +50,10 @@
 
         <div class="row gy-3">
             <div class="col-xl-5 col-lg-6">
+                <div class="card shadow-sm">
+                    <div class="card-header fw-semibold">Quota Input</div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ route('admin.imports.quotas.manual.add') }}" class="row g-3" autocomplete="off">
                 <div class="iq-card">
                     <div class="iq-card__header"><div class="iq-card__title">Quota Input</div></div>
                     <div class="iq-card__body">
@@ -65,6 +69,7 @@
                                     class="iq-input @error('quota_no') is-invalid @enderror"
                                     placeholder="e.g., 04.PI-76.25.0108"
                                     required
+                                    autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
                                 >
                                 <div class="form-text">Quota No. boleh diulang dan periode yang sama akan membuat entri baru.</div>
                                 @error('quota_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -76,6 +81,7 @@
                                     name="hs_code"
                                     class="iq-select @error('hs_code') is-invalid @enderror"
                                     required
+                                    autocomplete="off"
                                 >
                                     <option value="" disabled {{ $selectedHsCode ? '' : 'selected' }} hidden>Select HS</option>
                                     @foreach($hsSeedOptions as $option)
@@ -90,25 +96,26 @@
 
                             <div class="col-12">
                                 <label class="form-label">Description</label>
+                                <input type="text" id="manual-hs-desc" class="form-control" value="{{ $selectedHsCode ? ($selectedHsOption['desc'] ?? '') : '' }}" readonly autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
                                 <input type="text" id="manual-hs-desc" class="iq-input" value="{{ $selectedHsCode ? ($selectedHsOption['desc'] ?? '') : '' }}" readonly>
                                 <div class="form-text">Description is automatically filled based on the HS code.</div>
                             </div>
 
                             <div class="col-md-6">
                                 <label for="manual-quantity" class="form-label">Quantity</label>
-                                <input type="number" step="1" min="0" id="manual-quantity" name="quantity" value="{{ old('quantity') }}" class="form-control @error('quantity') is-invalid @enderror" required>
+                                <input type="number" step="1" min="0" id="manual-quantity" name="quantity" value="{{ old('quantity') }}" class="form-control @error('quantity') is-invalid @enderror" required autocomplete="off">
                                 @error('quantity')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 
                             <div class="col-md-6">
                                 <label for="period-start" class="form-label">Start Period</label>
-                                <input type="text" id="period-start" name="period_start" value="{{ old('period_start') }}" class="form-control manual-date @error('period_start') is-invalid @enderror" placeholder="DD-MM-YYYY" required>
+                                <input type="text" id="period-start" name="period_start" value="{{ old('period_start') }}" class="form-control manual-date @error('period_start') is-invalid @enderror" placeholder="DD-MM-YYYY" required autocomplete="off">
                                 @error('period_start')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 
                             <div class="col-md-6">
                                 <label for="period-end" class="form-label">End Period</label>
-                                <input type="text" id="period-end" name="period_end" value="{{ old('period_end') }}" class="form-control manual-date @error('period_end') is-invalid @enderror" placeholder="DD-MM-YYYY" required>
+                                <input type="text" id="period-end" name="period_end" value="{{ old('period_end') }}" class="form-control manual-date @error('period_end') is-invalid @enderror" placeholder="DD-MM-YYYY" required autocomplete="off">
                                 @error('period_end')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 

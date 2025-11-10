@@ -67,6 +67,7 @@ class PurchaseOrderController extends Controller
             DB::raw('MAX(pl.eta_date) as latest_deliv_date'),
             DB::raw($hasVendorNumber ? "STRING_AGG(DISTINCT NULLIF(ph.vendor_number,''), ', ') as vendor_number" : 'NULL as vendor_number'),
             DB::raw("STRING_AGG(DISTINCT ph.supplier, ', ') as vendor_name"),
+            DB::raw("STRING_AGG(DISTINCT NULLIF(pl.voyage_factory,''), ', ') as vendor_factories"),
             DB::raw('COUNT(DISTINCT ph.id) as header_count'),
             DB::raw('COUNT(pl.id) as total_lines'),
             DB::raw("$sumQtyOrderedExpr as total_qty_ordered"),
@@ -271,6 +272,7 @@ class PurchaseOrderController extends Controller
                 DB::raw('pl.eta_date as deliv_date'),
                 DB::raw($hasHeaderVendorNumber ? "NULLIF(ph.vendor_number,'') as vendor_number" : 'NULL as vendor_number'),
                 DB::raw('ph.supplier as vendor_name'),
+                DB::raw("NULLIF(pl.voyage_factory,'') as voyage_factory"),
                 DB::raw("COALESCE(pl.line_no,'') as line_number"),
                 DB::raw('pl.model_code as item_code'),
                 DB::raw('pl.item_desc as item_description'),
@@ -301,6 +303,12 @@ class PurchaseOrderController extends Controller
                 $line->display_order_date = null;
             }
             $line->vendor_number = $resolveVendorNumber($line->vendor_number ?? null, $line->vendor_name ?? null);
+            // Append factory name to vendor for this line if voyage factory is provided manually
+            $vf = is_string($line->voyage_factory ?? null) ? trim($line->voyage_factory) : '';
+            if ($vf !== '') {
+                $vn = is_string($line->vendor_name ?? null) ? trim($line->vendor_name) : '';
+                $line->vendor_name = $vn !== '' ? ($vn.' - '.$vf) : $vf;
+            }
             return $line;
         });
 
@@ -674,8 +682,6 @@ class PurchaseOrderController extends Controller
         return $redir;
     }
 }
-
-
 
 
 
