@@ -268,9 +268,6 @@
                                 <tr id="{{ $qid }}" class="qh-detail" style="display:none; background:#f8fafc">
                                     <td colspan="6" class="p-0">
                                         <div class="p-3">
-                                            <div class="d-flex justify-content-end align-items-center mb-2">
-                                                <button type="button" class="qh-btn qh-close" data-target="{{ $qid }}">Close</button>
-                                            </div>
                                             @php $items = ($quotaHistoryDetails[$row['quota_no']] ?? []); @endphp
                                             @if(empty($items))
                                                 <div class="text-muted">No HS details yet.</div>
