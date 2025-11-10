@@ -43,9 +43,23 @@
             $currentYear = (int) now()->year;
             $selectedYear = (int) ($year ?? $currentYear);
             $years = range($currentYear - 5, $currentYear + 5);
+            $pkOptions = $pk_options ?? [];
+            $selectedPk = $selected_pk ?? '';
         @endphp
         <form method="GET" action="{{ route('analytics.index') }}" class="analytics-filters">
             <input type="hidden" name="mode" value="{{ $mode }}">
+
+            <div class="analytics-filters__group">
+                <label for="pk" class="analytics-filters__label">PK Range</label>
+                <select id="pk" name="pk" class="analytics-filters__input">
+                    <option value="" {{ $selectedPk === '' ? 'selected' : '' }}>All</option>
+                    @foreach($pkOptions as $opt)
+                        @php $val = (string) $opt; $disp = preg_match('/pk|acc/i',$val) ? $val : ($val.' PK'); @endphp
+                        <option value="{{ $val }}" {{ $selectedPk === $val ? 'selected' : '' }}>{{ $disp }}</option>
+                    @endforeach
+                </select>
+            </div>
+
             <div class="analytics-filters__group">
                 <label for="year" class="analytics-filters__label">Year</label>
                 <select id="year" name="year" class="analytics-filters__input">

@@ -18,6 +18,7 @@ class AnalyticsController extends Controller
         $end = $request->query('end_date');
         $year = (int) ($request->query('year', 0));
         $mode = $this->resolveMode($request->query('mode'));
+        $selectedPk = trim((string) $request->query('pk', ''));
 
         if ($year > 0) {
             $startDate = Carbon::create($year, 1, 1)->toDateString();
@@ -27,11 +28,25 @@ class AnalyticsController extends Controller
             $endDate = $end ? Carbon::parse($end)->toDateString() : now()->toDateString();
         }
 
+        // Build PK options based on quotas within selected range (distinct government_category)
+        try {
+            $pkOptions = $this->queryQuotasByDateRange(\Carbon\Carbon::parse($startDate), \Carbon\Carbon::parse($endDate))
+                ->whereNotNull('government_category')
+                ->pluck('government_category')
+                ->filter(fn ($v) => trim((string) $v) !== '')
+                ->unique()
+                ->sort()->values()->all();
+        } catch (\Throwable $e) {
+            $pkOptions = [];
+        }
+
         return view('analytics.index', [
             'start_date' => $startDate,
             'end_date' => $endDate,
             'year' => $year > 0 ? $year : (int) now()->year,
             'mode' => $mode,
+            'pk_options' => $pkOptions,
+            'selected_pk' => $selectedPk,
         ]);
     }
 
@@ -160,14 +175,15 @@ class AnalyticsController extends Controller
     {
         [$start, $end] = $this->resolveRange($request);
         $mode = $this->resolveMode($request->query('mode'));
+        $selectedPk = trim((string) $request->query('pk', ''));
 
         if ($mode === 'forecast') {
-            $rows = $this->buildForecastRows($start, $end);
+            $rows = $this->buildForecastRows($start, $end, $selectedPk);
             $primaryLabel = 'Forecast (Consumption)';
             $secondaryLabel = 'Sisa Forecast';
             $percentageLabel = 'Penggunaan Forecast %';
         } else {
-            $rows = $this->buildActualRows($start, $end);
+            $rows = $this->buildActualRows($start, $end, $selectedPk);
             $primaryLabel = 'Actual (Good Receipt)';
             $secondaryLabel = 'Sisa Kuota';
             $percentageLabel = 'Pemakaian Actual %';
@@ -264,9 +280,9 @@ class AnalyticsController extends Controller
     /**
      * @return Collection<int,array<string,mixed>>
      */
-    private function buildActualRows(Carbon $start, Carbon $end): Collection
+    private function buildActualRows(Carbon $start, Carbon $end, ?string $pkLabel = null): Collection
     {
-        $quotas = $this->queryQuotasByDateRange($start, $end)->orderBy('quota_number')->get();
+        $quotas = $this->queryQuotasByDateRange($start, $end, $pkLabel)->orderBy('quota_number')->get();
         if ($quotas->isEmpty()) {
             return collect();
         }
@@ -275,7 +291,7 @@ class AnalyticsController extends Controller
             $rows[$q->id] = [
                 'quota_id' => $q->id,
                 'quota_number' => $q->quota_number,
-                'range_pk' => $q->government_category,
+                'range_pk' => $this->formatPkLabel($q->government_category),
                 'initial_quota' => (float) ($q->total_allocation ?? 0),
                 'primary_value' => 0.0,
                 'secondary_value' => (float) ($q->total_allocation ?? 0),
@@ -310,9 +326,9 @@ class AnalyticsController extends Controller
     /**
      * @return Collection<int,array<string,mixed>>
      */
-    private function buildForecastRows(Carbon $start, Carbon $end): Collection
+    private function buildForecastRows(Carbon $start, Carbon $end, ?string $pkLabel = null): Collection
     {
-        $quotas = $this->queryQuotasByDateRange($start, $end)->orderBy('quota_number')->get();
+        $quotas = $this->queryQuotasByDateRange($start, $end, $pkLabel)->orderBy('quota_number')->get();
         if ($quotas->isEmpty()) {
             return collect();
         }
@@ -337,7 +353,7 @@ class AnalyticsController extends Controller
             return [
                 'quota_id' => $quota->id,
                 'quota_number' => $quota->quota_number,
-                'range_pk' => $quota->government_category,
+                'range_pk' => $this->formatPkLabel($quota->government_category),
                 'initial_quota' => $allocation,
                 'primary_value' => round($forecast, 2),
                 'secondary_value' => round($remaining, 2),
@@ -348,15 +364,33 @@ class AnalyticsController extends Controller
         });
     }
 
-    private function queryQuotasByDateRange(Carbon $start, Carbon $end)
+    private function queryQuotasByDateRange(Carbon $start, Carbon $end, ?string $pkLabel = null)
     {
-        return Quota::query()->where(function ($q) use ($start, $end) {
+        $builder = Quota::query()->where(function ($q) use ($start, $end) {
             $q->where(function ($qq) use ($start) {
                 $qq->whereNull('period_end')->orWhere('period_end', '>=', $start->toDateString());
             })->where(function ($qq) use ($end) {
                 $qq->whereNull('period_start')->orWhere('period_start', '<=', $end->toDateString());
             });
         });
+
+        $label = trim((string) $pkLabel);
+        if ($label !== '') {
+            $builder->where('government_category', $label);
+        }
+
+        return $builder;
+    }
+
+    private function formatPkLabel(?string $label): string
+    {
+        $v = trim((string) $label);
+        if ($v === '') { return $v; }
+        // If already contains 'PK' or looks non-numeric (e.g., ACC), keep as-is
+        if (stripos($v, 'PK') !== false) { return $v; }
+        // Append ' PK' for common numeric/range patterns
+        if (preg_match('/[0-9<>-]/', $v)) { return $v.' PK'; }
+        return $v;
     }
 
     private function resolveMode(?string $mode): string
