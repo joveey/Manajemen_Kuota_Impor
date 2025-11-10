@@ -29,6 +29,9 @@
             <a href="{{ route('analytics.export.csv', array_merge(request()->query(), ['year' => (int)($year ?? now()->year)])) }}" class="page-header__button page-header__button--outline">
                 <i class="fas fa-file-csv me-2"></i>CSV
             </a>
+            <a href="{{ route('analytics.export.xlsx', array_merge(request()->query(), ['year' => (int)($year ?? now()->year)])) }}" class="page-header__button page-header__button--outline">
+                <i class="fas fa-file-excel me-2"></i>XLSX
+            </a>
         </div>
     </div>
 
