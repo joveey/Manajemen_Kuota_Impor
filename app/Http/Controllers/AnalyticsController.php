@@ -492,9 +492,9 @@ class AnalyticsController extends Controller
     private function formatCapacityDisplay(string $bucketKey): string
     {
         return match ($bucketKey) {
-            '<8' => '< 8 HP',
-            '8-10' => '8 HP ~ 10 HP',
-            '>10' => '> 10 HP',
+            '<8' => '< 8 PK',
+            '8-10' => '8 PK ~ 10 PK',
+            '>10' => '> 10 PK',
             default => (string) $bucketKey,
         };
     }
