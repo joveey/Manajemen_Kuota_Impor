@@ -19,7 +19,7 @@
     $manualQuotas = $manualQuotas ?? collect();
 @endphp
 
-<div class="page-shell">
+<div class="iq-shell">
     <div class="page-header">
         <div>
             <h1 class="page-header__title">Quota Input</h1>
@@ -54,6 +54,10 @@
                     <div class="card-header fw-semibold">Quota Input</div>
                     <div class="card-body">
                         <form method="POST" action="{{ route('admin.imports.quotas.manual.add') }}" class="row g-3" autocomplete="off">
+                <div class="iq-card">
+                    <div class="iq-card__header"><div class="iq-card__title">Quota Input</div></div>
+                    <div class="iq-card__body">
+                        <form method="POST" action="{{ route('admin.imports.quotas.manual.add') }}" class="row g-3">
                             @csrf
                             <div class="col-12">
                                 <label for="manual-quota-no" class="form-label">Quota No.</label>
@@ -62,7 +66,7 @@
                                     id="manual-quota-no"
                                     name="quota_no"
                                     value="{{ old('quota_no') }}"
-                                    class="form-control @error('quota_no') is-invalid @enderror"
+                                    class="iq-input @error('quota_no') is-invalid @enderror"
                                     placeholder="e.g., 04.PI-76.25.0108"
                                     required
                                     autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
@@ -75,7 +79,7 @@
                                 <select
                                     id="manual-hs"
                                     name="hs_code"
-                                    class="form-select @error('hs_code') is-invalid @enderror"
+                                    class="iq-select @error('hs_code') is-invalid @enderror"
                                     required
                                     autocomplete="off"
                                 >
@@ -93,6 +97,7 @@
                             <div class="col-12">
                                 <label class="form-label">Description</label>
                                 <input type="text" id="manual-hs-desc" class="form-control" value="{{ $selectedHsCode ? ($selectedHsOption['desc'] ?? '') : '' }}" readonly autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+                                <input type="text" id="manual-hs-desc" class="iq-input" value="{{ $selectedHsCode ? ($selectedHsOption['desc'] ?? '') : '' }}" readonly>
                                 <div class="form-text">Description is automatically filled based on the HS code.</div>
                             </div>
 
@@ -205,17 +210,17 @@
                             </table>
                         </div>
                     </div>
-                    <div class="card-footer d-flex justify-content-between flex-wrap gap-2">
+                    <div class="iq-card__footer">
                         <form method="POST" action="{{ route('admin.imports.quotas.manual.reset') }}">
                             @csrf
-                            <button type="submit" class="btn btn-outline-secondary btn-sm" {{ empty($manualPreview) ? 'disabled' : '' }}>
-                                <i class="fas fa-rotate-left me-1"></i> Reset Preview
+                            <button type="submit" class="iq-btn iq-btn--ghost" {{ empty($manualPreview) ? 'disabled' : '' }}>
+                                Reset Preview
                             </button>
                         </form>
                         <form method="POST" action="{{ route('admin.imports.quotas.manual.publish') }}">
                             @csrf
-                            <button type="submit" class="btn btn-primary btn-sm" {{ empty($manualPreview) ? 'disabled' : '' }}>
-                                <i class="fas fa-cloud-upload-alt me-1"></i> Publish
+                            <button type="submit" class="iq-btn" {{ empty($manualPreview) ? 'disabled' : '' }}>
+                                Publish
                             </button>
                         </form>
                     </div>
@@ -225,66 +230,72 @@
 
         {{-- Quota import history (file) removed as requested --}}
 
-        <div class="card shadow-sm mt-4">
-            <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-                <span>Quota History</span>
-                <span class="badge bg-secondary">Showing {{ $manualQuotas->count() }} latest entries</span>
+        <div class="iq-card mt-4">
+            <div class="iq-card__header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span>Quota History</span>
+                    <span class="badge bg-secondary">Showing {{ ($quotaHistorySummary ? count($quotaHistorySummary) : 0) }} quota numbers</span>
+                </div>
             </div>
-            <div class="card-body p-0">
+            <div class="iq-card__body p-0">
                 <div class="table-responsive">
-                    <table class="table mb-0">
-                        <thead class="table-light">
+                    <table class="iq-table">
+                        <thead>
                             <tr>
                                 <th>Quota No.</th>
-                                <th>HS Code</th>
-                                <th>Description</th>
-                                <th class="text-end">Quantity</th>
-                                <th>Period</th>
-                                <th>Created</th>
+                                <th class="qh-qty-head">Total Quantity</th>
+                                <th class="text-center">Period</th>
+                                <th class="text-center">Created</th>
+                                <th class="text-end">Action</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            @forelse($manualQuotas as $quota)
+                        <tbody id="qh-tbody">
+                            @forelse(($quotaHistorySummary ?? []) as $row)
                                 @php
-                                    $hsDisplay = '';
-                                    if (!empty($quota->notes) && str_starts_with($quota->notes, 'HS')) {
-                                        $hsDisplay = trim(substr($quota->notes, 3));
-                                    }
+                                    $ps = $row['period_start'] ? \Illuminate\Support\Carbon::parse($row['period_start'])->format('d-m-Y') : '-';
+                                    $pe = $row['period_end'] ? \Illuminate\Support\Carbon::parse($row['period_end'])->format('d-m-Y') : null;
+                                    $qid = 'qh-'.md5($row['quota_no']);
                                 @endphp
-                                <tr>
-                                    <td>{{ $quota->quota_number }}</td>
-                                    <td>{{ $hsDisplay !== '' ? $hsDisplay : '-' }}</td>
-                                    <td>
-                                        @php
-                                            $dd = trim((string)($quota->government_category ?? ''));
-                                            $friendly2 = $dd;
-                                            try {
-                                                $pp = \App\Support\PkCategoryParser::parse($dd);
-                                                $min = $pp['min_pk']; $max = $pp['max_pk'];
-                                                $fmt = function($v){ return rtrim(rtrim(number_format((float)$v, 2, '.', ''), '0'), '.'); };
-                                                if (!is_null($min) && !is_null($max)) {
-                                                    $friendly2 = ($min === $max) ? ($fmt($min).' PK') : ($fmt($min).'-'.$fmt($max).' PK');
-                                                } elseif (!is_null($min) && is_null($max)) {
-                                                    $friendly2 = ($min >= 8 && $min < 10) ? '8-10 PK' : ('>'.$fmt($min).' PK');
-                                                } elseif (is_null($min) && !is_null($max)) {
-                                                    $friendly2 = ($max <= 8) ? '<8 PK' : ('<'.$fmt($max).' PK');
-                                                } else {
-                                                    if ($dd !== '' && stripos($dd,'PK')===false && strtoupper($dd)!=='ACCESORY') { $friendly2 = $dd.' PK'; }
-                                                }
-                                            } catch (\Throwable $e) {
-                                                if ($dd !== '' && stripos($dd,'PK')===false && strtoupper($dd)!=='ACCESORY') { $friendly2 = $dd.' PK'; }
-                                            }
-                                        @endphp
-                                        {{ $friendly2 !== '' ? $friendly2 : '-' }}
+                                <tr data-quota="{{ $row['quota_no'] }}" data-target="{{ $qid }}" class="qh-summary">
+                                    <td class="qh-qn">
+                                        <i class="fas fa-chevron-right me-1 text-muted qh-caret" aria-hidden="true" style="cursor:pointer"></i>
+                                        {{ $row['quota_no'] }}
                                     </td>
-                                    <td class="text-end">{{ number_format((float) $quota->total_allocation, 0) }}</td>
-                                    <td>
-                                        {{ optional($quota->period_start)->format('d-m-Y') ?? '-' }}
-                                        @if($quota->period_end)
-                                            - {{ optional($quota->period_end)->format('d-m-Y') }}
-                                        @endif
+                                    <td class="qh-qty">{{ number_format((float) $row['total_quantity'], 0) }}</td>
+                                    <td>{{ $ps }}@if($pe) - {{ $pe }}@endif</td>
+                                    <td class="text-center text-nowrap">{{ \Illuminate\Support\Carbon::parse($row['created_at'])->setTimezone('Asia/Jakarta')->format('d-m-Y') }}</td>
+                                    <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary qh-toggle" data-target="{{ $qid }}">Details</button></td>
+                                </tr>
+                                <tr id="{{ $qid }}" class="qh-detail" style="display:none; background:#f8fafc">
+                                    <td colspan="5" class="p-0">
+                                        <div class="p-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <div class="fw-semibold">HS items for {{ $row['quota_no'] }}</div>
+                                                <button type="button" class="qh-btn qh-close" data-target="{{ $qid }}">Close</button>
+                                            </div>
+                                            @php $items = ($quotaHistoryDetails[$row['quota_no']] ?? []); @endphp
+                                            @if(empty($items))
+                                                <div class="text-muted">No HS details yet.</div>
+                                            @else
+                                                <div class="qh-list">
+                                                    <div class="qh-row qh-row--head">
+                                                        <div>HS Code</div>
+                                                        <div>Description</div>
+                                                        <div class="qh-qty">Quantity</div>
+                                                        <div class="qh-period">Period</div>
+                                                    </div>
+                                                    @foreach($items as $it)
+                                                        <div class="qh-row">
+                                                            <div class="qh-code">{{ $it['hs_code'] ?: '-' }}</div>
+                                                            <div>{{ $it['desc'] ?: '-' }}</div>
+                                                            <div class="qh-qty">{{ number_format((float) $it['quantity'], 0) }}</div>
+                                                            <div class="qh-period">{{ $it['period_start'] ?? '-' }}@if(!empty($it['period_end'])) - {{ $it['period_end'] }}@endif</div>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
                                     </td>
-                                    <td>{{ optional($quota->created_at)->setTimezone('Asia/Jakarta')->format('d-m-Y') }}</td>
                                 </tr>
                             @empty
                                 <tr>
@@ -305,6 +316,52 @@
 (function () {
     const hsSelect = document.getElementById('manual-hs');
     const descInput = document.getElementById('manual-hs-desc');
+    // Quota History filter + total aggregator
+    // Toggle details per row (via caret or Details button). Close others when opening one.
+    function hideAllDetails(){
+        document.querySelectorAll('#qh-tbody tr.qh-detail').forEach(function(d){ d.style.display='none'; });
+        document.querySelectorAll('#qh-tbody .qh-caret').forEach(function(c){
+            c.classList.remove('fa-chevron-down');
+            c.classList.add('fa-chevron-right');
+        });
+    }
+    function toggleRow(id, caret){
+        var el = document.getElementById(id);
+        if(!el) return;
+        var shown = (el.style.display !== 'none');
+        if(shown){
+            el.style.display = 'none';
+            if(caret){ caret.classList.remove('fa-chevron-down'); caret.classList.add('fa-chevron-right'); }
+        } else {
+            hideAllDetails();
+            el.style.display = '';
+            if(caret){ caret.classList.remove('fa-chevron-right'); caret.classList.add('fa-chevron-down'); }
+        }
+    }
+    document.querySelectorAll('#qh-tbody tr.qh-summary .qh-caret').forEach(function(icon){
+        icon.addEventListener('click', function(e){
+            e.stopPropagation();
+            var tr = icon.closest('tr.qh-summary');
+            var id = tr.getAttribute('data-target');
+            toggleRow(id, icon);
+        });
+    });
+    document.querySelectorAll('#qh-tbody .qh-toggle').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+            e.preventDefault(); e.stopPropagation();
+            var id = btn.getAttribute('data-target');
+            var caret = document.querySelector('tr.qh-summary[data-target="'+id+'"]').querySelector('.qh-caret');
+            toggleRow(id, caret);
+        });
+    });
+    document.querySelectorAll('#qh-tbody .qh-close').forEach(function(btn){
+        btn.addEventListener('click', function(e){
+            e.preventDefault(); e.stopPropagation();
+            var id = btn.getAttribute('data-target');
+            var caret = document.querySelector('tr.qh-summary[data-target="'+id+'"]').querySelector('.qh-caret');
+            toggleRow(id, caret);
+        });
+    });
 
     if (typeof flatpickr !== 'undefined') {
         flatpickr('.manual-date', {
@@ -325,4 +382,41 @@
     }
 })();
 </script>
+@endpush
+
+@push('styles')
+<style>
+/* Lightweight, AdminLTE-free detail styling */
+.iq-shell { display:flex; flex-direction:column; gap:16px; }
+.iq-card { border:1px solid #dfe4f3; border-radius:16px; background:#ffffff; box-shadow:0 20px 45px -36px rgba(15,23,42,.35); }
+.iq-card__header{ padding:16px 18px; border-bottom:1px solid #eef2fb; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.iq-card__title{ font-size:16px; font-weight:700; color:#0f172a; margin:0; }
+.iq-card__body{ padding:18px; }
+.iq-card__footer{ padding:12px 18px; border-top:1px solid #eef2fb; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+.iq-input, .iq-select{ border:1px solid #cbd5f5; border-radius:12px; padding:10px 14px; font-size:13px; width:100%; transition:border-color .2s ease, box-shadow .2s ease; }
+.iq-input:focus, .iq-select:focus{ border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,0.15); outline:none; }
+.iq-btn{ background:#2563eb; color:#fff; border:none; border-radius:12px; padding:10px 16px; font-weight:600; font-size:13px; }
+.iq-btn--ghost{ background:rgba(37,99,235,.08); color:#2563eb; border:1px solid #cbd5f5; }
+.iq-table{ width:100%; border-collapse:separate; border-spacing:0; }
+.iq-table thead th{ background:#f8fbff; padding:12px 14px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:#64748b; }
+.iq-table tbody td{ padding:16px 14px; font-size:13px; color:#1f2937; border-top:1px solid #e5eaf5; }
+/* Center align summary columns 2-4 */
+.iq-table thead th:nth-child(2), .iq-table thead th:nth-child(3), .iq-table thead th:nth-child(4){ text-align:center; }
+.iq-table tbody td:nth-child(2), .iq-table tbody td:nth-child(3), .iq-table tbody td:nth-child(4){ text-align:center; }
+/* Action column right-aligned */
+.iq-table thead th:nth-child(5){ text-align:right; }
+.iq-table tbody td:nth-child(5){ text-align:right; }
+/* Numeric alignment for Quantity */
+.iq-table td.qh-qty, .iq-table th.qh-qty-head{ text-align:center; font-variant-numeric: tabular-nums; }
+/* Created cell: center the date, push Details button to far right */
+/* legacy created-cell styles no longer used */
+.qh-btn { border:1px solid #cbd5f5; background:#eff6ff; color:#1d4ed8; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:600; }
+.qh-list { display:flex; flex-direction:column; gap:0; border:1px solid #eef2fb; border-radius:10px; background:#f9fbff; }
+.qh-row { display:grid; grid-template-columns: 1.1fr 1.4fr 1fr 1.1fr; gap:22px; padding:10px 12px; border-top:1px solid #eef2fb; font-size:13px; color:#1f2937; align-items:center; }
+.qh-row:first-child { border-top:none; border-top-left-radius:10px; border-top-right-radius:10px; background:#f3f8ff; }
+.qh-row--head { font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:.04em; font-weight:700; }
+.qh-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#be123c; }
+.qh-qty, .qh-period { text-align:center; font-variant-numeric: tabular-nums; }
+.qh-summary { cursor:pointer; }
+</style>
 @endpush
