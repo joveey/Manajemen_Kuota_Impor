@@ -561,7 +561,6 @@
                                 <th class="text-end">To Deliver</th>
                                 <th>Delivery Date</th>
                                 <th>Document Date</th>
-                                <th>Vendor No</th>
                                 <th>Vendor Name</th>
                             </tr>
                         </thead>
@@ -577,7 +576,6 @@
                                     <td class="text-end">{{ isset($line->qty_to_deliver) ? number_format((float) $line->qty_to_deliver, 0) : '-' }}</td>
                                     <td>{{ !empty($line->deliv_date) ? (\Illuminate\Support\Carbon::parse($line->deliv_date)->format('d M Y')) : '-' }}</td>
                                     <td>{{ optional($line->display_order_date)->format('d M Y') ?? '-' }}</td>
-                                    <td>{{ $line->vendor_number ?? '-' }}</td>
                                     <td>{{ $line->vendor_name ?? '-' }}</td>
                                 </tr>
                             @empty
@@ -602,7 +600,7 @@
     const form = document.getElementById('voyageForm');
     const selectLine = document.getElementById('voyage_line');
     const badge = document.getElementById('voyage_badge');
-    const fields = ['voyage_bl','voyage_etd','voyage_eta','voyage_factory','voyage_status','voyage_issue_date','voyage_expired_date','voyage_remark'];
+    const fields = ['voyage_bl','voyage_etd','voyage_eta','voyage_factory','voyage_status','voyage_remark'];
     function fillForm(data){
         if(!data) return;
         fields.forEach(function(n){ var el=form?.querySelector('[name="'+n+'"]'); if(!el) return; el.value = data[n.replace('voyage_','')] || ''; });

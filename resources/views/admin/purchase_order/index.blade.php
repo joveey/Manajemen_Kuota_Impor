@@ -497,7 +497,13 @@
                                 <td>{{ $orderDateLabel }}</td>
                                 <td>{{ $delivDateLabel }}</td>
                                 <td>
-                                    <div>{{ $po->vendor_name ?? '-' }}</div>
+                                    @php
+                                        $vname = $po->vendor_name ?? '-';
+                                        $vfac = trim((string) ($po->vendor_factories ?? ''));
+                                        if ($vname === '' || $vname === null) { $vname = '-'; }
+                                        if ($vfac !== '') { $vname = ($vname === '-' ? '' : $vname).' ('.$vfac.')'; }
+                                    @endphp
+                                    <div>{{ $vname !== '' ? $vname : '-' }}</div>
                                     @if(!empty($po->sap_statuses))
                                         <div class="po-table__subtext">SAP: {{ $po->sap_statuses }}</div>
                                     @endif

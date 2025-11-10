@@ -43,6 +43,7 @@
         <option value="Booked" {{ $cur==='Booked'?'selected':'' }}>Booked</option>
         <option value="On Vessel" {{ $cur==='On Vessel'?'selected':'' }}>On Vessel</option>
         <option value="Arrived" {{ $cur==='Arrived'?'selected':'' }}>Arrived</option>
+        <option value="Shipping" {{ $cur==='Shipping'?'selected':'' }}>Shipping</option>
       </select>
     </div>
     <div>
@@ -68,8 +69,6 @@
             <th class="col-date">ETA</th>
             <th class="col-text">Factory</th>
             <th class="col-text">Status</th>
-            <th class="col-date">Issue</th>
-            <th class="col-date">Expired</th>
             <th class="col-remark">Remark</th>
           </tr>
         </thead>
@@ -79,7 +78,8 @@
             <td class="sticky-col line sticky-shadow">{{ $ln->line_no ?: '-' }}</td>
             <td class="sticky-col mat  sticky-shadow">{{ $ln->material ?? '-' }}</td>
             <td class="text-truncate" title="{{ $ln->item_desc }}">{{ $ln->item_desc ?? '-' }}</td>
-            <td>{{ number_format((float)($ln->qty_ordered ?? 0), 0) }}</td>
+            @php $qtyRemain = isset($ln->qty_remaining) ? (float)$ln->qty_remaining : (float)($ln->qty_ordered ?? 0); @endphp
+            <td>{{ number_format($qtyRemain, 0) }}</td>
             <td>{{ $ln->delivery_date ? \Illuminate\Support\Carbon::parse($ln->delivery_date)->format('d-m-Y') : '-' }}</td>
 
             <td><input type="text"  class="form-control form-control-sm v-bl"       value="{{ $ln->bl ?? '' }}"></td>
@@ -92,11 +92,54 @@
                 <option value=""></option>
                 <option value="Finish" {{ $s==='finish' ? 'selected' : '' }}>Finish</option>
                 <option value="Not Ship Yet" {{ $s==='not ship yet' ? 'selected' : '' }}>Not Ship Yet</option>
+                <option value="Shipping" {{ $s==='shipping' ? 'selected' : '' }}>Shipping</option>
               </select>
             </td>
-            <td><input type="text" class="form-control form-control-sm v-issue datepicker"    value="{{ $ln->issue_date ?? '' }}" placeholder="dd-mm-yyyy"></td>
-            <td><input type="text" class="form-control form-control-sm v-expired datepicker"  value="{{ $ln->expired ?? '' }}" placeholder="dd-mm-yyyy"></td>
             <td><input type="text"  class="form-control form-control-sm v-remark"  value="{{ $ln->remark ?? '' }}"></td>
+          </tr>
+          @php $subs = ($splitsByLine[$ln->id] ?? []); @endphp
+          @if(!empty($subs))
+            @foreach ($subs as $sp)
+              <tr class="split-row text-muted" data-line-id="{{ $ln->id }}" data-split-id="{{ $sp->id }}">
+                <td></td>
+                <td colspan="2">Split</td>
+                <td>{{ number_format((float)($sp->qty ?? 0),0) }}</td>
+                <td>{{ $ln->delivery_date ? \Illuminate\Support\Carbon::parse($ln->delivery_date)->format('d-m-Y') : '-' }}</td>
+                <td><input type="text" class="form-control form-control-sm s-bl" value="{{ $sp->voyage_bl ?? '' }}"></td>
+                <td><input type="text" class="form-control form-control-sm s-etd datepicker" value="{{ $sp->voyage_etd ?? '' }}" placeholder="dd-mm-yyyy"></td>
+                <td><input type="text" class="form-control form-control-sm s-eta datepicker" value="{{ $sp->voyage_eta ?? '' }}" placeholder="dd-mm-yyyy"></td>
+                <td><input type="text" class="form-control form-control-sm s-factory" value="{{ $sp->voyage_factory ?? '' }}"></td>
+                <td>
+                  @php $s = strtolower((string)($sp->voyage_status ?? '')); @endphp
+                  <select class="form-select form-select-sm s-status">
+                    <option value=""></option>
+                    <option value="Finish" {{ $s==='finish' ? 'selected' : '' }}>Finish</option>
+                    <option value="Not Ship Yet" {{ $s==='not ship yet' ? 'selected' : '' }}>Not Ship Yet</option>
+                    <option value="Shipping" {{ $s==='shipping' ? 'selected' : '' }}>Shipping</option>
+                  </select>
+                </td>
+                <td><input type="text" class="form-control form-control-sm s-remark" value="{{ $sp->voyage_remark ?? '' }}"></td>
+              </tr>
+            @endforeach
+          @endif
+          <tr class="split-row split-new" data-line-id="{{ $ln->id }}" data-split-id="">
+            <td></td>
+            <td colspan="2"><em class="text-muted">Add split</em></td>
+            <td><input type="number" min="0" step="1" class="form-control form-control-sm s-qty" value=""></td>
+            <td>{{ $ln->delivery_date ? \Illuminate\Support\Carbon::parse($ln->delivery_date)->format('d-m-Y') : '-' }}</td>
+            <td><input type="text"  class="form-control form-control-sm s-bl"       value=""></td>
+            <td><input type="text" class="form-control form-control-sm s-etd datepicker"      value="" placeholder="dd-mm-yyyy"></td>
+            <td><input type="text" class="form-control form-control-sm s-eta datepicker"      value="" placeholder="dd-mm-yyyy"></td>
+            <td><input type="text"  class="form-control form-control-sm s-factory" value=""></td>
+            <td>
+              <select class="form-select form-select-sm s-status">
+                <option value=""></option>
+                <option value="Finish">Finish</option>
+                <option value="Not Ship Yet">Not Ship Yet</option>
+                <option value="Shipping">Shipping</option>
+              </select>
+            </td>
+            <td><input type="text"  class="form-control form-control-sm s-remark"  value=""></td>
           </tr>
           @endforeach
         </tbody>
@@ -138,15 +181,8 @@
               <option value=""></option>
               <option value="Finish" {{ $s==='finish' ? 'selected' : '' }}>Finish</option>
               <option value="Not Ship Yet" {{ $s==='not ship yet' ? 'selected' : '' }}>Not Ship Yet</option>
+              <option value="Shipping" {{ $s==='shipping' ? 'selected' : '' }}>Shipping</option>
             </select>
-          </div>
-          <div class="col-6">
-            <label>Issue</label>
-            <input type="text" class="form-control form-control-sm v-issue datepicker" value="{{ $ln->issue_date ?? '' }}" placeholder="dd-mm-yyyy">
-          </div>
-          <div class="col-6">
-            <label>Expired</label>
-            <input type="text" class="form-control form-control-sm v-expired datepicker" value="{{ $ln->expired ?? '' }}" placeholder="dd-mm-yyyy">
           </div>
           <div class="col-12">
             <label>Remark</label>
@@ -159,15 +195,49 @@
   </div>
 
   <div class="bottom-bar">
-    <button id="resetChanges" class="btn btn-outline-secondary btn-sm">Reset</button>
-    <button id="saveChanges"  class="btn btn-primary btn-sm" disabled>
-      Save changes (<span id="chgCount">0</span>)
-    </button>
+    <form id="voyageBulkForm" method="POST" action="{{ route('admin.purchase-orders.voyage.bulk', ['po' => $poNumber]) }}">
+      @csrf
+      <input type="hidden" name="splits_json" id="splits_json" value="">
+      <input type="hidden" name="rows_json" id="rows_json" value="">
+      <button type="button" id="saveChanges" class="btn btn-primary btn-sm">Save changes</button>
+    </form>
   </div>
 
 </div>
 @endsection
 
 @push('scripts')
-<script src="{{ asset('js/voyage.js') }}"></script>
+<script>
+(function(){
+  function collect(){
+    var rows=[]; var splits=[];
+    document.querySelectorAll('tr[data-line-id]')?.forEach(function(tr){
+      var lineId = tr.getAttribute('data-line-id');
+      // parent line inputs
+      var bl = tr.querySelector('.v-bl')?.value; var etd = tr.querySelector('.v-etd')?.value; var eta = tr.querySelector('.v-eta')?.value; var fac = tr.querySelector('.v-factory')?.value; var st = tr.querySelector('.v-status')?.value; var rm = tr.querySelector('.v-remark')?.value;
+      if (bl!==undefined || etd!==undefined || eta!==undefined || fac!==undefined || st!==undefined || rm!==undefined){
+        rows.push({line_id:parseInt(lineId), bl:bl, etd:etd, eta:eta, factory:fac, status:st, remark:rm});
+      }
+    });
+    document.querySelectorAll('tr.split-row')?.forEach(function(tr){
+      var lineId = parseInt(tr.getAttribute('data-line-id')||'0');
+      var id = parseInt(tr.getAttribute('data-split-id')||'0');
+      var qty = tr.querySelector('.s-qty')?.value;
+      var bl = tr.querySelector('.s-bl')?.value; var etd = tr.querySelector('.s-etd')?.value; var eta = tr.querySelector('.s-eta')?.value; var fac = tr.querySelector('.s-factory')?.value; var st = tr.querySelector('.s-status')?.value; var rm = tr.querySelector('.s-remark')?.value;
+      if (isNaN(lineId) || lineId<=0) return;
+      // only post rows that have any value filled or existing id
+      var hasVal = (qty && qty!=='' && Number(qty)>0) || bl||etd||eta||fac||st||rm||id>0;
+      if (!hasVal) return;
+      var payload = {id: id>0? id: undefined, line_id: lineId, qty: qty||0, bl: bl, etd: etd, eta: eta, factory: fac, status: st, remark: rm};
+      splits.push(payload);
+    });
+    document.getElementById('rows_json').value = JSON.stringify(rows);
+    document.getElementById('splits_json').value = JSON.stringify(splits);
+  }
+  document.getElementById('saveChanges')?.addEventListener('click', function(){
+    collect();
+    document.getElementById('voyageBulkForm').submit();
+  });
+})();
+</script>
 @endpush
