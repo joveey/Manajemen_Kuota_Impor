@@ -118,7 +118,39 @@
                     <option value="Shipping" {{ $s==='shipping' ? 'selected' : '' }}>Shipping</option>
                   </select>
                 </td>
-                <td><input type="text" class="form-control form-control-sm s-remark" value="{{ $sp->voyage_remark ?? '' }}"></td>
+                <td>
+                  <div class="d-flex gap-2">
+                    <input type="text" class="form-control form-control-sm s-remark" value="{{ $sp->voyage_remark ?? '' }}">
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#mv-{{ $sp->id }}">Move</button>
+                  </div>
+                </td>
+              </tr>
+              <tr class="collapse" id="mv-{{ $sp->id }}">
+                <td></td>
+                <td colspan="10">
+                  <form method="POST" action="{{ route('admin.purchase-orders.voyage.move', ['po'=>$poNumber]) }}" class="d-flex flex-wrap align-items-center gap-2 py-2 ps-4">
+                    @csrf
+                    <input type="hidden" name="line_id" value="{{ $ln->id }}">
+                    <input type="hidden" name="split_id" value="{{ $sp->id }}">
+                    @php $src = $sourceQuotaByLine[$ln->id] ?? null; $topts = $quotaOptionsByLine[$ln->id] ?? []; @endphp
+                    <input type="hidden" name="source_quota_id" value="{{ $src['id'] ?? '' }}">
+                    <div class="text-muted small">Source:</div>
+                    <div class="fw-semibold me-3">{{ $src ? $src['label'] : 'Not found' }}</div>
+                    <div class="text-muted small">Target:</div>
+                    <div>
+                      <select class="form-select form-select-sm" name="target_quota_id" required style="min-width:320px;max-width:420px;">
+                        <option value="" disabled selected>Select quota</option>
+                        @foreach($topts as $qo)
+                          <option value="{{ $qo['id'] }}">{{ $qo['quota_number'] }} ({{ $qo['start'] }}..{{ $qo['end'] }})</option>
+                        @endforeach
+                      </select>
+                    </div>
+                    <div class="text-muted small">Qty:</div>
+                    <div class="fw-semibold">{{ number_format((int)($sp->qty ?? 0)) }}</div>
+                    <input type="hidden" name="move_qty" value="{{ (int)($sp->qty ?? 0) }}">
+                    <button type="submit" class="btn btn-sm btn-primary ms-auto">Move</button>
+                  </form>
+                </td>
               </tr>
             @endforeach
           @endif
@@ -147,6 +179,8 @@
     </div>
     <div class="mt-2">{{ $lines->withQueryString()->links() }}</div>
   </div>
+
+  {{-- datalist no longer used (replaced by select) --}}
 
   <div class="voyage-mobile">
     @foreach ($lines as $ln)

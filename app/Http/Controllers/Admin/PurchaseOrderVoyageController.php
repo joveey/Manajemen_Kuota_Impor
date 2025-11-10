@@ -61,6 +61,7 @@ class PurchaseOrderVoyageController extends Controller
 
         $q = DB::table('po_lines as pl')
             ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
+            ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
             ->where('ph.po_number', $poNumber)
             ->select(array_filter([
                 DB::raw('pl.id as id'),
@@ -69,6 +70,8 @@ class PurchaseOrderVoyageController extends Controller
                 DB::raw('pl.item_desc as item_desc'),
                 DB::raw('pl.qty_ordered as qty_ordered'),
                 DB::raw('pl.eta_date as delivery_date'),
+                DB::raw('hs.hs_code as hs_code'),
+                DB::raw('hs.pk_capacity as pk_capacity'),
                 $hasVoyage['bl'] ? DB::raw('pl.voyage_bl as bl') : null,
                 $hasVoyage['etd'] ? DB::raw('pl.voyage_etd as etd') : null,
                 $hasVoyage['eta'] ? DB::raw('pl.voyage_eta as eta') : null,
@@ -121,7 +124,65 @@ class PurchaseOrderVoyageController extends Controller
             })
         );
 
-        return view('admin.purchase_orders.voyage', compact('summary', 'lines', 'poNumber', 'splitsByLine'));
+        // Provide per-line quota options filtered by HS/PK
+        $allQuotas = \App\Models\Quota::query()
+            ->orderByDesc('period_start')
+            ->get(['id','quota_number','government_category','period_start','period_end','total_allocation','forecast_remaining','min_pk','max_pk','is_min_inclusive','is_max_inclusive','status','is_active']);
+
+        $quotaOptionsByLine = [];
+        $lines->getCollection()->each(function ($ln) use (&$quotaOptionsByLine, $allQuotas) {
+            $p = new \App\Models\Product();
+            $p->hs_code = $ln->hs_code ?? null;
+            $p->pk_capacity = $ln->pk_capacity ?? null;
+            $opts = [];
+            foreach ($allQuotas as $q) {
+                if ($q->matchesProduct($p)) {
+                    $opts[] = [
+                        'id' => (int) $q->id,
+                        'quota_number' => (string) $q->quota_number,
+                        'desc' => (string) ($q->government_category ?? ''),
+                        'start' => $q->period_start ? $q->period_start->format('Y-m-d') : '-',
+                        'end' => $q->period_end ? $q->period_end->format('Y-m-d') : '-',
+                        'rem' => (int) ($q->forecast_remaining ?? 0),
+                    ];
+                }
+            }
+            $quotaOptionsByLine[$ln->id] = $opts;
+        });
+
+        // Detect source quota per line using current PO -> purchase_order_quota pivot, filtered by HS/PK
+        $sourceQuotaByLine = [];
+        $poRecord = DB::table('purchase_orders')->where('po_number', $poNumber)->first();
+        if ($poRecord) {
+            $pivots = DB::table('purchase_order_quota as pq')
+                ->join('quotas as q','pq.quota_id','=','q.id')
+                ->select('pq.purchase_order_id','pq.quota_id','pq.allocated_qty','q.quota_number','q.period_start','q.period_end')
+                ->where('pq.purchase_order_id', $poRecord->id)
+                ->get();
+            $pivotQuotaIds = $pivots->pluck('quota_id')->unique()->all();
+            $pivotQuotas = \App\Models\Quota::whereIn('id', $pivotQuotaIds)->get()->keyBy('id');
+            $lines->getCollection()->each(function ($ln) use ($pivots, $pivotQuotas, &$sourceQuotaByLine) {
+                $p = new \App\Models\Product();
+                $p->hs_code = $ln->hs_code ?? null;
+                $p->pk_capacity = $ln->pk_capacity ?? null;
+                $candidates = [];
+                foreach ($pivots as $pv) {
+                    $q = $pivotQuotas->get($pv->quota_id);
+                    if ($q && $q->matchesProduct($p)) {
+                        $candidates[] = $pv;
+                    }
+                }
+                if (!empty($candidates)) {
+                    usort($candidates, fn($a,$b)=>((int)$b->allocated_qty <=> (int)$a->allocated_qty));
+                    $top = $candidates[0];
+                    $label = $top->quota_number.' ('.($top->period_start ? \Illuminate\Support\Carbon::parse($top->period_start)->format('Y-m-d') : '-')
+                        .'..'.($top->period_end ? \Illuminate\Support\Carbon::parse($top->period_end)->format('Y-m-d') : '-').')';
+                    $sourceQuotaByLine[$ln->id] = ['id'=>(int)$top->quota_id,'label'=>$label];
+                }
+            });
+        }
+
+        return view('admin.purchase_orders.voyage', compact('summary', 'lines', 'poNumber', 'splitsByLine','quotaOptionsByLine','sourceQuotaByLine'));
     }
 
     public function bulkUpdate(Request $request, string $po): RedirectResponse
@@ -256,5 +317,95 @@ class PurchaseOrderVoyageController extends Controller
             return back()->with('status', "Saved: $saved rows");
         }
         return back()->with('status', "Saved: $saved rows");
+    }
+
+    public function moveSplitQuota(Request $request, string $po): RedirectResponse
+    {
+        $data = $request->validate([
+            'line_id' => ['required','integer','exists:po_lines,id'],
+            'split_id' => ['required','integer','exists:po_line_voyage_splits,id'],
+            'source_quota_id' => ['required','integer','exists:quotas,id'],
+            'target_quota_id' => ['required','integer','exists:quotas,id','different:source_quota_id'],
+            'move_qty' => ['nullable','numeric','min:1'],
+            'eta_date' => ['nullable','date'],
+        ]);
+
+        // Verify line belongs to PO number in route
+        $poHeader = DB::table('po_headers')->where('po_number', $po)->first();
+        abort_unless($poHeader, 404);
+        $line = DB::table('po_lines')->where('id', $data['line_id'])->where('po_header_id', $poHeader->id)->first();
+        abort_unless($line, 404);
+        $split = DB::table('po_line_voyage_splits')->where('id', $data['split_id'])->where('po_line_id', $line->id)->first();
+        abort_unless($split, 404);
+
+        $poModel = \App\Models\PurchaseOrder::where('po_number', $po)->first();
+        if (!$poModel) {
+            // Create a minimal PO record to satisfy references if needed
+            $prod = \App\Models\Product::query()->firstOrCreate(['code' => (string)($line->model_code ?? 'UNKNOWN')], [
+                'name' => (string)($line->model_code ?? 'UNKNOWN'),
+                'sap_model' => (string)($line->model_code ?? 'UNKNOWN'),
+                'is_active' => true,
+            ]);
+            $poModel = \App\Models\PurchaseOrder::create([
+                'po_number' => (string) $po,
+                'product_id' => $prod->id,
+                'quantity' => (int) max((int)($line->qty_ordered ?? 0), 0),
+                'order_date' => $poHeader->po_date ?? now()->toDateString(),
+                'vendor_name' => (string) ($poHeader->supplier ?? ''),
+                'status' => \App\Models\PurchaseOrder::STATUS_ORDERED,
+                'plant_name' => 'Voyage',
+                'plant_detail' => 'Voyage Move Quota',
+            ]);
+        }
+
+        $source = \App\Models\Quota::lockForUpdate()->findOrFail((int)$data['source_quota_id']);
+        $target = \App\Models\Quota::lockForUpdate()->findOrFail((int)$data['target_quota_id']);
+
+        $eta = $data['eta_date'] ?? ($split->voyage_eta ?? null);
+        $occurredOn = $eta ? new \DateTimeImmutable((string)$eta) : null;
+        $userId = auth()->id();
+
+        // Qty default to split qty
+        $qty = (float) ($data['move_qty'] ?? $split->qty ?? 0);
+        $qty = max(0, (float)$qty);
+        if ($qty <= 0) { return back()->withErrors(['move_qty' => 'Quantity to move must be > 0']); }
+
+        DB::transaction(function () use ($poModel, $source, $target, $qty, $occurredOn, $userId) {
+            // Refund forecast on source
+            $source->incrementForecast((int)$qty, 'Voyage split reallocation (refund)', $poModel, $occurredOn, $userId);
+            // Reserve on target
+            $target->decrementForecast((int)$qty, 'Voyage split reallocation (reserve)', $poModel, $occurredOn, $userId);
+
+            // Pivot update
+            $pivotSrc = DB::table('purchase_order_quota')
+                ->where('purchase_order_id', $poModel->id)
+                ->where('quota_id', $source->id)
+                ->first();
+            if ($pivotSrc) {
+                $newAlloc = max(0, (int)$pivotSrc->allocated_qty - (int)$qty);
+                if ($newAlloc > 0) {
+                    DB::table('purchase_order_quota')->where('id', $pivotSrc->id)->update(['allocated_qty' => $newAlloc, 'updated_at' => now()]);
+                } else {
+                    DB::table('purchase_order_quota')->where('id', $pivotSrc->id)->delete();
+                }
+            }
+            $pivotTgt = DB::table('purchase_order_quota')
+                ->where('purchase_order_id', $poModel->id)
+                ->where('quota_id', $target->id)
+                ->first();
+            if ($pivotTgt) {
+                DB::table('purchase_order_quota')->where('id', $pivotTgt->id)->update(['allocated_qty' => (int)$pivotTgt->allocated_qty + (int)$qty, 'updated_at' => now()]);
+            } else {
+                DB::table('purchase_order_quota')->insert([
+                    'purchase_order_id' => $poModel->id,
+                    'quota_id' => $target->id,
+                    'allocated_qty' => (int) $qty,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        });
+
+        return back()->with('status', sprintf('Moved %s units (forecast) from quota %s to %s for split #%d.', number_format($qty), $source->quota_number, $target->quota_number, (int)$split->id));
     }
 }

@@ -176,6 +176,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
             ->name('purchase-orders.voyage.index');
         Route::post('purchase-orders/{po}/voyage/bulk', [\App\Http\Controllers\Admin\PurchaseOrderVoyageController::class, 'bulkUpdate'])
             ->name('purchase-orders.voyage.bulk');
+        Route::post('purchase-orders/{po}/voyage/move', [\App\Http\Controllers\Admin\PurchaseOrderVoyageController::class, 'moveSplitQuota'])
+            ->name('purchase-orders.voyage.move');
     });
     Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
     Route::post('purchase-orders/{purchaseOrder}/reallocate-quota', [PurchaseOrderController::class, 'reallocateQuota'])->name('purchase-orders.reallocate_quota');
