@@ -26,7 +26,7 @@
             </p>
         </div>
         <div class="page-header__actions">
-            <a href="{{ route('analytics.export.csv', request()->query()) }}" class="page-header__button page-header__button--outline">
+            <a href="{{ route('analytics.export.csv', array_merge(request()->query(), ['year' => (int)($year ?? now()->year)])) }}" class="page-header__button page-header__button--outline">
                 <i class="fas fa-file-csv me-2"></i>CSV
             </a>
         </div>
@@ -145,32 +145,7 @@
         </div>
     </section>
 
-    <section class="analytics-card">
-        <header class="analytics-card__header">
-            <div>
-                <h2 class="analytics-card__title">{{ $modeLabel }} Details per Quota</h2>
-                <p class="analytics-card__subtitle">Angka-angka berikut memudahkan tim operasional memantau sisa kuota dan realisasi shipment.</p>
-            </div>
-            <span class="analytics-card__badge analytics-card__badge--muted">{{ $modeLabel }} data</span>
-        </header>
-        <div class="table-responsive">
-            <table class="analytics-table">
-                <thead>
-                    <tr>
-                        <th>Quota Number</th>
-                        <th>PK Range</th>
-                        <th class="text-end">Initial Quota</th>
-                        <th class="text-end">{{ $primaryLabel }}</th>
-                        <th class="text-end">{{ $secondaryLabel }}</th>
-                        <th class="text-end">{{ $percentageLabel }}</th>
-                    </tr>
-                </thead>
-                <tbody id="analyticsTableBody">
-                    <tr><td colspan="6" class="text-center text-muted py-4">Memuat data...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
+    
 </div>
 @endsection
 
@@ -272,7 +247,7 @@
 <script>
 (function(){
     const config = {
-        dataUrl: @json(route('analytics.data', request()->query())),
+        dataUrl: @json(route('analytics.data', array_merge(request()->query(), ['year' => (int)($year ?? now()->year)]))),
         tableBodyId: 'analyticsTableBody',
         barElId: 'analyticsBar',
         donutElId: 'analyticsDonut',

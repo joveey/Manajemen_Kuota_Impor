@@ -61,12 +61,23 @@ class QuotaImportPageController extends Controller
             $periodStart = $items->filter(fn ($q) => !empty($q->period_start))->min('period_start');
             $periodEnd = $items->filter(fn ($q) => !empty($q->period_end))->max('period_end');
             $created = $items->max('created_at');
+            $forecastRemaining = (float) $items->sum(fn ($q) => (float) ($q->forecast_remaining ?? 0));
+            $consumed = max($total - $forecastRemaining, 0.0);
+            $ratio = $total > 0 ? ($consumed / $total) : 0.0;
+            // status label based on remaining
+            $label = 'SAFE'; $tone = 'safe';
+            if ($forecastRemaining <= 0) { $label = 'DEPLETED'; $tone = 'critical'; }
+            elseif ($forecastRemaining <= ($total * 0.10)) { $label = 'LIMITED'; $tone = 'warning'; }
             return [
                 'quota_no' => $quotaNo,
                 'total_quantity' => $total,
                 'period_start' => $periodStart,
                 'period_end' => $periodEnd,
                 'created_at' => $created,
+                'status_label' => $label,
+                'status_tone' => $tone,
+                'status_ratio' => $ratio,
+                'status_text' => sprintf('%d / %d (%.0f%%)', (int)$consumed, (int)$total, $ratio*100),
             ];
         })->sortByDesc('created_at')->values()->all();
 
@@ -256,6 +267,20 @@ class QuotaImportPageController extends Controller
     {
         session()->forget('quotas.manual.preview');
         return back()->with('status', 'Preview dikosongkan.');
+    }
+
+    public function deleteByNumber(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'quota_no' => ['required', 'string', 'max:100'],
+        ]);
+        $quotaNo = strtoupper(trim((string) $data['quota_no']));
+        if ($quotaNo === '') {
+            return back()->withErrors(['delete' => 'Quota No. tidak valid.']);
+        }
+        $count = Quota::query()->where('quota_number', $quotaNo)->count();
+        Quota::query()->where('quota_number', $quotaNo)->delete();
+        return back()->with('status', "Quota '$quotaNo' dihapus (".$count.") entri.");
     }
 
     public function publishManual(Request $request): RedirectResponse

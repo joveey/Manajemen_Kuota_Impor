@@ -107,17 +107,18 @@
             </div>
 
             <div class="col-xl-7 col-lg-6">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <span>Quota Preview</span>
-                        <div class="d-flex gap-2 align-items-center">
-                            <span class="badge bg-secondary">Item: {{ $manualSummary['count'] }}</span>
-                            <span class="badge bg-info text-dark">Total Qty: {{ number_format($manualSummary['total_quantity'], 0) }}</span>
+                <div class="iq-card h-100">
+                    <div class="iq-card__header d-flex justify-content-between align-items-center">
+                        <div class="iq-card__title">Quota Preview</div>
+                        <div class="d-flex gap-2 align-items-center small text-muted">
+                            <span>Item: {{ $manualSummary['count'] }}</span>
+                            <span>•</span>
+                            <span>Total Qty: {{ number_format($manualSummary['total_quantity'], 0) }}</span>
                         </div>
                     </div>
-                    <div class="card-body p-0">
+                    <div class="iq-card__body p-0">
                         <div class="table-responsive">
-                            <table class="table mb-0">
+                            <table class="iq-table mb-0">
                                 <thead class="table-light">
                                     <tr>
                                         <th>Quota No.</th>
@@ -202,6 +203,8 @@
             </div>
         </div>
 
+        
+
         {{-- Quota import history (file) removed as requested --}}
 
         <div class="iq-card mt-4">
@@ -209,6 +212,9 @@
                 <div class="d-flex align-items-center gap-2">
                     <span>Quota History</span>
                     <span class="badge bg-secondary">Showing {{ ($quotaHistorySummary ? count($quotaHistorySummary) : 0) }} quota numbers</span>
+                </div>
+                <div>
+                    <a href="{{ route('admin.quotas.export') }}" class="iq-btn iq-btn--ghost">Export CSV</a>
                 </div>
             </div>
             <div class="iq-card__body p-0">
@@ -220,6 +226,7 @@
                                 <th class="qh-qty-head">Total Quantity</th>
                                 <th class="text-center">Period</th>
                                 <th class="text-center">Created</th>
+                                <th class="text-center">Status</th>
                                 <th class="text-end">Action</th>
                             </tr>
                         </thead>
@@ -238,10 +245,28 @@
                                     <td class="qh-qty">{{ number_format((float) $row['total_quantity'], 0) }}</td>
                                     <td>{{ $ps }}@if($pe) - {{ $pe }}@endif</td>
                                     <td class="text-center text-nowrap">{{ \Illuminate\Support\Carbon::parse($row['created_at'])->setTimezone('Asia/Jakarta')->format('d-m-Y') }}</td>
-                                    <td class="text-end"><button type="button" class="btn btn-sm btn-outline-primary qh-toggle" data-target="{{ $qid }}">Details</button></td>
+                                    <td class="text-start">
+                                        @php $tone = $row['status_tone'] ?? 'safe'; $label = $row['status_label'] ?? 'SAFE'; $ratio = (float) ($row['status_ratio'] ?? 0); @endphp
+                                        <div class="qh-status">
+                                            <div class="qh-pill qh-pill--{{ $tone }}">{{ $label }}</div>
+                                            <div class="qh-progress"><span style="width: {{ (int) round($ratio*100) }}%"></span></div>
+                                            <div class="small text-muted qh-status-text">{{ $row['status_text'] ?? '' }}</div>
+                                        </div>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="qh-action">
+                                            <button type="button" class="qh-btn-details qh-toggle" data-target="{{ $qid }}">Details</button>
+                                            <form method="POST" action="{{ route('admin.imports.quotas.delete-number') }}" onsubmit="return confirm('Hapus semua entri untuk Quota No. {{ $row['quota_no'] }}?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <input type="hidden" name="quota_no" value="{{ $row['quota_no'] }}">
+                                                <button type="submit" class="qh-btn-delete" title="Delete"><i class="fas fa-trash"></i></button>
+                                            </form>
+                                        </div>
+                                    </td>
                                 </tr>
                                 <tr id="{{ $qid }}" class="qh-detail" style="display:none; background:#f8fafc">
-                                    <td colspan="5" class="p-0">
+                                    <td colspan="6" class="p-0">
                                         <div class="p-3">
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <div class="fw-semibold">HS items for {{ $row['quota_no'] }}</div>
@@ -377,9 +402,9 @@
 /* Center align summary columns 2-4 */
 .iq-table thead th:nth-child(2), .iq-table thead th:nth-child(3), .iq-table thead th:nth-child(4){ text-align:center; }
 .iq-table tbody td:nth-child(2), .iq-table tbody td:nth-child(3), .iq-table tbody td:nth-child(4){ text-align:center; }
-/* Action column right-aligned */
-.iq-table thead th:nth-child(5){ text-align:right; }
-.iq-table tbody td:nth-child(5){ text-align:right; }
+/* Status (5) center, Action (6) right */
+.iq-table thead th:nth-child(6){ text-align:right; }
+.iq-table tbody td:nth-child(6){ text-align:right; }
 /* Numeric alignment for Quantity */
 .iq-table td.qh-qty, .iq-table th.qh-qty-head{ text-align:center; font-variant-numeric: tabular-nums; }
 /* Created cell: center the date, push Details button to far right */
@@ -392,5 +417,20 @@
 .qh-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#be123c; }
 .qh-qty, .qh-period { text-align:center; font-variant-numeric: tabular-nums; }
 .qh-summary { cursor:pointer; }
+/* Status pill + progress */
+.qh-pill{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:700; }
+.qh-pill--safe{ background:#d1fae5; color:#047857; }
+.qh-pill--warning{ background:#fef3c7; color:#92400e; }
+.qh-pill--critical{ background:#fee2e2; color:#b91c1c; }
+.qh-status{ display:flex; flex-direction:column; align-items:flex-start; gap:4px; max-width:100%; }
+.qh-progress{ position:relative; height:6px; border-radius:999px; background:#eef2fb; margin:4px 0 0; width:100%; max-width:260px; overflow:hidden; }
+.qh-progress > span{ position:absolute; inset:0 0 0 0; width:0; background:linear-gradient(90deg,#2563eb,#38bdf8); }
+.qh-status-text{ text-align:left; }
+.qh-action{ display:inline-flex; gap:10px; align-items:center; }
+.qh-btn-details{ border:1px solid #3b82f6; color:#1d4ed8; background:rgba(59,130,246,0.08); border-radius:999px; padding:6px 12px; font-size:12px; font-weight:700; }
+.qh-btn-details:hover{ background:#2563eb; color:#fff; }
+.qh-btn-delete{ border:1px solid #fecaca; background:rgba(254,202,202,0.25); color:#b91c1c; width:30px; height:30px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; }
+.qh-btn-delete:hover{ background:#ef4444; color:#fff; border-color:#ef4444; }
 </style>
 @endpush
+    // (Export CSV tersedia via tombol di header)
