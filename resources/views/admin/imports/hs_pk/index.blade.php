@@ -41,20 +41,20 @@
                             </div>
                         @endif
 
-                        <form action="{{ route('admin.hs_pk.manual.store') }}" method="POST" class="row g-3" novalidate>
+                        <form action="{{ route('admin.hs_pk.manual.store') }}" method="POST" class="row g-3" novalidate autocomplete="off">
                             @csrf
                             <div class="col-md-3">
                                 <label class="form-label" for="period_key">Period (YYYY)</label>
-                                <input type="text" name="period_key" id="period_key" class="form-control" placeholder="YYYY" inputmode="numeric" maxlength="4" value="{{ old('period_key') }}" title="Enter a 4-digit year, e.g. 2025">
+                                <input type="text" name="period_key" id="period_key" class="form-control" placeholder="YYYY" inputmode="numeric" maxlength="4" value="{{ old('period_key') }}" title="Enter a 4-digit year, e.g. 2025" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
                                 <small class="text-muted">Leave empty for legacy data.</small>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label" for="hs_code">HS_CODE</label>
-                                <input type="text" name="hs_code" id="hs_code" class="form-control" placeholder="e.g., 8415.10.20" value="{{ old('hs_code') }}" required>
+                                <input type="text" name="hs_code" id="hs_code" class="form-control" placeholder="e.g., 8415.10.20" value="{{ old('hs_code') }}" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
                             </div>
                             <div class="col-md-5">
                                 <label class="form-label" for="pk_value">Description</label>
-                                <input type="text" name="pk_value" id="pk_value" class="form-control" value="{{ old('pk_value') }}" required>
+                                <input type="text" name="pk_value" id="pk_value" class="form-control" value="{{ old('pk_value') }}" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
                                 <small class="text-muted">Use the format: 8-10, &lt;8, &gt;10, or a single number.</small>
                             </div>
                             <div class="col-12">
@@ -80,8 +80,8 @@
                 <div class="card shadow-sm">
                     <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
                         <span>Mapping List</span>
-                        <form method="GET" action="{{ route('admin.imports.hs_pk.index') }}" class="d-flex align-items-center" role="search">
-                          <input type="text" class="form-control form-control-sm me-2" name="period_key" placeholder="Filter year (YYYY)" value="{{ $period ?? '' }}" style="width: 160px;">
+                        <form method="GET" action="{{ route('admin.imports.hs_pk.index') }}" class="d-flex align-items-center" role="search" autocomplete="off">
+                          <input type="text" class="form-control form-control-sm me-2" name="period_key" placeholder="Filter year (YYYY)" value="{{ $period ?? '' }}" style="width: 160px;" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
                           <button class="btn btn-sm btn-outline-secondary" type="submit">Filter</button>
                         </form>
                     </div>
