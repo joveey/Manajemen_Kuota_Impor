@@ -47,9 +47,8 @@ class AllocBackfillActual extends Command
             ->chunkById(500, function($rows) use (&$scanned,&$written,&$skippedExisting,&$noQuota){
                 foreach ($rows as $r) {
                     $scanned++;
+                    // Do not deduplicate GR lines: each receipt row counts toward actual consumption
                     $uk = $r->gr_unique ?? sha1($r->po_no.$r->line_no.$r->receive_date.$r->qty);
-                    $exists = DB::table('quota_histories')->where('change_type','actual_decrease')->where('meta->gr_unique',$uk)->exists();
-                    if ($exists) { $skippedExisting++; continue; }
 
                     $product = null;
                     if (!empty($r->model_code)) {
@@ -88,9 +87,10 @@ class AllocBackfillActual extends Command
 
                     if (!$quota) { $noQuota++; continue; }
 
-                    $qty = (int) $r->qty;
+                    $qty = (int) round((float) $r->qty);
                     $quota->decrementActual($qty, sprintf('Backfill GR %s/%s pada %s', $r->po_no, $r->line_no, $date), null, new \DateTimeImmutable($date), null, [
                         'gr_unique' => $uk,
+                        'gr_id' => (int)$r->gr_id,
                         'po_no' => (string)$r->po_no,
                         'line_no' => (string)$r->line_no,
                     ]);

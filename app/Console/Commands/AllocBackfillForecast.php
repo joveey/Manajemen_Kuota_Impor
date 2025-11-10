@@ -37,11 +37,11 @@ class AllocBackfillForecast extends Command
             return Command::INVALID;
         }
 
-        $processed = 0; $allocated = 0; $leftover = 0; $skipped = 0;
+        $processed = 0; $allocated = 0; $leftover = 0; $skipped = 0; $unmapped = 0;
 
         PoHeader::whereBetween('po_date', [$start->toDateString(), $end->toDateString()])
             ->orderBy('id')
-            ->chunkById(100, function ($headers) use (&$processed, &$allocated, &$leftover, &$skipped) {
+            ->chunkById(100, function ($headers) use (&$processed, &$allocated, &$leftover, &$skipped, &$unmapped) {
                 foreach ($headers as $hdr) {
                     $lines = PoLine::where('po_header_id', $hdr->id)
                         ->whereNull('forecast_allocated_at')
@@ -53,21 +53,44 @@ class AllocBackfillForecast extends Command
                             ->whereRaw('LOWER(sap_model) = ?', [strtolower($model)])
                             ->orWhereRaw('LOWER(code) = ?', [strtolower($model)])
                             ->first();
-                        if (!$product) {
-                            $product = Product::create([
-                                'code' => $model,
-                                'name' => $model,
-                                'sap_model' => $model,
-                                'is_active' => true,
-                            ]);
+                            if (!$product) { $unmapped++; $skipped++; continue; }
+
+                        // Ensure product has HS/PK mapping; prefer non-ACC when dual
+                        $hsRow = DB::table('po_lines as pl')
+                            ->leftJoin('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
+                            ->where('pl.id', $ln->id)
+                            ->select('hs.hs_code','hs.pk_capacity')
+                            ->first();
+                        $hsFromLine = $hsRow ? strtoupper((string)($hsRow->hs_code ?? '')) : '';
+                        $prodHs = strtoupper((string) ($product->hs_code ?? ''));
+                        $useHs = $prodHs;
+                        $usePk = $product->pk_capacity;
+                        if ($hsFromLine !== '') {
+                            if ($prodHs === '' || $prodHs === 'ACC') {
+                                $useHs = $hsFromLine !== '' ? $hsFromLine : $prodHs;
+                                $usePk = $hsRow->pk_capacity ?? $usePk;
+                            }
+                            if ($prodHs !== 'ACC' && $prodHs !== '') {
+                                $useHs = $prodHs; // keep non-ACC
+                            } elseif ($hsFromLine !== 'ACC' && $hsFromLine !== '') {
+                                $useHs = $hsFromLine;
+                                $usePk = $hsRow->pk_capacity ?? $usePk;
+                            }
+                        }
+                        // Persist if product missing HS or better mapping available (non-ACC)
+                        if ($useHs !== $prodHs || ($product->pk_capacity === null && $usePk !== null)) {
+                            $product->hs_code = $useHs ?: $product->hs_code;
+                            if ($usePk !== null) { $product->pk_capacity = $usePk; }
+                            try { $product->save(); } catch (\Throwable $e) {}
                         }
 
+                        $delivery = $ln->eta_date ? $ln->eta_date->toDateString() : ($hdr->po_date?->toDateString() ?? now()->toDateString());
                         $po = PurchaseOrder::updateOrCreate([
                             'po_number' => (string) $hdr->po_number,
                         ], [
                             'product_id' => $product->id,
                             'quantity' => (int) ($ln->qty_ordered ?? 0),
-                            'order_date' => $hdr->po_date?->toDateString() ?? now()->toDateString(),
+                            'order_date' => $delivery,
                             'vendor_name' => (string) $hdr->supplier,
                             'status' => \App\Models\PurchaseOrder::STATUS_ORDERED,
                             'plant_name' => 'Backfill',
@@ -78,7 +101,7 @@ class AllocBackfillForecast extends Command
                         if ($need <= 0) { $skipped++; continue; }
 
                         [$allocs, $left] = app(QuotaAllocationService::class)
-                            ->allocateForecast($product->id, $need, $po->order_date, $po);
+                            ->allocateForecast($product->id, $need, $delivery, $po);
                         $allocated += array_sum(array_map(fn($a) => (int)$a['qty'], $allocs));
                         $leftover += (int) $left;
 
@@ -113,7 +136,8 @@ class AllocBackfillForecast extends Command
                 ->upsert($rows, ['purchase_order_id','quota_id'], ['allocated_qty','updated_at']);
         }
 
-        $this->info("Processed: $processed, Allocated: $allocated, Leftover: $leftover, Skipped: $skipped");
+        $this->info("Processed: $processed, Allocated: $allocated, Leftover: $leftover, Skipped: $skipped, Unmapped model: $unmapped");
         return Command::SUCCESS;
     }
 }
+

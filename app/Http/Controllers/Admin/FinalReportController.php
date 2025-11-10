@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\GrReceipt;
+use App\Models\Product;
 use App\Models\PoHeader;
 use App\Models\PoLine;
 use App\Models\Quota;
@@ -31,39 +32,153 @@ class FinalReportController extends Controller
 
     public function exportCsv(Request $request)
     {
-        $dataset = $this->buildDataset($request);
-        $rows = $dataset['rows'];
+        // Build an enriched per-line export covering the requested columns.
+        // We keep the logic fully read-only and re-use existing tables only.
+        [$start, $end] = $this->resolveRange($request);
+        $startDate = $start->toDateString();
+        $endDate = $end->toDateString();
+        // Default to ETA basis so export matches common PO LISTED templates
+        $basis = strtolower((string) $request->query('basis', 'eta'));
+        $basisField = $basis === 'eta' ? 'po_lines.eta_date' : 'ph.po_date';
+
+        // Preload quotas overlapping the chosen range to evaluate status/quota number per line
+        $quotaPool = Quota::query()
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereNull('period_start')
+                    ->orWhereNull('period_end')
+                    ->orWhere(function ($qq) use ($startDate, $endDate) {
+                        $qq->where('period_start', '<=', $endDate)
+                           ->where('period_end', '>=', $startDate);
+                    });
+            })
+            ->orderBy('quota_number')
+            ->get();
+
+        // Fetch PO lines within the header date range and enrich with HS + voyage fields
+        $records = PoLine::query()
+            ->join('po_headers as ph', 'po_lines.po_header_id', '=', 'ph.id')
+            ->leftJoin('hs_code_pk_mappings as hs', 'po_lines.hs_code_id', '=', 'hs.id')
+            ->whereBetween(DB::raw($basisField), [$startDate, $endDate])
+            ->orderBy('ph.po_number')
+            ->orderBy('po_lines.line_no')
+            ->get([
+                'ph.po_number',
+                'ph.po_date',
+                'ph.supplier',
+                'ph.note as header_text',
+                'po_lines.line_no',
+                'po_lines.model_code as material',
+                'po_lines.item_desc',
+                'po_lines.qty_ordered',
+                'po_lines.qty_received',
+                'po_lines.qty_to_invoice',
+                'po_lines.qty_to_deliver',
+                'po_lines.eta_date',
+                'po_lines.warehouse_code',
+                'po_lines.warehouse_name',
+                'po_lines.storage_location',
+                'po_lines.sap_order_status',
+                'po_lines.voyage_bl',
+                'po_lines.voyage_etd',
+                'po_lines.voyage_eta',
+                'po_lines.voyage_factory',
+                'po_lines.voyage_status',
+                'po_lines.voyage_issue_date',
+                'po_lines.voyage_expired_date',
+                'po_lines.voyage_remark',
+                'hs.hs_code',
+                'hs.pk_capacity',
+            ]);
+
+        // Prepare export rows
+        $rows = [];
+        foreach ($records as $r) {
+            // Determine quota match for HS/PK within the period of the PO document date
+            $quotaNo = '';
+            $quotaStatus = '';
+            $quotaIssue = '';
+            $quotaExpired = '';
+            if (!empty($quotaPool)) {
+                $pseudo = new Product();
+                $pseudo->hs_code = $r->hs_code;
+                $pseudo->pk_capacity = $r->pk_capacity;
+                $q = $quotaPool->first(function (Quota $q) use ($pseudo, $r) {
+                    // Period guard per document date
+                    $doc = $r->po_date ? Carbon::parse($r->po_date)->toDateString() : null;
+                    if ($doc) {
+                        if ($q->period_start && $doc < $q->period_start->toDateString()) { return false; }
+                        if ($q->period_end && $doc > $q->period_end->toDateString()) { return false; }
+                    }
+                    return $q->matchesProduct($pseudo);
+                });
+                if ($q) {
+                    $quotaNo = (string) ($q->quota_number ?? '');
+                    $quotaStatus = match ($q->status) {
+                        Quota::STATUS_AVAILABLE => 'Available',
+                        Quota::STATUS_LIMITED => 'Limited',
+                        Quota::STATUS_DEPLETED => 'Depleted',
+                        default => 'Unknown',
+                    };
+                    $quotaIssue = $q->period_start ? Carbon::parse($q->period_start)->toDateString() : '';
+                    $quotaExpired = $q->period_end ? Carbon::parse($q->period_end)->toDateString() : '';
+                }
+            }
+
+            // Computations with safe fallbacks
+            $ordered = (float) ($r->qty_ordered ?? 0);
+            $received = (float) ($r->qty_received ?? 0);
+            $toInvoice = isset($r->qty_to_invoice) ? (float) $r->qty_to_invoice : 0.0;
+            $toDeliver = isset($r->qty_to_deliver) ? (float) $r->qty_to_deliver : max($ordered - $received, 0.0);
+
+            $rows[] = [
+                // Month based on selected basis (PO Date or ETA)
+                'Month' => ($basis === 'eta')
+                    ? ($r->eta_date ? Carbon::parse($r->eta_date)->format('Y-m') : '')
+                    : ($r->po_date ? Carbon::parse($r->po_date)->format('Y-m') : ''),
+                // Purchasing Doc. Type: not present in schema; keep empty to avoid wrong mapping
+                'Purchasing Doc. Type' => '',
+                'Vendor/supplying plant' => (string) ($r->supplier ?? ''),
+                'Purchasing Document' => (string) ($r->po_number ?? ''),
+                'Material' => (string) ($r->material ?? ''),
+                'Plant' => (string) ($r->warehouse_code ?? $r->warehouse_name ?? ''),
+                'Storage Location' => (string) ($r->storage_location ?? ''),
+                'Order Quantity' => $ordered,
+                'GR' => (float) $received,
+                'Still to be invoiced (qty)' => $toInvoice,
+                'Still to be delivered (qty)' => $toDeliver,
+                'Delivery Date' => $r->eta_date ? Carbon::parse($r->eta_date)->toDateString() : '',
+                'Document Date' => $r->po_date ? Carbon::parse($r->po_date)->toDateString() : '',
+                'header text' => (string) ($r->header_text ?? ''),
+                'BL' => (string) ($r->voyage_bl ?? ''),
+                'ETD' => $r->voyage_etd ? Carbon::parse($r->voyage_etd)->toDateString() : '',
+                'ETA' => $r->voyage_eta ? Carbon::parse($r->voyage_eta)->toDateString() : '',
+                'Factory' => (string) ($r->voyage_factory ?? ''),
+                'Hs Code' => (string) ($r->hs_code ?? ''),
+                'Status' => (string) (($r->sap_order_status ?? '') !== '' ? $r->sap_order_status : ($r->voyage_status ?? '')),
+                'Status Quota' => $quotaStatus,
+                'Quota No.' => $quotaNo,
+                'Issue Date' => $quotaIssue,
+                'Expired' => $quotaExpired,
+                'Remark' => (string) ($r->voyage_remark ?? ''),
+            ];
+        }
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="final_report.csv"',
+            'Content-Disposition' => 'attachment; filename="combined_report_detailed.csv"',
         ];
 
         $columns = [
-            'PO Number',
-            'PO Date',
-            'Supplier',
-            'Qty Ordered',
-            'Qty Received',
-            'Outstanding',
-            'Last Receipt',
-            'GR Documents',
+            'Month','Purchasing Doc. Type','Vendor/supplying plant','Purchasing Document','Material','Plant','Storage Location','Order Quantity','GR','Still to be invoiced (qty)','Still to be delivered (qty)','Delivery Date','Document Date','header text','BL','ETD','ETA','Factory','Hs Code','Status','Status Quota','Quota No.','Issue Date','Expired','Remark'
         ];
 
         $callback = function () use ($columns, $rows) {
             $out = fopen('php://output', 'w');
             fputcsv($out, $columns);
             foreach ($rows as $row) {
-                fputcsv($out, [
-                    $row['po_number'],
-                    $row['po_date'],
-                    $row['supplier'],
-                    $row['qty_ordered'],
-                    $row['qty_received'],
-                    $row['qty_outstanding'],
-                    $row['last_receipt_date'] ?? '',
-                    $row['receipt_documents'],
-                ]);
+                $record = [];
+                foreach ($columns as $key) { $record[] = $row[$key] ?? ''; }
+                fputcsv($out, $record);
             }
             fclose($out);
         };

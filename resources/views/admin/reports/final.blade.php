@@ -215,7 +215,8 @@
                 </p>
             </div>
             <div class="report-filters__actions">
-                <a href="{{ route('admin.reports.final.export.csv', request()->query()) }}" class="btn btn-outline-primary btn-sm">
+                @php $params = request()->query(); if (!array_key_exists('basis', $params)) { $params['basis'] = 'eta'; } @endphp
+                <a href="{{ route('admin.reports.final.export.csv', $params) }}" class="btn btn-outline-primary btn-sm">
                     <i class="fas fa-file-csv me-2"></i>Export CSV
                 </a>
             </div>
@@ -434,4 +435,3 @@
 })();
 </script>
 @endpush
-
