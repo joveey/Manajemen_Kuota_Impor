@@ -104,6 +104,7 @@ class QuotaImportPageController extends Controller
                     }
                 } catch (\Throwable $e) {}
                 return [
+                    'id' => (int) $q->id,
                     'hs_code' => $hs,
                     'desc' => $label,
                     'quantity' => (float) ($q->total_allocation ?? 0),
@@ -281,6 +282,13 @@ class QuotaImportPageController extends Controller
         $count = Quota::query()->where('quota_number', $quotaNo)->count();
         Quota::query()->where('quota_number', $quotaNo)->delete();
         return back()->with('status', "Quota '$quotaNo' dihapus (".$count.") entri.");
+    }
+
+    public function deleteOne(Quota $quota): RedirectResponse
+    {
+        $qn = (string) ($quota->quota_number ?? '');
+        $quota->delete();
+        return back()->with('status', "1 entri pada Quota '$qn' dihapus.");
     }
 
     public function publishManual(Request $request): RedirectResponse

@@ -268,8 +268,7 @@
                                 <tr id="{{ $qid }}" class="qh-detail" style="display:none; background:#f8fafc">
                                     <td colspan="6" class="p-0">
                                         <div class="p-3">
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <div class="fw-semibold">HS items for {{ $row['quota_no'] }}</div>
+                                            <div class="d-flex justify-content-end align-items-center mb-2">
                                                 <button type="button" class="qh-btn qh-close" data-target="{{ $qid }}">Close</button>
                                             </div>
                                             @php $items = ($quotaHistoryDetails[$row['quota_no']] ?? []); @endphp
@@ -282,6 +281,7 @@
                                                         <div>Description</div>
                                                         <div class="qh-qty">Quantity</div>
                                                         <div class="qh-period">Period</div>
+                                                        <div class="text-end">Action</div>
                                                     </div>
                                                     @foreach($items as $it)
                                                         <div class="qh-row">
@@ -289,6 +289,13 @@
                                                             <div>{{ $it['desc'] ?: '-' }}</div>
                                                             <div class="qh-qty">{{ number_format((float) $it['quantity'], 0) }}</div>
                                                             <div class="qh-period">{{ $it['period_start'] ?? '-' }}@if(!empty($it['period_end'])) - {{ $it['period_end'] }}@endif</div>
+                                                            <div class="text-end">
+                                                                <form method="POST" action="{{ route('admin.imports.quotas.delete-one', $it['id']) }}" onsubmit="return confirm('Hapus entri ini?');" class="d-inline">
+                                                                    @csrf
+                                                                    @method('DELETE')
+                                                                    <button type="submit" class="qh-btn-delete" title="Delete"><i class="fas fa-trash"></i></button>
+                                                                </form>
+                                                            </div>
                                                         </div>
                                                     @endforeach
                                                 </div>
@@ -387,10 +394,10 @@
 <style>
 /* Lightweight, AdminLTE-free detail styling */
 .iq-shell { display:flex; flex-direction:column; gap:16px; }
-.iq-card { border:1px solid #dfe4f3; border-radius:16px; background:#ffffff; box-shadow:0 20px 45px -36px rgba(15,23,42,.35); }
+.iq-card { border:1px solid #dfe4f3; border-radius:16px; background:#ffffff; box-shadow:0 20px 45px -36px rgba(15,23,42,.35); display:flex; flex-direction:column; }
 .iq-card__header{ padding:16px 18px; border-bottom:1px solid #eef2fb; display:flex; justify-content:space-between; align-items:center; gap:12px; }
 .iq-card__title{ font-size:16px; font-weight:700; color:#0f172a; margin:0; }
-.iq-card__body{ padding:18px; }
+.iq-card__body{ padding:18px; flex:1; }
 .iq-card__footer{ padding:12px 18px; border-top:1px solid #eef2fb; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
 .iq-input, .iq-select{ border:1px solid #cbd5f5; border-radius:12px; padding:10px 14px; font-size:13px; width:100%; transition:border-color .2s ease, box-shadow .2s ease; }
 .iq-input:focus, .iq-select:focus{ border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,0.15); outline:none; }
@@ -400,8 +407,11 @@
 .iq-table thead th{ background:#f8fbff; padding:12px 14px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:#64748b; }
 .iq-table tbody td{ padding:16px 14px; font-size:13px; color:#1f2937; border-top:1px solid #e5eaf5; }
 /* Center align summary columns 2-4 */
-.iq-table thead th:nth-child(2), .iq-table thead th:nth-child(3), .iq-table thead th:nth-child(4){ text-align:center; }
-.iq-table tbody td:nth-child(2), .iq-table tbody td:nth-child(3), .iq-table tbody td:nth-child(4){ text-align:center; }
+.iq-table thead th:nth-child(2), .iq-table thead th:nth-child(4){ text-align:center; }
+.iq-table tbody td:nth-child(2), .iq-table tbody td:nth-child(4){ text-align:center; }
+/* Period column (3) right-aligned */
+.iq-table thead th:nth-child(3){ text-align:right; }
+.iq-table tbody td:nth-child(3){ text-align:right; }
 /* Status (5) center, Action (6) right */
 .iq-table thead th:nth-child(6){ text-align:right; }
 .iq-table tbody td:nth-child(6){ text-align:right; }
@@ -411,11 +421,12 @@
 /* legacy created-cell styles no longer used */
 .qh-btn { border:1px solid #cbd5f5; background:#eff6ff; color:#1d4ed8; border-radius:999px; padding:6px 12px; font-size:12px; font-weight:600; }
 .qh-list { display:flex; flex-direction:column; gap:0; border:1px solid #eef2fb; border-radius:10px; background:#f9fbff; }
-.qh-row { display:grid; grid-template-columns: 1.1fr 1.4fr 1fr 1.1fr; gap:22px; padding:10px 12px; border-top:1px solid #eef2fb; font-size:13px; color:#1f2937; align-items:center; }
+.qh-row { display:grid; grid-template-columns: 1.1fr 1.4fr 1fr 1.1fr auto; gap:22px; padding:10px 12px; border-top:1px solid #eef2fb; font-size:13px; color:#1f2937; align-items:center; }
 .qh-row:first-child { border-top:none; border-top-left-radius:10px; border-top-right-radius:10px; background:#f3f8ff; }
 .qh-row--head { font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:.04em; font-weight:700; }
 .qh-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#be123c; }
-.qh-qty, .qh-period { text-align:center; font-variant-numeric: tabular-nums; }
+.qh-qty { text-align:left; font-variant-numeric: tabular-nums; }
+.qh-period { text-align:right; font-variant-numeric: tabular-nums; }
 .qh-summary { cursor:pointer; }
 /* Status pill + progress */
 .qh-pill{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:700; }

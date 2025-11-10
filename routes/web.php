@@ -205,6 +205,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         // Hapus semua kuota berdasarkan Quota No. (soft delete)
         Route::delete('imports/quotas/delete-by-number', [QuotaImportPageController::class, 'deleteByNumber'])
             ->name('imports.quotas.delete-number');
+        // Hapus satu entri kuota berdasarkan ID
+        Route::delete('imports/quotas/{quota}', [QuotaImportPageController::class, 'deleteOne'])
+            ->name('imports.quotas.delete-one');
         Route::post('imports/quotas/manual/add', [QuotaImportPageController::class, 'addManual'])->name('imports.quotas.manual.add');
         Route::post('imports/quotas/manual/remove', [QuotaImportPageController::class, 'removeManual'])->name('imports.quotas.manual.remove');
         Route::post('imports/quotas/manual/reset', [QuotaImportPageController::class, 'resetManual'])->name('imports.quotas.manual.reset');
