@@ -126,6 +126,161 @@ class AnalyticsController extends Controller
         return Response::stream($callback, 200, $headers);
     }
 
+    public function exportXlsx(Request $request)
+    {
+        // Build dataset to extract HS/PK summary
+        $dataset = $this->buildDataset($request);
+
+        $filters = $dataset['filters'] ?? [];
+        $year = (int) ($filters['year'] ?? now()->year);
+        $nextYear = $year + 1;
+        $hs = $dataset['summary']['hs_pk'] ?? ['rows' => [], 'totals' => []];
+        $rows = is_array($hs) ? ($hs['rows'] ?? []) : [];
+        $totals = is_array($hs) ? ($hs['totals'] ?? []) : [];
+
+        if (!class_exists(\PhpOffice\PhpSpreadsheet\Spreadsheet::class)) {
+            return response("\n[Missing dependency] Install phpoffice/phpspreadsheet first: composer require phpoffice/phpspreadsheet\n", 501);
+        }
+
+        $sheetTitle = 'Analytics '.($dataset['mode'] === 'forecast' ? 'Forecast' : 'Actual');
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        // Global font: Arial for all text
+        $spreadsheet->getDefaultStyle()->getFont()->setName('Arial');
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle(substr($sheetTitle, 0, 31));
+
+        // Header labels (wrapped like the screenshot)
+        $yearShort = substr((string) $year, -2);
+        $nextShort = substr((string) $nextYear, -2);
+        $headers = [
+            'Hs Code',
+            'Capacity',
+            'Quota Approved',
+            "Quota Consumption\nuntil Dec-{$yearShort}",
+            "Balance Quota\nUntil Dec",
+            "Quota Consumption\nStart Jan-{$nextShort}",
+        ];
+
+        // Start table from B2
+        $baseCol = 2; // column B
+        $headerRow = 2; // row 2
+
+        // Write header (use column letters for broad compatibility)
+        $c = 0;
+        foreach ($headers as $h) {
+            $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baseCol + $c);
+            $sheet->setCellValue($col.$headerRow, $h);
+            $c++;
+        }
+
+        // Column widths (for B..G)
+        $widths = [12, 14, 16, 28, 24, 28];
+        foreach ($widths as $i => $w) { $sheet->getColumnDimensionByColumn($baseCol + $i)->setWidth($w); }
+
+        // Header styles
+        $headerRange = 'B2:G2';
+        $sheet->getStyle($headerRange)->getFont()->setBold(true);
+        // Light grey header to better match the sample screenshot
+        $sheet->getStyle($headerRange)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFE7E6E6');
+        $sheet->getStyle($headerRange)->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)
+            ->getColor()->setARGB('FF000000');
+        $sheet->getStyle($headerRange)->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+            ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+            ->setWrapText(true);
+        // Auto height for header row with wrapped text
+        $sheet->getRowDimension($headerRow)->setRowHeight(-1);
+
+        // Body rows
+        $r = $headerRow + 1; // start from row 3
+        foreach ($rows as $row) {
+            $sheet->setCellValue("B{$r}", (string) ($row['hs_code'] ?? '-'));
+            // Capacity label displayed in PK wording
+            $capLabel = (string) ($row['capacity_label'] ?? '');
+            $capBucket = $this->normalizeBucketKey($capLabel);
+            $sheet->setCellValue("C{$r}", (string) $this->formatCapacityDisplay($capBucket));
+            $sheet->setCellValueExplicit("D{$r}", (float) ($row['approved'] ?? 0), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+
+            // Consumption until Dec with percentage on new line (red)
+            $consumed = (float) ($row['consumed_until_dec'] ?? 0);
+            $pct = (float) ($row['consumed_pct'] ?? 0);
+            $rt = new \PhpOffice\PhpSpreadsheet\RichText\RichText();
+            // Use Indonesian-style formatting: thousands '.' and decimals ','
+            $rt->createText((string) number_format($consumed, 0, ',', '.'));
+            $rt->createText("\n");
+            $run = $rt->createTextRun(number_format($pct, 2, ',', '.').'%');
+            // Consumption percentage: red and bold
+            $run->getFont()->getColor()->setARGB('FFC00000');
+            $run->getFont()->setBold(true);
+            $sheet->getCell("E{$r}")->setValue($rt);
+            $sheet->getStyle("E{$r}")->getAlignment()->setWrapText(true);
+
+            // Balance until Dec with percentage (grey)
+            $balance = (float) ($row['balance_until_dec'] ?? 0);
+            $balancePct = isset($row['balance_pct']) ? (float) $row['balance_pct'] : null;
+            if ($balancePct !== null) {
+                $rt2 = new \PhpOffice\PhpSpreadsheet\RichText\RichText();
+                $rt2->createText((string) number_format($balance, 0, ',', '.'));
+                $rt2->createText("\n");
+                $run2 = $rt2->createTextRun(number_format($balancePct, 2, ',', '.').'%');
+                // Balance percentage: keep black and regular weight (not bold)
+                $run2->getFont()->getColor()->setARGB('FF000000');
+                $sheet->getCell("F{$r}")->setValue($rt2);
+                $sheet->getStyle("F{$r}")->getAlignment()->setWrapText(true);
+            } else {
+                $sheet->setCellValue("F{$r}", (string) number_format($balance, 0, ',', '.'));
+            }
+
+            $sheet->setCellValueExplicit("G{$r}", (float) ($row['consumed_next_jan'] ?? 0), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
+
+            $r++;
+        }
+
+        // Totals row
+        $sheet->setCellValue("B{$r}", 'Total');
+        $sheet->getStyle("B{$r}")->getFont()->setBold(true);
+        $sheet->setCellValue("D{$r}", (float) ($totals['approved'] ?? 0));
+        $sheet->setCellValue("E{$r}", (float) ($totals['consumed_until_dec'] ?? 0));
+        $sheet->getStyle("B{$r}:G{$r}")->getFont()->setBold(true);
+        $sheet->getStyle("B{$r}:G{$r}")->getBorders()->getTop()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_MEDIUM)
+            ->getColor()->setARGB('FF999999');
+
+        // Apply thin borders to the whole table (header + body + totals)
+        $sheet->getStyle("B2:G{$r}")->getBorders()->getAllBorders()
+            ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN)
+            ->getColor()->setARGB('FF000000');
+
+        // Apply number formats to numeric columns (locale-specific separators will render in Excel)
+        $sheet->getStyle("D3:D{$r}")->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle("E{$r}")->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle("G3:G{$r}")->getNumberFormat()->setFormatCode('#,##0');
+
+        // Alignments
+        $sheet->getStyle("D3:D{$r}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle("G3:G{$r}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle("B3:C{$r}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT);
+
+        // Ensure wrapped rows expand to fit both lines
+        for ($ri = 3; $ri <= $r; $ri++) {
+            $sheet->getRowDimension($ri)->setRowHeight(-1);
+        }
+
+        // Output
+        $filename = 'analytics_'.$dataset['mode'].'_'.$year.'.xlsx';
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        ob_start();
+        $writer->save('php://output');
+        $content = ob_get_clean();
+
+        return response($content, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
+    }
     // XLSX and PDF exports removed by request; keep CSV only.
 
     /**
@@ -491,13 +646,16 @@ class AnalyticsController extends Controller
 
     private function formatCapacityDisplay(string $bucketKey): string
     {
+        // Match requested display exactly: "<8 PK", "8-10 PK", ">10 PK"
         return match ($bucketKey) {
-            '<8' => '< 8 PK',
-            '8-10' => '8 PK ~ 10 PK',
-            '>10' => '> 10 PK',
+            '<8' => '<8 PK',
+            '8-10' => '8-10 PK',
+            '>10' => '>10 PK',
             default => (string) $bucketKey,
         };
     }
+
+    
 
     private function resolveMode(?string $mode): string
     {
