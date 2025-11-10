@@ -113,12 +113,8 @@ class FinalReportController extends Controller
                 });
                 if ($q) {
                     $quotaNo = (string) ($q->quota_number ?? '');
-                    $quotaStatus = match ($q->status) {
-                        Quota::STATUS_AVAILABLE => 'Available',
-                        Quota::STATUS_LIMITED => 'Limited',
-                        Quota::STATUS_DEPLETED => 'Depleted',
-                        default => 'Unknown',
-                    };
+                    // For export, display a timeline-oriented label instead of inventory status
+                    $quotaStatus = 'Current';
                     $quotaIssue = $q->period_start ? Carbon::parse($q->period_start)->toDateString() : '';
                     $quotaExpired = $q->period_end ? Carbon::parse($q->period_end)->toDateString() : '';
                 }
