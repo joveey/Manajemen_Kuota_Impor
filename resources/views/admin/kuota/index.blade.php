@@ -235,7 +235,7 @@
           <tr>
             <th>#</th>
             <th>Quota No</th>
-            <th>Name</th>
+            <th>HS</th>
             <th class="text-end">Allocation</th>
             <th class="text-end col-forecast">Consumed (F)</th>
             <th class="text-end col-forecast">Remaining (F)</th>
@@ -274,7 +274,14 @@
                 <tr data-state="{{ $stateF }}" data-state-forecast="{{ $stateF }}" data-state-actual="{{ $stateA }}">
                     <td>{{ $loop->iteration }}</td>
                     <td><strong>{{ $quota->quota_number }}</strong></td>
-                    <td>{{ $quota->name }}</td>
+                    <td>
+                        @php
+                            $nm = (string) ($quota->name ?? '');
+                            $hs = '';
+                            if (preg_match('/(ACC|\d{2,4}(?:\.\d{1,2}){1,2})/i', $nm, $m)) { $hs = strtoupper($m[1]); }
+                        @endphp
+                        {{ $hs !== '' ? $hs : '-' }}
+                    </td>
                     <td class="text-end">{{ number_format($quota->total_allocation ?? 0) }}</td>
                     <td class="text-end col-forecast">{{ number_format($forecastConsumed) }}</td>
                     <td class="text-end col-forecast">{{ number_format($forecastRemaining) }}</td>
