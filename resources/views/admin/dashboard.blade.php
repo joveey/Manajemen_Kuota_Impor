@@ -757,7 +757,13 @@
     .data-cell--qty {
         align-items: flex-end;
         text-align: right;
-        min-width: 80px;
+        min-width: 120px;
+    }
+    /* Avoid clipping on the right-most PO quantity cell */
+    .data-cell--qty .data-sub {
+        white-space: nowrap;
+        overflow: visible;
+        text-overflow: clip;
     }
 
     .data-title {
