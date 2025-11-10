@@ -830,7 +830,7 @@
                         @can('create')
                             <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-file-import"></i></span>
-                                <span>Import HS &rarr; PK</span>
+                                <span>Import HS > PK</span>
                             </a>
                             <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-file-import"></i></span>
