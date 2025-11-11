@@ -270,10 +270,9 @@ class PurchaseOrderVoyageController extends Controller
                 foreach ($splits as $sp) {
                     $sid = (int) ($sp['id'] ?? 0);
                     $delete = (bool) ($sp['delete'] ?? false);
+                    // Build base data; avoid overriding qty/seq_no unless provided
                     $data = [
                         'po_line_id' => (int) ($sp['line_id'] ?? 0),
-                        'seq_no' => (int) max((int) ($sp['seq_no'] ?? 1), 1),
-                        'qty' => (float) ($sp['qty'] ?? 0),
                         'voyage_bl' => ($sp['bl'] ?? '') !== '' ? trim((string)$sp['bl']) : null,
                         'voyage_etd' => null,
                         'voyage_eta' => null,
@@ -282,6 +281,18 @@ class PurchaseOrderVoyageController extends Controller
                         'voyage_remark' => ($sp['remark'] ?? '') !== '' ? trim((string)$sp['remark']) : null,
                         'updated_at' => now(),
                     ];
+                    if (array_key_exists('seq_no', $sp)) {
+                        $data['seq_no'] = (int) max((int) $sp['seq_no'], 1);
+                    }
+                    // Only update qty when explicitly provided
+                    if (array_key_exists('qty', $sp)) {
+                        $q = (float) $sp['qty'];
+                        if ($sid > 0) {
+                            if ($q > 0) { $data['qty'] = $q; }
+                        } else {
+                            $data['qty'] = max($q, 0);
+                        }
+                    }
                     // normalize split dates
                     foreach (['etd' => 'voyage_etd', 'eta' => 'voyage_eta'] as $src => $dst) {
                         $val = $sp[$src] ?? null;
@@ -305,6 +316,11 @@ class PurchaseOrderVoyageController extends Controller
                     if ($sid > 0) {
                         DB::table('po_line_voyage_splits')->where('id', $sid)->update($data);
                     } else {
+                        // For insert: require qty present and > 0
+                        if (!array_key_exists('qty', $sp) || (float) $sp['qty'] <= 0) {
+                            continue;
+                        }
+                        if (!array_key_exists('seq_no', $sp)) { $data['seq_no'] = 1; }
                         $data['created_at'] = now();
                         $data['created_by'] = auth()->id();
                         DB::table('po_line_voyage_splits')->insert($data);
