@@ -134,12 +134,19 @@
             </div>
             <div class="card-body">
                 <p><i class="fas fa-info-circle text-info"></i> <strong>Note:</strong></p>
-                <ul>
-                    <li>Users created here will NOT have admin privileges</li>
-                    <li>To create an admin, use the <a href="{{ route('admin.admins.create') }}">Admins section</a></li>
-                    <li>Password must be at least 8 characters</li>
-                    <li>Users can be assigned multiple roles</li>
-                </ul>
+                @if(auth()->user()->hasRole('admin'))
+                    <ul>
+                        <li>As an Administrator, you can assign the <strong>admin</strong> role directly here.</li>
+                        <li>Password must be at least 8 characters</li>
+                        <li>Users can be assigned multiple roles</li>
+                    </ul>
+                @else
+                    <ul>
+                        <li>Users created here will NOT have admin privileges</li>
+                        <li>Password must be at least 8 characters</li>
+                        <li>Users can be assigned multiple roles</li>
+                    </ul>
+                @endif
             </div>
         </div>
     </div>
