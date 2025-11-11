@@ -245,12 +245,7 @@
                 <i class="fas fa-arrow-left"></i>
                 Back
             </a>
-            @if(isset($internalPO) && $internalPO)
-                <button type="button" class="page-header__button" data-bs-toggle="modal" data-bs-target="#reallocateModalDoc">
-                    <i class="fas fa-random"></i>
-                    Move Quota
-                </button>
-            @endif
+            
         </div>
     </div>
 
@@ -303,126 +298,7 @@
         </div>
     </div>
 
-    @if(isset($internalPO) && $internalPO)
-        @php
-            $candidateQuotas = \App\Models\Quota::query()
-                ->active()
-                ->orderBy('period_start')
-                ->get()
-                ->filter(fn ($q) => $q->matchesProduct($internalPO->product));
-            $currentAllocs = $internalPO->allocatedQuotas()->get();
-            // Use unified display number from model accessor
-        @endphp
-
-        <div class="modal fade" id="reallocateModalDoc" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Move Quota (Per PO Line)</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <form method="POST" action="{{ route('admin.purchase-orders.reallocate_quota', $internalPO) }}">
-                        @csrf
-                        <div class="modal-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Source Quota</label>
-                                    <select name="source_quota_id" id="doc_source_quota_id" class="form-select" required>
-                                        @foreach($currentAllocs as $q)
-                                            <option value="{{ $q->id }}" data-allocated="{{ (int) $q->pivot->allocated_qty }}">
-                                                {{ $q->quota_number }} - Alloc: {{ number_format((int) $q->pivot->allocated_qty) }} (Period: {{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <div class="form-text">Select the quota currently holding this PO's allocation.</div>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">New ETA (optional)</label>
-                                    <input type="date" name="eta_date" id="doc_eta_date" class="form-control">
-                                    <div class="form-text">Used to filter target quotas by period.</div>
-                                </div>
-                                <div class="col-md-8">
-                                    <label class="form-label">Target Quota</label>
-                                    <select name="target_quota_id" id="doc_target_quota_id" class="form-select" required>
-                                        <option value="" disabled selected hidden>Select quota</option>
-                                        @foreach($candidateQuotas as $q)
-                                            <option value="{{ $q->id }}" data-start="{{ optional($q->period_start)->format('Y-m-d') }}" data-end="{{ optional($q->period_end)->format('Y-m-d') }}" data-avail="{{ (int) $q->forecast_remaining }}">
-                                                {{ $q->quota_number }} - Remaining: {{ number_format((int) $q->forecast_remaining) }} ({{ optional($q->period_start)->format('d-m-Y') }} to {{ optional($q->period_end)->format('d-m-Y') }})
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <div class="form-text">Only quotas with remaining capacity will receive reallocation.</div>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label">Quantity to Move</label>
-                                    <input type="number" name="move_qty" id="doc_move_qty" class="form-control" min="1" step="1" placeholder="auto">
-                                    <div class="form-text">Leave empty to move the entire allocation from the source quota.</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Move</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        @push('scripts')
-        <script>
-            (function(){
-                const eta = document.getElementById('doc_eta_date');
-                const tgt = document.getElementById('doc_target_quota_id');
-                const src = document.getElementById('doc_source_quota_id');
-                const qty = document.getElementById('doc_move_qty');
-
-                function parseDate(val){
-                    if (!val) return '';
-                    const s = String(val).trim();
-                    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // YYYY-MM-DD
-                    const m = s.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})$/); // DD/MM/YYYY or DD-MM-YYYY
-                    if (m) { return `${m[3]}-${m[2]}-${m[1]}`; }
-                    try { const d = new Date(s); if (!isNaN(d)) return d.toISOString().slice(0,10); } catch(e) {}
-                    return '';
-                }
-
-                function within(date, start, end) {
-                    const d = parseDate(date);
-                    if (!d) return true; // don't filter if invalid input
-                    if (!start || !end) return true;
-                    return start <= d && d <= end;
-                }
-
-                function filterTarget() {
-                    const d = eta.value || '';
-                    Array.from(tgt.options).forEach(function(opt){
-                        if (!opt.value) return;
-                        const s = opt.getAttribute('data-start') || '';
-                        const e = opt.getAttribute('data-end') || '';
-                        opt.hidden = !within(d, s, e);
-                    });
-                    const sel = tgt.selectedOptions[0];
-                    if (sel && sel.hidden) { tgt.selectedIndex = 0; }
-                }
-
-                function syncQtyDefault() {
-                    const selected = src.selectedOptions[0];
-                    if (!selected) return;
-                    const alloc = parseInt(selected.getAttribute('data-allocated') || '0', 10);
-                    if (!qty.value) { qty.placeholder = alloc > 0 ? String(alloc) : 'otomatis'; }
-                }
-
-                eta && eta.addEventListener('change', filterTarget);
-                src && src.addEventListener('change', syncQtyDefault);
-                document.getElementById('reallocateModalDoc')?.addEventListener('shown.bs.modal', function(){
-                    filterTarget();
-                    syncQtyDefault();
-                });
-            })();
-        </script>
-        @endpush
-    @endif
+    
 
     @if(isset($internalPO) && $internalPO)
         @php

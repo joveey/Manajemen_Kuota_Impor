@@ -55,8 +55,10 @@ class UserController extends Controller
     {
         // Hanya Admin dan Editor yang boleh memilih role selain default
         if (auth()->user()->hasRole(['admin', 'editor'])) {
-            // Get roles kecuali admin role
-            $roles = Role::where('name', '!=', 'admin')->orderBy('name', 'asc')->get();
+            // Admin dapat melihat semua role termasuk admin; Editor semua kecuali admin
+            $q = Role::query();
+            if (!auth()->user()->hasRole('admin')) { $q->where('name', '!=', 'admin'); }
+            $roles = $q->orderBy('name', 'asc')->get();
         } else {
             // Manager atau selainnya tidak bisa memilih role; fallback ke role default
             $roles = collect();
@@ -92,13 +94,12 @@ class UserController extends Controller
             'is_active' => $request->input('is_active', 0) == 1,
         ]);
 
-        // Assign roles: hanya Admin/Editor dapat set role selain default
+        // Assign roles: Admin/Editor dapat set role; Editor tidak boleh set admin
         if (auth()->user()->hasRole(['admin', 'editor'])) {
             if ($request->has('roles')) {
-                $roleIds = Role::whereIn('id', $request->roles)
-                    ->where('name', '!=', 'admin')
-                    ->pluck('id')
-                    ->toArray();
+                $q = Role::whereIn('id', $request->roles);
+                if (!auth()->user()->hasRole('admin')) { $q->where('name', '!=', 'admin'); }
+                $roleIds = $q->pluck('id')->toArray();
                 $user->roles()->sync($roleIds);
             }
         } else {
@@ -119,8 +120,8 @@ class UserController extends Controller
      */
     public function show(User $user)
     {
-        // Prevent viewing admin users
-        if ($user->isAdmin()) {
+        // Prevent viewing admin users kecuali current user adalah admin
+        if ($user->isAdmin() && !auth()->user()->hasRole('admin')) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'Cannot view admin user details here.');
         }
@@ -135,14 +136,16 @@ class UserController extends Controller
      */
     public function edit(User $user)
     {
-        // Prevent editing admin users
-        if ($user->isAdmin()) {
+        // Prevent editing admin users kecuali current user adalah admin
+        if ($user->isAdmin() && !auth()->user()->hasRole('admin')) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'Cannot edit admin user here.');
         }
 
         if (auth()->user()->hasRole(['admin', 'editor'])) {
-            $roles = Role::where('name', '!=', 'admin')->orderBy('name', 'asc')->get();
+            $q = Role::query();
+            if (!auth()->user()->hasRole('admin')) { $q->where('name', '!=', 'admin'); }
+            $roles = $q->orderBy('name', 'asc')->get();
             $userRoles = $user->roles->pluck('id')->toArray();
         } else {
             $roles = collect();
@@ -157,8 +160,8 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
-        // Prevent updating admin users
-        if ($user->isAdmin()) {
+        // Prevent updating admin users kecuali current user adalah admin
+        if ($user->isAdmin() && !auth()->user()->hasRole('admin')) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'Cannot edit admin user here.');
         }
@@ -198,13 +201,12 @@ class UserController extends Controller
 
         $user->update($userData);
 
-        // Sync roles hanya jika Admin/Editor; lainnya tidak diizinkan mengubah role
+        // Sync roles hanya jika Admin/Editor; Editor tidak boleh set admin
         if (auth()->user()->hasRole(['admin', 'editor'])) {
             if ($request->has('roles')) {
-                $roleIds = Role::whereIn('id', $request->roles)
-                    ->where('name', '!=', 'admin')
-                    ->pluck('id')
-                    ->toArray();
+                $q = Role::whereIn('id', $request->roles);
+                if (!auth()->user()->hasRole('admin')) { $q->where('name', '!=', 'admin'); }
+                $roleIds = $q->pluck('id')->toArray();
                 $user->roles()->sync($roleIds);
             } else {
                 $user->roles()->sync([]);
@@ -220,8 +222,8 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
-        // Prevent deleting admin users
-        if ($user->isAdmin()) {
+        // Prevent deleting admin users kecuali current user adalah admin
+        if ($user->isAdmin() && !auth()->user()->hasRole('admin')) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'Cannot delete admin user. Please change to regular user first.');
         }
