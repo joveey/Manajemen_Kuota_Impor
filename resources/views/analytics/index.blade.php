@@ -75,6 +75,8 @@
         </div>
     </section>
 
+    
+
     <section class="analytics-card">
         <header class="analytics-card__header">
             <h2 class="analytics-card__title">Quota KPIs</h2>
@@ -92,24 +94,7 @@
         </div>
     </section>
 
-    <section class="analytics-grid">
-        <article class="analytics-card">
-            <header class="analytics-card__header">
-                <h2 class="analytics-card__title">Quota vs {{ $modeLabel }} Comparison</h2>
-                <span class="analytics-card__badge">{{ $modeLabel }} Based</span>
-            </header>
-            <div id="analyticsBar" class="analytics-card__chart"></div>
-        </article>
-
-        <article class="analytics-card">
-            <header class="analytics-card__header">
-                <h2 class="analytics-card__title">{{ $modeLabel }} Usage Proportion</h2>
-                <span class="analytics-card__badge analytics-card__badge--muted">Donut</span>
-            </header>
-            <div id="analyticsDonut" class="analytics-card__chart"></div>
-        </article>
-    </section>
-
+    <!-- HS/PK Summary placed below Quota KPIs -->
     <section class="analytics-card">
         <header class="analytics-card__header">
             <div>
@@ -146,6 +131,27 @@
                 </tfoot>
             </table>
         </div>
+    </section>
+
+    <section class="analytics-grid">
+        <article class="analytics-card">
+            <header class="analytics-card__header">
+                <h2 class="analytics-card__title">Quota vs {{ $modeLabel }} Comparison</h2>
+                <span class="analytics-card__badge">{{ $modeLabel }} Based</span>
+            </header>
+            <div id="analyticsBar" class="analytics-card__chart"></div>
+        </article>
+    </section>
+
+    
+
+    <!-- Move second chart (Donut) to the bottom -->
+    <section class="analytics-card">
+        <header class="analytics-card__header">
+            <h2 class="analytics-card__title">{{ $modeLabel }} Usage Proportion</h2>
+            <span class="analytics-card__badge analytics-card__badge--muted">Donut</span>
+        </header>
+        <div id="analyticsDonut" class="analytics-card__chart"></div>
     </section>
 
     

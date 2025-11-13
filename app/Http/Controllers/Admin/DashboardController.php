@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\DB;
 use App\Models\Permission;
 use App\Models\Quota;
 use App\Models\Role;
@@ -37,68 +38,67 @@ class DashboardController extends Controller
             $metrics['mapped'] = $metrics['unmapped'] = 0; // tolerate if table pruned
         }
 
+        // Global aggregates for Quota Pipeline (mapped HS only, exclude ACC)
+        $totalPo = 0.0; $totalGr = 0.0; $totalAlloc = 0.0;
         try {
-            // Open PO outstanding qty
-            $metrics['open_po_qty'] = (float) \DB::table('po_lines')->selectRaw('SUM(GREATEST(qty_ordered - COALESCE(qty_received,0),0)) as s')->value('s');
+            // Base: PO lines joined with headers and HS mapping
+            $totalPo = (float) DB::table('po_lines as pl')
+                ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
+                ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
+                ->whereNotNull('pl.hs_code_id')
+                ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")
+                ->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
+            $metrics['open_po_qty'] = $totalPo; // as per new rule: show total PO
         } catch (\Throwable $e) { $metrics['open_po_qty'] = 0; }
 
         try {
-            // In-Transit = max(inv - gr, 0)
-            $inv = DB::table('invoices')->select('po_no','line_no', DB::raw('SUM(qty) as qty'))->groupBy('po_no','line_no');
-            $gr  = DB::table('gr_receipts')->select('po_no','line_no', DB::raw('SUM(qty) as qty'))->groupBy('po_no','line_no');
-            $sum = DB::table('po_lines as pl')
+            // Compute total GR (normalized by PO+line) with the same HS filters
+            $grn = DB::table('gr_receipts')
+                ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','', 'g') AS INTEGER) AS ln")
+                ->selectRaw('SUM(qty) as qty')
+                ->groupBy('po_no','ln');
+            $totalGr = (float) DB::table('po_lines as pl')
                 ->join('po_headers as ph','pl.po_header_id','=','ph.id')
-                ->leftJoinSub($inv,'inv',function($j){
-                    $j->on('ph.po_number','=','inv.po_no')
-                      ->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''), '[^0-9]', '', 'g') AS INTEGER) = CAST(regexp_replace(CAST(inv.line_no as text), '[^0-9]', '', 'g') AS INTEGER)");
+                ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
+                ->leftJoinSub($grn, 'grn', function($j){
+                    $j->on('grn.po_no','=','ph.po_number')
+                      ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','', 'g') AS INTEGER)");
                 })
-                ->leftJoinSub($gr,'gr',function($j){
-                    $j->on('ph.po_number','=','gr.po_no')
-                      ->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''), '[^0-9]', '', 'g') AS INTEGER) = CAST(regexp_replace(CAST(gr.line_no as text), '[^0-9]', '', 'g') AS INTEGER)");
-                })
-                ->selectRaw('SUM(GREATEST(COALESCE(inv.qty,0)-COALESCE(gr.qty,0),0)) as s')->value('s');
-            $metrics['in_transit_qty'] = (float) $sum;
-        } catch (\Throwable $e) { $metrics['in_transit_qty'] = 0; }
+                ->whereNotNull('pl.hs_code_id')
+                ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")
+                ->selectRaw('SUM(COALESCE(grn.qty,0)) as s')->value('s');
+            $metrics['gr_qty'] = $totalGr; // total GR all time under same filters
+        } catch (\Throwable $e) { $metrics['gr_qty'] = 0; }
+
+        // In-Transit = total_po - total_gr (clamped >= 0)
+        $metrics['in_transit_qty'] = max(($metrics['open_po_qty'] ?? 0) - ($metrics['gr_qty'] ?? 0), 0);
 
         try {
             // GR qty (last 30 days)
             $since = now()->subDays(30)->toDateString();
-            $metrics['gr_qty'] = (float) \DB::table('gr_receipts')->where('receive_date','>=',$since)->sum('qty');
+            $metrics['gr_qty'] = (float) DB::table('gr_receipts')->where('receive_date','>=',$since)->sum('qty');
         } catch (\Throwable $e) { $metrics['gr_qty'] = 0; }
 
         // Derived per-quota KPI (quota_id-based, clamped to allocation)
         $quotaCards = collect();
         try {
-            // Use single-year window (align with Analytics logic)
-            $year = (int) request()->query('year', (int) now()->year);
-            $start = \Carbon\Carbon::create($year, 1, 1)->toDateString();
-            $end   = \Carbon\Carbon::create($year, 12, 31)->toDateString();
-
-            // Select quotas overlapping the chosen year
+            // Show all quotas (not limited by current period/year)
             $quotas = \App\Models\Quota::query()
-                ->where(function($q) use ($start, $end) {
-                    $q->whereNull('period_start')
-                      ->orWhereNull('period_end')
-                      ->orWhere(function($qq) use ($start, $end){
-                          $qq->where('period_start','<=',$end)->where('period_end','>=',$start);
-                      });
-                })
                 ->orderBy('quota_number')
                 ->get();
 
             $ids = $quotas->pluck('id')->all();
-            $forecastByQuota = empty($ids) ? collect() : \DB::table('quota_histories')
-                ->select('quota_id', \DB::raw('SUM(ABS(quantity_change)) as qty'))
+            // Aggregate forecast/actual over full history
+            $forecastByQuota = empty($ids) ? collect() : DB::table('quota_histories')
+                ->select('quota_id', DB::raw('SUM(ABS(quantity_change)) as qty'))
                 ->where('change_type', \App\Models\QuotaHistory::TYPE_FORECAST_DECREASE)
                 ->whereIn('quota_id', $ids)
-                ->whereBetween('occurred_on', [$start, $end])
                 ->groupBy('quota_id')
                 ->pluck('qty', 'quota_id');
-            $actualByQuota = empty($ids) ? collect() : \DB::table('quota_histories')
-                ->select('quota_id', \DB::raw('SUM(ABS(quantity_change)) as qty'))
+            $actualByQuota = empty($ids) ? collect() : DB::table('quota_histories')
+                ->select('quota_id', DB::raw('SUM(ABS(quantity_change)) as qty'))
                 ->where('change_type', \App\Models\QuotaHistory::TYPE_ACTUAL_DECREASE)
                 ->whereIn('quota_id', $ids)
-                ->whereBetween('occurred_on', [$start, $end])
                 ->groupBy('quota_id')
                 ->pluck('qty', 'quota_id');
 
@@ -111,8 +111,56 @@ class DashboardController extends Controller
                 $q->setAttribute('actual_consumed', $ac);
                 $q->setAttribute('forecast_remaining', max($alloc - $fc, 0));
                 $q->setAttribute('actual_remaining', max($alloc - $ac, 0));
-                $q->setAttribute('in_transit', max($fc - $ac, 0));
-                $q->setAttribute('year', $year);
+                // Compute In-Transit as PO outstanding (ordered - received) matched by quota's PK bucket and period, excluding ACC
+                // Robust per-quota outstanding using GR receipts; avoid exceptions and fallbacks
+                $bounds = \App\Support\PkCategoryParser::parse((string) ($q->government_category ?? ''));
+                // 1) Distinct list of PO numbers allocated to this quota to avoid duplication
+                $poList = DB::table('purchase_order_quota as pq')
+                    ->join('purchase_orders as po', 'pq.purchase_order_id', '=', 'po.id')
+                    ->where('pq.quota_id', $q->id)
+                    ->distinct()
+                    ->pluck('po.po_number');
+
+                if ($poList->isEmpty()) {
+                    $qOutstanding = 0.0;
+                } else {
+                    // 2) Aggregate GR per PO+line
+                    $grn = DB::table('gr_receipts')
+                        ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','', 'g') AS INTEGER) AS ln")
+                        ->selectRaw('SUM(qty) as qty')
+                        ->groupBy('po_no','ln');
+
+                    // 3) Sum outstanding per mapped non‑ACC line within bucket and period, for those POs only
+                    $lines = DB::table('po_lines as pl')
+                        ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
+                        ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
+                        ->leftJoinSub($grn, 'grn', function($j){
+                            $j->on('grn.po_no','=','ph.po_number')
+                              ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','', 'g') AS INTEGER)");
+                        })
+                        ->whereIn('ph.po_number', $poList->all())
+                        ->whereNotNull('pl.hs_code_id')
+                        ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'");
+
+                    if ($bounds['min_pk'] !== null) {
+                        $lines->where('hs.pk_capacity', $bounds['min_incl'] ? '>=' : '>', $bounds['min_pk']);
+                    }
+                    if ($bounds['max_pk'] !== null) {
+                        $lines->where('hs.pk_capacity', $bounds['max_incl'] ? '<=' : '<', $bounds['max_pk']);
+                    }
+                    if (!empty($q->period_start) && !empty($q->period_end)) {
+                        $lines->whereBetween('ph.po_date', [
+                            $q->period_start->toDateString(),
+                            $q->period_end->toDateString(),
+                        ]);
+                    }
+
+                    $qOutstanding = (float) $lines
+                        ->selectRaw('SUM(GREATEST(COALESCE(pl.qty_ordered,0) - COALESCE(grn.qty,0), 0)) as s')
+                        ->value('s');
+                }
+                $q->setAttribute('in_transit', max($qOutstanding, 0));
+                // keep period labels from quota fields; no fixed year context
 
                 $statusLabel = match ($q->status) {
                     \App\Models\Quota::STATUS_AVAILABLE => 'Available',
@@ -131,6 +179,48 @@ class DashboardController extends Controller
             }
 
             $quotaCards = $quotas;
+            // Override metrics per new business rules (allocation, total_po, consumed, in_transit, forecast_rem, actual_rem)
+            foreach ($quotaCards as $q) {
+                $alloc = (float) ($q->total_allocation ?? 0);
+                $bounds = \App\Support\PkCategoryParser::parse((string) ($q->government_category ?? ''));
+
+                $grn = DB::table('gr_receipts')
+                    ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','', 'g') AS INTEGER) AS ln")
+                    ->selectRaw('SUM(qty) as qty')
+                    ->groupBy('po_no','ln');
+
+                $base = DB::table('po_lines as pl')
+                    ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
+                    ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
+                    ->leftJoinSub($grn, 'grn', function($j){
+                        $j->on('grn.po_no','=','ph.po_number')
+                          ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','', 'g') AS INTEGER)");
+                    })
+                    ->whereNotNull('pl.hs_code_id')
+                    ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'");
+
+                if ($bounds['min_pk'] !== null) {
+                    $base->where('hs.pk_capacity', $bounds['min_incl'] ? '>=' : '>', $bounds['min_pk']);
+                }
+                if ($bounds['max_pk'] !== null) {
+                    $base->where('hs.pk_capacity', $bounds['max_incl'] ? '<=' : '<', $bounds['max_pk']);
+                }
+                if (!empty($q->period_start) && !empty($q->period_end)) {
+                    $base->whereBetween('ph.po_date', [
+                        $q->period_start->toDateString(),
+                        $q->period_end->toDateString(),
+                    ]);
+                }
+
+                $totalPo = (float) (clone $base)->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
+                $consumed = (float) (clone $base)->selectRaw('SUM(COALESCE(grn.qty,0)) as s')->value('s');
+
+                $q->setAttribute('forecast_consumed', $totalPo);
+                $q->setAttribute('actual_consumed', $consumed);
+                $q->setAttribute('in_transit', max($totalPo - $consumed, 0));
+                $q->setAttribute('forecast_remaining', max($alloc - $totalPo, 0));
+                $q->setAttribute('actual_remaining', max($alloc - $consumed, 0));
+            }
             // expose to view for charts
             $quotaBatches = $quotaBatches;
         } catch (\Throwable $e) {}
@@ -153,7 +243,7 @@ class DashboardController extends Controller
         $alerts = [];
         try {
             // PO tanpa mapping (hs_code_id null)
-            $unmappedPo = (int) \DB::table('po_lines')->whereNull('hs_code_id')->count();
+            $unmappedPo = (int) DB::table('po_lines')->whereNull('hs_code_id')->count();
             if ($unmappedPo > 0) {
                 $alerts[] = $unmappedPo === 1
                     ? '1 PO line without HS mapping'
@@ -161,7 +251,7 @@ class DashboardController extends Controller
             }
         } catch (\Throwable $e) {}
         try {
-            $lowQuota = \App\Models\Quota::whereColumn('forecast_remaining','<=', \DB::raw('total_allocation * 0.15'))->count();
+            $lowQuota = \App\Models\Quota::whereColumn('forecast_remaining','<=', DB::raw('total_allocation * 0.15'))->count();
             if ($lowQuota > 0) {
                 $alerts[] = $lowQuota === 1
                     ? '1 PK bucket nearing depletion (<15%)'
@@ -169,7 +259,7 @@ class DashboardController extends Controller
             }
         } catch (\Throwable $e) {}
         try {
-            $overGr = (int) \DB::table('po_lines')->whereColumn('qty_received','>','qty_ordered')->count();
+            $overGr = (int) DB::table('po_lines')->whereColumn('qty_received','>','qty_ordered')->count();
             if ($overGr > 0) {
                 $alerts[] = $overGr === 1
                     ? '1 line: GR exceeds ordered (needs audit)'
@@ -193,14 +283,16 @@ class DashboardController extends Controller
         $totalRoles = Role::count();
         $totalPermissions = Permission::count();
 
-        // Quota insights
+        // Quota insights (large tile uses the new rule)
+        try { $totalAlloc = (float) Quota::sum('total_allocation'); } catch (\Throwable $e) { $totalAlloc = 0.0; }
         $quotaStats = [
             'total' => Quota::count(),
             'available' => Quota::where('status', Quota::STATUS_AVAILABLE)->count(),
             'limited' => Quota::where('status', Quota::STATUS_LIMITED)->count(),
             'depleted' => Quota::where('status', Quota::STATUS_DEPLETED)->count(),
-            'forecast_remaining' => Quota::sum('forecast_remaining'),
-            'actual_remaining' => Quota::sum('actual_remaining'),
+            // New business rule
+            'forecast_remaining' => max($totalAlloc - ($metrics['open_po_qty'] ?? 0), 0),
+            'actual_remaining' => max($totalAlloc - ($metrics['gr_qty'] ?? 0), 0),
         ];
 
         // Purchase order insights
@@ -263,8 +355,8 @@ class DashboardController extends Controller
             'po_total' => PoHeader::count(),
             'po_ordered_total' => $orderedTotal,
             'po_outstanding_total' => max($orderedTotal - $receivedTotal, 0),
-            'gr_total_qty' => (float) \DB::table('gr_receipts')->sum('qty'),
-            'gr_document_total' => (int) \DB::table('gr_receipts')
+            'gr_total_qty' => (float) DB::table('gr_receipts')->sum('qty'),
+            'gr_document_total' => (int) DB::table('gr_receipts')
                 ->selectRaw("COUNT(DISTINCT COALESCE(gr_unique, po_no || '|' || line_no || '|' || receive_date::text)) as total")
                 ->value('total'),
             'quota_total_allocation' => (float) Quota::sum('total_allocation'),
@@ -319,5 +411,3 @@ class DashboardController extends Controller
         ));
     }
 }
-
-

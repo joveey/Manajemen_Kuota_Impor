@@ -55,7 +55,7 @@
   </form>
 
   <div class="voyage-desktop">
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2 d-none">
       <span class="text-muted small me-1">Quick actions:</span>
       <button type="button" class="btn btn-outline-secondary btn-sm qa-fill-bl" title="Isi ke bawah nilai BL dari nilai terakhir">Fill BL ↓</button>
       <button type="button" class="btn btn-outline-secondary btn-sm qa-fill-factory" title="Isi ke bawah nilai Factory dari nilai terakhir">Fill Factory ↓</button>
@@ -239,7 +239,6 @@
               <div class="quota-badge" id="mv_source_label"><i class="fa-solid fa-box-archive"></i><span>—</span></div>
               <div class="move-label text-muted ms-2">Qty</div>
               <div class="mi-qty-pill" id="mv_qty_pill">0</div>
-              <div class="rem-badge" id="mv_source_rem">Rem: -</div>
             </div>
             <div class="mt-3">
               <label class="move-label text-muted mb-1">Target quota</label>
@@ -405,7 +404,8 @@
     if (srcId) {
       for (var i=0;i<opts.length;i++){ if (opts[i].id===srcId || opts[i].id===parseInt(srcId)){ srcRem = (opts[i].rem||0).toLocaleString(); break; } }
     }
-    document.getElementById('mv_source_rem').textContent = 'Rem: ' + srcRem;
+    var srcRemEl = document.getElementById('mv_source_rem');
+    if (srcRemEl) { srcRemEl.textContent = 'Rem: ' + srcRem; }
     // Build target options
     var $sel = jQuery('#mv_target_select');
     // destroy previous select2
@@ -451,10 +451,31 @@
       },
       escapeMarkup: function(m){ return m; }
     });
+    // Remove duplicated 'Rem' text from option and selection renderers
+    function pruneRemFromSelectUI(){
+      try {
+        // Clean selection pill
+        var $ranges = jQuery('#moveSplitModal').find('.select2-selection .qo-pill-range');
+        $ranges.each(function(){
+          var t = jQuery(this).text();
+          var idx = t.indexOf('Rem:');
+          if (idx >= 0) { jQuery(this).text(t.substring(0, idx).trim()); }
+        });
+        // Clean options in dropdown
+        jQuery('#moveSplitModal').find('.select2-results__option .quota-option .qo-range').each(function(){
+          var t = jQuery(this).text();
+          var idx = t.indexOf('Rem:');
+          if (idx >= 0) { jQuery(this).text(t.substring(0, idx).trim()); }
+        });
+      } catch(e) { /* no-op */ }
+    }
+    pruneRemFromSelectUI();
+    $sel.on('select2:open', pruneRemFromSelectUI);
     $sel.on('select2:select', function(e){
       var rem = jQuery(e.params.data.element).data('rem');
       var tgtRemEl = document.getElementById('mv_target_rem');
       if (tgtRemEl) { tgtRemEl.textContent = rem!=null? Number(rem).toLocaleString() : '-'; }
+      pruneRemFromSelectUI();
     });
     // show modal
     var modal = new bootstrap.Modal(document.getElementById('moveSplitModal'));

@@ -865,7 +865,6 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <strong style="font-size: 16px; font-weight: 700;">Quota Pipeline</strong>
-            <a href="{{ route('admin.mapping.unmapped.page') }}" class="panel-modern__link">View</a>
         </div>
         <div class="card-body">
             <div class="row g-3">
@@ -906,7 +905,7 @@
                         </div>
                         <div class="stat-label">In-Transit</div>
                         <div class="stat-number">{{ number_format($metrics['in_transit_qty'] ?? 0) }}</div>
-                        <p class="stat-meta">Invoice - GR</p>
+                        <p class="stat-meta">PO Outstanding (excl. ACC)</p>
                     </div>
                 </div>
                 <div class="col-12 col-md-6 col-lg">
