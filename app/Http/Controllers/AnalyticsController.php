@@ -351,8 +351,91 @@ class AnalyticsController extends Controller
             $totalRemaining = max($totalAllocation - $totalUsage, 0);
         }
 
-        // Build HS/PK summary (approved vs consumption by HS bucket and next January)
+        // Build HS/PK summary (approved vs consumption based on HS mapping and quota periods)
         $hsSummary = $this->buildHsPkSummary($yearStart, $yearEnd, $nextJanStart, $nextJanEnd);
+
+        // Business-defined KPI totals for the selected year window
+        // - Allocation: sum of quota_approved from quotas overlapping the year and mapped to any non-ACC HS
+        // - Forecast Consumed: sum of PO ordered qty for PO lines with HS mapped to those quotas (exclude ACC)
+        // - Actual Consumed: sum of GR qty joined to those PO lines (exclude ACC)
+        // - In-Transit: Forecast Consumed - Actual Consumed
+        try {
+            // Load quotas overlapping the year and parse PK ranges
+            $quotaRows = $this->queryQuotasByDateRange($yearStart, $yearEnd)->get(['id','government_category','total_allocation']);
+            $quotaRanges = [];
+            foreach ($quotaRows as $q) {
+                $p = PkCategoryParser::parse((string) $q->government_category);
+                $quotaRanges[(int)$q->id] = [
+                    'min_pk' => $p['min_pk'],
+                    'max_pk' => $p['max_pk'],
+                    'min_incl' => (bool)($p['min_incl'] ?? true),
+                    'max_incl' => (bool)($p['max_incl'] ?? true),
+                    'allocation' => (float) ($q->total_allocation ?? 0),
+                ];
+            }
+
+            // Determine eligible HS rows (exclude ACC) that match any of the year quotas
+            $hsMap = DB::table('hs_code_pk_mappings')
+                ->select(['id','hs_code','pk_capacity'])
+                ->whereRaw("COALESCE(UPPER(hs_code),'') <> 'ACC'")
+                ->get();
+            $eligibleHsIds = [];
+            $hasMatchPerQuota = [];
+            foreach ($hsMap as $hs) {
+                $pk = isset($hs->pk_capacity) ? (float) $hs->pk_capacity : null;
+                if ($pk === null) { continue; }
+                foreach ($quotaRanges as $qid => $info) {
+                    if ($this->pkMatchesQuota($pk, $info)) {
+                        $eligibleHsIds[(int) $hs->id] = true;
+                        $hasMatchPerQuota[(int) $qid] = true;
+                    }
+                }
+            }
+
+            $eligibleIds = array_keys($eligibleHsIds);
+            $eligibleQuotaIds = array_keys($hasMatchPerQuota);
+
+            // Allocation
+            $bizTotalAlloc = 0.0;
+            foreach ($eligibleQuotaIds as $qid) {
+                $bizTotalAlloc += (float) ($quotaRanges[$qid]['allocation'] ?? 0);
+            }
+
+            // Forecast Consumed (PO ordered qty)
+            $bizTotalPo = 0.0;
+            if (!empty($eligibleIds)) {
+                $bizTotalPo = (float) DB::table('po_lines as pl')
+                    ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
+                    ->whereIn('pl.hs_code_id', $eligibleIds)
+                    ->select(DB::raw('SUM(COALESCE(pl.qty_ordered,0)) as s'))
+                    ->value('s');
+            }
+
+            // Actual Consumed (GR qty joined to PO lines)
+            $bizTotalGr = 0.0;
+            if (!empty($eligibleIds)) {
+                $grn = DB::table('gr_receipts')
+                    ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','', 'g') AS INTEGER) AS ln")
+                    ->selectRaw('SUM(qty) as qty')
+                    ->groupBy('po_no','ln');
+
+                $bizTotalGr = (float) DB::table('po_lines as pl')
+                    ->join('po_headers as ph','pl.po_header_id','=','ph.id')
+                    ->leftJoinSub($grn, 'grn', function($j){
+                        $j->on('grn.po_no','=','ph.po_number')
+                          ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','', 'g') AS INTEGER)");
+                    })
+                    ->whereIn('pl.hs_code_id', $eligibleIds)
+                    ->select(DB::raw('SUM(COALESCE(grn.qty,0)) as s'))
+                    ->value('s');
+            }
+
+            $bizInTransit = max($bizTotalPo - $bizTotalGr, 0.0);
+            $bizForecastRem = max($bizTotalAlloc - $bizTotalPo, 0.0);
+            $bizActualRem = max($bizTotalAlloc - $bizTotalGr, 0.0);
+        } catch (\Throwable $e) {
+            $bizTotalAlloc = $bizTotalPo = $bizTotalGr = $bizInTransit = $bizForecastRem = $bizActualRem = 0.0;
+        }
 
         return [
             'mode' => $mode,
@@ -392,15 +475,15 @@ class AnalyticsController extends Controller
                 })->all(),
             ],
             'summary' => [
-                'total_allocation' => $totalAllocation,
-                'total_usage' => $totalUsage,
-                'total_remaining' => $totalRemaining,
-                // Use row values (with fallback) when mode=forecast so UI reflects current forecast even if pivot empty
-                'total_forecast_consumed' => (float) ($mode === 'forecast' ? array_sum($seriesPrimary) : min($totalAllocation, $totalForecast)),
-                'total_actual_consumed' => (float) min($totalAllocation, $totalActual),
-                'total_in_transit' => (float) max(((float) ($mode === 'forecast' ? array_sum($seriesPrimary) : min($totalAllocation, $totalForecast))) - min($totalAllocation, $totalActual), 0.0),
-                'total_forecast_remaining' => (float) ($mode === 'forecast' ? max($totalAllocation - array_sum($seriesPrimary), 0.0) : max($totalAllocation - min($totalAllocation, $totalForecast), 0.0)),
-                'total_actual_remaining' => (float) max($totalAllocation - min($totalAllocation, $totalActual), 0.0),
+                // Business KPIs for quota period of the selected year
+                'total_allocation' => (float) $bizTotalAlloc,
+                'total_usage' => (float) $bizTotalPo,
+                'total_remaining' => (float) max($bizTotalAlloc - $bizTotalPo, 0.0),
+                'total_forecast_consumed' => (float) $bizTotalPo,
+                'total_actual_consumed' => (float) $bizTotalGr,
+                'total_in_transit' => (float) $bizInTransit,
+                'total_forecast_remaining' => (float) $bizForecastRem,
+                'total_actual_remaining' => (float) $bizActualRem,
                 'usage_label' => $primaryLabel,
                 'secondary_label' => $secondaryLabel,
                 'percentage_label' => $percentageLabel,
@@ -535,89 +618,121 @@ class AnalyticsController extends Controller
      */
     private function buildHsPkSummary(Carbon $yearStart, Carbon $yearEnd, Carbon $nextJanStart, Carbon $nextJanEnd): array
     {
-        // 1) Classify quotas into standard buckets
+        // Quotas for the selected year and their PK ranges
         $quotas = $this->queryQuotasByDateRange($yearStart, $yearEnd)->get(['id','government_category','total_allocation']);
-        $buckets = [
-            '<8' => ['ids' => [], 'approved' => 0.0],
-            '8-10' => ['ids' => [], 'approved' => 0.0],
-            '>10' => ['ids' => [], 'approved' => 0.0],
-        ];
+        $quotaRanges = [];
         foreach ($quotas as $q) {
-            $key = $this->normalizeBucketKey((string) $q->government_category);
-            if (!isset($buckets[$key])) { continue; }
-            $buckets[$key]['ids'][] = $q->id;
-            $buckets[$key]['approved'] += (float) ($q->total_allocation ?? 0);
+            $p = PkCategoryParser::parse((string) $q->government_category);
+            $quotaRanges[(int)$q->id] = [
+                'min_pk' => $p['min_pk'],
+                'max_pk' => $p['max_pk'],
+                'min_incl' => (bool)($p['min_incl'] ?? true),
+                'max_incl' => (bool)($p['max_incl'] ?? true),
+                'allocation' => (float) ($q->total_allocation ?? 0),
+            ];
         }
 
-        // 2) For each bucket, compute actual consumption in the year and in next January
-        foreach ($buckets as $key => &$info) {
-            $ids = $info['ids'];
-            if (empty($ids)) { $info['consumed_year'] = 0.0; $info['consumed_next_jan'] = 0.0; continue; }
-            try {
-                $qty = DB::table('quota_histories')
-                    ->where('change_type', \App\Models\QuotaHistory::TYPE_ACTUAL_DECREASE)
-                    ->whereIn('quota_id', $ids)
-                    ->whereBetween('occurred_on', [$yearStart->toDateString(), $yearEnd->toDateString()])
-                    ->select(DB::raw('SUM(ABS(quantity_change)) as qty'))
-                    ->value('qty');
-                $info['consumed_year'] = (float) $qty;
-            } catch (\Throwable $e) { $info['consumed_year'] = 0.0; }
-            try {
-                $qtyJan = DB::table('quota_histories')
-                    ->where('change_type', \App\Models\QuotaHistory::TYPE_ACTUAL_DECREASE)
-                    ->whereIn('quota_id', $ids)
-                    ->whereBetween('occurred_on', [$nextJanStart->toDateString(), $nextJanEnd->toDateString()])
-                    ->select(DB::raw('SUM(ABS(quantity_change)) as qty'))
-                    ->value('qty');
-                $info['consumed_next_jan'] = (float) $qtyJan;
-            } catch (\Throwable $e) { $info['consumed_next_jan'] = 0.0; }
-        }
-        unset($info);
+        // Eligible HS (non-ACC) that map to at least one  year quota by PK
+        $hsRows = DB::table('hs_code_pk_mappings')
+            ->select(['id','hs_code','pk_capacity'])
+            ->whereRaw("COALESCE(UPPER(hs_code),'') <> 'ACC'")
+            ->get();
 
-        // 3) Map bucket -> example HS code from mapping table
-        $bucketHs = ['<8' => null, '8-10' => null, '>10' => null];
-        try {
-            if (DB::getSchemaBuilder()->hasTable('hs_code_pk_mappings')) {
-                $rows = DB::table('hs_code_pk_mappings')->select('hs_code','pk_capacity')->get();
-                $candidates = ['<8' => [], '8-10' => [], '>10' => []];
-                foreach ($rows as $r) {
-                    $pk = isset($r->pk_capacity) ? (float) $r->pk_capacity : null;
-                    if ($pk === null) { continue; }
-                    $label = $pk < 8 ? '<8' : ($pk > 10 ? '>10' : '8-10');
-                    $candidates[$label][] = (string) $r->hs_code;
-                }
-                foreach ($candidates as $label => $list) {
-                    sort($list, SORT_NATURAL);
-                    $bucketHs[$label] = $list[0] ?? null;
-                }
+        $eligibleHs = [];
+        foreach ($hsRows as $r) {
+            $pk = isset($r->pk_capacity) ? (float) $r->pk_capacity : null;
+            if ($pk === null) { continue; }
+            foreach ($quotaRanges as $qr) {
+                if ($this->pkMatchesQuota($pk, $qr)) { $eligibleHs[] = $r; break; }
             }
-        } catch (\Throwable $e) {}
+        }
 
-        // 4) Assemble rows
+        if (empty($eligibleHs)) {
+            return ['rows' => [], 'totals' => ['approved' => 0.0, 'consumed_until_dec' => 0.0]];
+        }
+
+        $eligibleHsIds = array_map(fn($o) => (int) $o->id, $eligibleHs);
+
+        // Actual consumption (GR) grouped by HS using a simple join and normalized line_no
+        $grByHs = [];
+        try {
+            $grByHs = DB::table('gr_receipts as gr')
+                ->join('po_headers as ph', 'ph.po_number', '=', 'gr.po_no')
+                ->join('po_lines as pl', function ($join) {
+                    $join->on('pl.po_header_id', '=', 'ph.id');
+                    // Normalize line_no so '030' matches 30
+                    $join->whereRaw("regexp_replace(pl.line_no::text, '^0+', '') = regexp_replace(gr.line_no::text, '^0+', '')");
+                })
+                ->join('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
+                // Exclude ACC only; no extra filters
+                ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")
+                // Optional cut-off to Dec-31 of selected year
+                ->where('gr.receive_date', '<=', $yearEnd->toDateString())
+                ->groupBy('pl.hs_code_id')
+                ->pluck(DB::raw('SUM(gr.qty) as total'), 'pl.hs_code_id');
+        } catch (\Throwable $e) { $grByHs = collect(); }
+
+        // Forecast consumption start next January: PO ordered qty where HS maps to quotas starting next January
+        $poNextByHs = [];
+        try {
+            $janStart = $nextJanStart->copy()->startOfMonth();
+            $janEnd = $janStart->copy()->addMonth();
+            $nextQuotas = Quota::query()
+                ->whereNotNull('period_start')
+                ->whereBetween('period_start', [$janStart->toDateString(), $janEnd->toDateString()])
+                ->get(['government_category']);
+            $nextRanges = [];
+            foreach ($nextQuotas as $q) {
+                $p = PkCategoryParser::parse((string) $q->government_category);
+                $nextRanges[] = [
+                    'min_pk' => $p['min_pk'],
+                    'max_pk' => $p['max_pk'],
+                    'min_incl' => (bool)($p['min_incl'] ?? true),
+                    'max_incl' => (bool)($p['max_incl'] ?? true),
+                ];
+            }
+            $eligibleNextIds = [];
+            foreach ($eligibleHs as $r) {
+                $pk = isset($r->pk_capacity) ? (float) $r->pk_capacity : null;
+                if ($pk === null) { continue; }
+                foreach ($nextRanges as $nr) { if ($this->pkMatchesQuota($pk, $nr)) { $eligibleNextIds[(int)$r->id] = true; break; } }
+            }
+            $eligibleNextIds = array_keys($eligibleNextIds);
+            if (!empty($eligibleNextIds)) {
+                $poNextByHs = DB::table('po_lines as pl')
+                    ->join('po_headers as ph','pl.po_header_id','=','ph.id')
+                    ->whereIn('pl.hs_code_id', $eligibleNextIds)
+                    ->groupBy('pl.hs_code_id')
+                    ->pluck(DB::raw('SUM(COALESCE(pl.qty_ordered,0))'), 'pl.hs_code_id');
+            } else { $poNextByHs = collect(); }
+        } catch (\Throwable $e) { $poNextByHs = collect(); }
+
+        // Compose rows per HS/PK
         $rows = [];
-        foreach (['<8','8-10','>10'] as $label) {
-            $info = $buckets[$label];
-            if (empty($info['ids'])) { continue; }
-            $approved = max(0.0, (float) $info['approved']);
-            $consumed = max(0.0, (float) $info['consumed_year']);
-            // Clamp to avoid percentages > 100% due to bad inputs
+        foreach ($eligibleHs as $r) {
+            $pk = isset($r->pk_capacity) ? (float) $r->pk_capacity : null;
+            if ($pk === null) { continue; }
+            $approved = 0.0;
+            foreach ($quotaRanges as $qr) { if ($this->pkMatchesQuota($pk, $qr)) { $approved += (float) ($qr['allocation'] ?? 0); } }
+            $consumed = (float) ($grByHs[$r->id] ?? 0);
             if ($approved > 0 && $consumed > $approved) { $consumed = $approved; }
             $balance = max($approved - $consumed, 0.0);
+            $jan = (float) ($poNextByHs[$r->id] ?? 0);
+
             $rows[] = [
-                'hs_code' => $bucketHs[$label] ?? '-',
-                'capacity_label' => $this->formatCapacityDisplay($label),
+                'hs_code' => (string) $r->hs_code,
+                'capacity_label' => $this->formatCapacityDisplay($this->capacityBucketKeyFromPk($pk)),
                 'approved' => round($approved, 2),
                 'consumed_until_dec' => round($consumed, 2),
                 'consumed_pct' => $approved > 0 ? round(($consumed / $approved) * 100, 2) : 0.0,
                 'balance_until_dec' => round($balance, 2),
                 'balance_pct' => $approved > 0 ? round(($balance / $approved) * 100, 2) : 0.0,
-                'consumed_next_jan' => round((float) ($info['consumed_next_jan'] ?? 0), 2),
+                'consumed_next_jan' => round($jan, 2),
             ];
         }
 
-        // Totals
-        $totApproved = array_sum(array_map(fn($r) => (float)$r['approved'], $rows));
-        $totConsumed = array_sum(array_map(fn($r) => (float)$r['consumed_until_dec'], $rows));
+        $totApproved = array_sum(array_map(fn($r) => (float) $r['approved'], $rows));
+        $totConsumed = array_sum(array_map(fn($r) => (float) $r['consumed_until_dec'], $rows));
 
         return [
             'rows' => $rows,
@@ -628,47 +743,55 @@ class AnalyticsController extends Controller
         ];
     }
 
-    private function normalizeBucketKey(string $label): string
+    private function normalizeBucketKey(string $vlabel): string
     {
-        $p = PkCategoryParser::parse($label);
+        $vlabel = (string) $vlabel;
+        $p = PkCategoryParser::parse($vlabel);
         $min = $p['min_pk']; $max = $p['max_pk'];
         $minI = (bool)($p['min_incl'] ?? true); $maxI = (bool)($p['max_incl'] ?? true);
         if ($min === null && $max !== null && (float)$max === 8.0 && $maxI === false) { return '<8'; }
         if ($min !== null && (float)$min === 8.0 && $minI === true && $max !== null && (float)$max === 10.0 && $maxI === true) { return '8-10'; }
         if ($max === null && $min !== null && (float)$min === 10.0 && $minI === false) { return '>10'; }
-        // Loose fallback by text
-        $s = strtoupper(str_replace(' ', '', $label));
-        if (str_starts_with($s, '<8')) return '<8';
-        if (str_contains($s, '8-10')) return '8-10';
-        if (str_starts_with($s, '>10')) return '>10';
-        return $label;
+        // Loose fallback by text (avoid PHP 8-only helpers)
+        $s = strtoupper(str_replace(' ', '', $vlabel));
+        if (substr($s, 0, 2) === '<8') { return '<8'; }
+        if (strpos($s, '8-10') !== false) { return '8-10'; }
+        if (substr($s, 0, 3) === '>10') { return '>10'; }
+        return $vlabel;
     }
 
-    private function formatCapacityDisplay(string $bucketKey): string
+    private function formatCapacityDisplay(string $bk): string
     {
-        // Match requested display exactly: "<8 PK", "8-10 PK", ">10 PK"
-        return match ($bucketKey) {
-            '<8' => '<8 PK',
-            '8-10' => '8-10 PK',
-            '>10' => '>10 PK',
-            default => (string) $bucketKey,
-        };
+        // Match requested display exactly: "<8 PK", "8-10 PK", ">10 PK" (avoid match expression for compatibility)
+        $bk = (string) $bk;
+        if ($bk === '<8') { return '<8 PK'; }
+        if ($bk === '8-10') { return '8-10 PK'; }
+        if ($bk === '>10') { return '>10 PK'; }
+        return $bk;
+    }
+
+    private function capacityBucketKeyFromPk(float $v): string
+    {
+        $v = (float) $v;
+        if ($v < 8) { return '<8'; }
+        if ($v > 10) { return '>10'; }
+        return '8-10';
     }
 
     
 
-    private function resolveMode(?string $mode): string
+    private function resolveMode(?string $m): string
     {
-        return in_array($mode, ['forecast', 'actual'], true) ? $mode : 'actual';
+        return in_array($m, ['forecast', 'actual'], true) ? $m : 'actual';
     }
 
     /**
      * @return array{0:Carbon,1:Carbon}
      */
-    private function resolveRange(Request $request): array
+    private function resolveRange(Request $req): array
     {
         // Prefer single-year filter when provided
-        $year = $request->query('year');
+        $year = $req->query('year');
         if (!empty($year) && ctype_digit((string)$year)) {
             $y = (int) $year;
             $start = Carbon::create($y, 1, 1)->startOfDay();
@@ -676,8 +799,8 @@ class AnalyticsController extends Controller
             return [$start, $end];
         }
 
-        $startDate = $request->query('start_date');
-        $endDate = $request->query('end_date');
+        $startDate = $req->query('start_date');
+        $endDate = $req->query('end_date');
 
         $start = $startDate ? Carbon::parse($startDate)->startOfDay() : now()->startOfMonth();
         $end = $endDate ? Carbon::parse($endDate)->endOfDay() : now()->endOfDay();
@@ -692,17 +815,18 @@ class AnalyticsController extends Controller
     /**
      * @param  array{min_pk:?float,max_pk:?float,min_incl:bool,max_incl:bool}  $info
      */
-    private function pkMatchesQuota(float $pk, array $info): bool
+    private function pkMatchesQuota(float $pkVal, array $data): bool
     {
-        if ($info['min_pk'] !== null) {
-            $minOk = $info['min_incl'] ? $pk >= $info['min_pk'] : $pk > $info['min_pk'];
+        $pkVal = (float) $pkVal;
+        if ($data['min_pk'] !== null) {
+            $minOk = $data['min_incl'] ? $pkVal >= $data['min_pk'] : $pkVal > $data['min_pk'];
             if (!$minOk) {
                 return false;
             }
         }
 
-        if ($info['max_pk'] !== null) {
-            $maxOk = $info['max_incl'] ? $pk <= $info['max_pk'] : $pk < $info['max_pk'];
+        if ($data['max_pk'] !== null) {
+            $maxOk = $data['max_incl'] ? $pkVal <= $data['max_pk'] : $pkVal < $data['max_pk'];
             if (!$maxOk) {
                 return false;
             }
@@ -711,24 +835,24 @@ class AnalyticsController extends Controller
         return true;
     }
 
-    private function dateMatchesQuota(?string $date, ?string $start, ?string $end, ?string $fallback = null): bool
+    private function dateMatchesQuota(?string $date, ?string $startVal, ?string $endVal, ?string $fallbackVal = null): bool
     {
-        if (!$start && !$end) {
+        if (!$startVal && !$endVal) {
             return true;
         }
 
-        $target = $date ?? $fallback;
+        $target = $date ?? $fallbackVal;
         if (!$target) {
             return true;
         }
 
         $targetDate = Carbon::parse($target)->toDateString();
 
-        if ($start && $targetDate < $start) {
+        if ($startVal && $targetDate < $startVal) {
             return false;
         }
 
-        if ($end && $targetDate > $end) {
+        if ($endVal && $targetDate > $endVal) {
             return false;
         }
 

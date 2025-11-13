@@ -4,7 +4,9 @@
     $alloc = max((float) ($q->total_allocation ?? 0), 0);
     $actual = max((float) ($q->actual_consumed ?? 0), 0);
     $forecast = max((float) ($q->forecast_consumed ?? 0), 0);
-    $inTransit = max($forecast - $actual, 0);
+    // In-Transit per spec: prefer precomputed outstanding (PO - GR) from controller,
+    // fallback to (forecast - actual) if not provided
+    $inTransit = isset($q->in_transit) ? max((float) $q->in_transit, 0) : max($forecast - $actual, 0);
     $actRemain = max($alloc - $actual, 0);
     $foreRemain = max($alloc - $forecast, 0);
     $pctRaw = $alloc > 0 ? ($actual / $alloc) * 100 : 0;
