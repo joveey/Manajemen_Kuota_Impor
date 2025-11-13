@@ -570,12 +570,16 @@ class DashboardController extends Controller
             ->take(5)
             ->get()
             ->map(function (GrReceipt $receipt) {
-                return [
-                    // Align with resources/views/dashboard/index.blade.php expected keys
-                    'ship_number' => $receipt->po_no,
-                    'eta'         => $receipt->receive_date,
-                    'status'      => $receipt->cat_po ?? 'In Transit',
-                    'qty'         => (float) $receipt->qty,
+                // Shape data to match admin.dashboard view expectations
+                return (object) [
+                    'po_number'      => $receipt->po_no,
+                    'line_no'        => $receipt->line_no,
+                    'receive_date'   => $receipt->receive_date,
+                    'item_name'      => $receipt->item_name,
+                    'vendor_name'    => $receipt->vendor_name,
+                    'warehouse_name' => $receipt->wh_name,
+                    'sap_status'     => $receipt->cat_po, // fallback handled in view
+                    'quantity'       => (float) $receipt->qty,
                 ];
             });
 
@@ -614,7 +618,6 @@ class DashboardController extends Controller
         ));
     }
 }
-
 
 
 
