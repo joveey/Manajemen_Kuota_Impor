@@ -318,40 +318,121 @@ class AnalyticsController extends Controller
         }
 
         $rows = $rows->values();
-        // Compute overall totals for both forecast and actual based on selected quotas
+        // Compute totals using the same source-of-truth as Dashboard (PO/GR + MOVE, exclude ACC)
         $quotaIds = $rows->pluck('quota_id')->all();
         $totalAllocation = $rows->pluck('initial_quota')->map(fn ($v) => (float) $v)->sum();
         $totalForecast = 0.0; $totalActual = 0.0;
         if (!empty($quotaIds)) {
             try {
-                $totalForecast = (float) DB::table('purchase_order_quota as pq')
-                    ->whereIn('pq.quota_id', $quotaIds)
-                    ->whereExists(function($q){
-                        $q->select(DB::raw('1'))
-                          ->from('purchase_orders as po')
-                          ->join('po_headers as ph','po.po_number','=','ph.po_number')
-                          ->join('po_lines as pl','pl.po_header_id','=','ph.id')
-                          ->join('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
-                          ->whereRaw('pq.purchase_order_id = po.id')
-                          ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'");
-                    })
-                    ->sum('allocated_qty');
-            } catch (\Throwable $e) { $totalForecast = 0.0; }
-            try {
-                $totalActual = (float) DB::table('gr_receipts as gr')
-                    ->join('po_headers as ph', 'ph.po_number', '=', 'gr.po_no')
-                    ->join('po_lines as pl', function($j){
-                        $j->on('pl.po_header_id','=','ph.id')
-                          ->whereRaw("regexp_replace(pl.line_no::text, '^0+', '') = regexp_replace(gr.line_no::text, '^0+', '')");
-                    })
-                    ->join('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
-                    ->join('purchase_orders as po', 'po.po_number', '=', 'ph.po_number')
-                    ->join('purchase_order_quota as pq', 'pq.purchase_order_id', '=', 'po.id')
-                    ->whereIn('pq.quota_id', $quotaIds)
-                    ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")
-                    ->select(DB::raw('SUM(gr.qty) as qty'))
-                    ->value('qty');
-            } catch (\Throwable $e) { $totalActual = 0.0; }
+                // Load quota cards for pairing and bounds
+                $quotaCards = Quota::whereIn('id', $quotaIds)->get();
+
+                // A. Build base arrays per quota from PO/GR, excluding ACC via subtraction
+                $baseForecast = [];
+                $baseActual = [];
+                foreach ($quotaCards as $q) {
+                    $cat = (string) ($q->government_category ?? '');
+                    $bounds = PkCategoryParser::parse($cat);
+
+                    $grn = DB::table('gr_receipts')
+                        ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','', 'g') AS INTEGER) AS ln")
+                        ->selectRaw('SUM(qty) as qty')
+                        ->groupBy('po_no','ln');
+
+                    $baseAll = DB::table('po_lines as pl')
+                        ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
+                        ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
+                        ->leftJoinSub($grn, 'grn', function($j){
+                            $j->on('grn.po_no','=','ph.po_number')
+                              ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','', 'g') AS INTEGER)");
+                        })
+                        ->whereNotNull('pl.hs_code_id');
+
+                    if ($bounds['min_pk'] !== null) {
+                        $baseAll->where('hs.pk_capacity', $bounds['min_incl'] ? '>=' : '>', $bounds['min_pk']);
+                    }
+                    if ($bounds['max_pk'] !== null) {
+                        $baseAll->where('hs.pk_capacity', $bounds['max_incl'] ? '<=' : '<', $bounds['max_pk']);
+                    }
+                    if (!empty($q->period_start) && !empty($q->period_end)) {
+                        $baseAll->whereBetween('ph.po_date', [
+                            $q->period_start->toDateString(),
+                            $q->period_end->toDateString(),
+                        ]);
+                    }
+
+                    $baseAcc = (clone $baseAll)->whereRaw("COALESCE(UPPER(hs.hs_code),'') = 'ACC'");
+
+                    $forecast_all_po = (float) (clone $baseAll)->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
+                    $forecast_acc_po = (float) (clone $baseAcc)->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
+                    $actual_all_gr   = (float) (clone $baseAll)->selectRaw('SUM(COALESCE(grn.qty,0)) as s')->value('s');
+                    $actual_acc_gr   = (float) (clone $baseAcc)->selectRaw('SUM(COALESCE(grn.qty,0)) as s')->value('s');
+
+                    $baseForecast[$q->id] = max($forecast_all_po - $forecast_acc_po, 0.0);
+                    $baseActual[$q->id]   = max($actual_all_gr - $actual_acc_gr, 0.0);
+                }
+
+                // B. DELTA overlay for any selected year.
+                //    Use pivot on "next" year quotas to move qty from prev->next by matching PK label.
+                $forecastFinal = $baseForecast;
+                $windowStart = Carbon::create($summaryYear, 1, 1)->startOfDay();
+                $windowEnd   = Carbon::create($summaryYear + 1, 12, 31)->endOfDay();
+                $nextQuotas = \App\Models\Quota::query()
+                    ->whereNotNull('period_start')
+                    ->whereBetween('period_start', [$windowStart->toDateString(), $windowEnd->toDateString()])
+                    ->get(['id','government_category','period_start']);
+
+                $nextIds = $nextQuotas->pluck('id')->all();
+                if (!empty($nextIds)) {
+                    $moveQtyByNextId = DB::table('purchase_order_quota as pq')
+                        ->select('pq.quota_id', DB::raw('SUM(pq.allocated_qty) as qty'))
+                        ->whereIn('pq.quota_id', $nextIds)
+                        ->whereExists(function($q){
+                            $q->select(DB::raw('1'))
+                              ->from('purchase_orders as po')
+                              ->join('po_headers as ph','po.po_number','=','ph.po_number')
+                              ->join('po_lines as pl','pl.po_header_id','=','ph.id')
+                              ->join('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
+                              ->whereRaw('pq.purchase_order_id = po.id')
+                              ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'");
+                        })
+                        ->groupBy('pq.quota_id')
+                        ->pluck('qty','pq.quota_id');
+
+                    foreach ($nextQuotas as $next) {
+                        $catKey = strtolower(trim((string) ($next->government_category ?? '')));
+                        $nextYear = Carbon::parse($next->period_start)->year;
+                        $move = (float) ($moveQtyByNextId[$next->id] ?? 0.0);
+
+                        // If the "next" quota belongs to the selected year, add move to it
+                        if ($nextYear === $summaryYear) {
+                            $curr = $quotaCards->first(function($q) use ($catKey) {
+                                if (empty($q->period_start)) { return false; }
+                                return strtolower(trim((string) ($q->government_category ?? ''))) === $catKey;
+                            });
+                            if ($curr) {
+                                $forecastFinal[$curr->id] = max((float) ($baseForecast[$curr->id] ?? 0.0) + $move, 0.0);
+                            }
+                        }
+
+                        // If the selected year is the "prev" year of this next quota, subtract from that prev
+                        if ($nextYear - 1 === $summaryYear) {
+                            $prev = $quotaCards->first(function($q) use ($catKey) {
+                                if (empty($q->period_start)) { return false; }
+                                return strtolower(trim((string) ($q->government_category ?? ''))) === $catKey;
+                            });
+                            if ($prev) {
+                                $forecastFinal[$prev->id] = max((float) ($baseForecast[$prev->id] ?? 0.0) - $move, 0.0);
+                            }
+                        }
+                    }
+                }
+
+                $totalForecast = array_sum($forecastFinal);
+                $totalActual   = array_sum($baseActual);
+            } catch (\Throwable $e) {
+                $totalForecast = 0.0; $totalActual = 0.0;
+            }
         }
         $categories = $rows->pluck('quota_number')->all();
         $seriesQuota = $rows->pluck('initial_quota')->map(fn ($v) => (float) $v)->all();
@@ -491,7 +572,7 @@ class AnalyticsController extends Controller
                 })->all(),
             ],
             'summary' => [
-                // KPIs excluding ACC: Forecast from pivot, Actual from GR via pivot, In-Transit = Forecast - Actual
+                // KPIs derived from the same rules as PK Bucket (PO/GR + MOVE, exclude ACC)
                 'total_allocation' => (float) $totalAllocation,
                 'total_usage' => (float) $totalForecast,
                 'total_remaining' => (float) max($totalAllocation - $totalForecast, 0.0),
@@ -682,46 +763,47 @@ class AnalyticsController extends Controller
                 ->join('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
                 // Exclude ACC only; no extra filters
                 ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")
-                // Optional cut-off to Dec-31 of selected year
+                // Restrict GR within the selected year window
+                ->where('gr.receive_date', '>=', $yearStart->toDateString())
                 ->where('gr.receive_date', '<=', $yearEnd->toDateString())
                 ->groupBy('pl.hs_code_id')
                 ->pluck(DB::raw('SUM(gr.qty) as total'), 'pl.hs_code_id');
         } catch (\Throwable $e) { $grByHs = collect(); }
 
-        // Forecast consumption start next January: PO ordered qty where HS maps to quotas starting next January
-        $poNextByHs = [];
+        // Forecast consumption start next January: pivot-based, distinct per PO + HS mapping
+        $nextYearConsumptionByHs = collect();
         try {
-            $janStart = $nextJanStart->copy()->startOfMonth();
-            $janEnd = $janStart->copy()->addMonth();
-            $nextQuotas = Quota::query()
-                ->whereNotNull('period_start')
-                ->whereBetween('period_start', [$janStart->toDateString(), $janEnd->toDateString()])
-                ->get(['government_category']);
-            $nextRanges = [];
-            foreach ($nextQuotas as $q) {
-                $p = PkCategoryParser::parse((string) $q->government_category);
-                $nextRanges[] = [
-                    'min_pk' => $p['min_pk'],
-                    'max_pk' => $p['max_pk'],
-                    'min_incl' => (bool)($p['min_incl'] ?? true),
-                    'max_incl' => (bool)($p['max_incl'] ?? true),
-                ];
+            $selectedYear = (int) $yearStart->year;
+            $nextYearStart = \Carbon\Carbon::create($selectedYear + 1, 1, 1)->toDateString();
+            $nextYearEnd   = \Carbon\Carbon::create($selectedYear + 1, 12, 31)->toDateString();
+
+            $nextYearQuotaIds = DB::table('quotas')
+                ->whereDate('period_start', '>=', $nextYearStart)
+                ->whereDate('period_end', '<=', $nextYearEnd)
+                ->pluck('id')
+                ->all();
+
+            if (!empty($nextYearQuotaIds)) {
+                // Map unique Purchase Order -> HS (exclude ACC); avoids multiplying by line count
+                $poHsMap = DB::table('purchase_orders as po')
+                    ->join('po_headers as ph', 'ph.po_number', '=', 'po.po_number')
+                    ->join('po_lines as pl', 'pl.po_header_id', '=', 'ph.id')
+                    ->join('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
+                    ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")
+                    ->select('po.id as purchase_order_id', 'hs.id as hs_id')
+                    ->groupBy('po.id', 'hs.id');
+
+                $nextYearConsumptionByHs = DB::table('purchase_order_quota as pq')
+                    ->joinSub($poHsMap, 'map', function ($join) {
+                        $join->on('map.purchase_order_id', '=', 'pq.purchase_order_id');
+                    })
+                    ->whereIn('pq.quota_id', $nextYearQuotaIds)
+                    ->groupBy('map.hs_id')
+                    ->pluck(DB::raw('SUM(COALESCE(pq.allocated_qty, 0)) as qty'), 'map.hs_id');
+            } else {
+                $nextYearConsumptionByHs = collect();
             }
-            $eligibleNextIds = [];
-            foreach ($eligibleHs as $r) {
-                $pk = isset($r->pk_capacity) ? (float) $r->pk_capacity : null;
-                if ($pk === null) { continue; }
-                foreach ($nextRanges as $nr) { if ($this->pkMatchesQuota($pk, $nr)) { $eligibleNextIds[(int)$r->id] = true; break; } }
-            }
-            $eligibleNextIds = array_keys($eligibleNextIds);
-            if (!empty($eligibleNextIds)) {
-                $poNextByHs = DB::table('po_lines as pl')
-                    ->join('po_headers as ph','pl.po_header_id','=','ph.id')
-                    ->whereIn('pl.hs_code_id', $eligibleNextIds)
-                    ->groupBy('pl.hs_code_id')
-                    ->pluck(DB::raw('SUM(COALESCE(pl.qty_ordered,0))'), 'pl.hs_code_id');
-            } else { $poNextByHs = collect(); }
-        } catch (\Throwable $e) { $poNextByHs = collect(); }
+        } catch (\Throwable $e) { $nextYearConsumptionByHs = collect(); }
 
         // Compose rows per HS/PK
         $rows = [];
@@ -733,7 +815,7 @@ class AnalyticsController extends Controller
             $consumed = (float) ($grByHs[$r->id] ?? 0);
             if ($approved > 0 && $consumed > $approved) { $consumed = $approved; }
             $balance = max($approved - $consumed, 0.0);
-            $jan = (float) ($poNextByHs[$r->id] ?? 0);
+            $jan = (float) ($nextYearConsumptionByHs[$r->id] ?? 0);
 
             $rows[] = [
                 'hs_code' => (string) $r->hs_code,
