@@ -324,16 +324,32 @@ class AnalyticsController extends Controller
         $totalForecast = 0.0; $totalActual = 0.0;
         if (!empty($quotaIds)) {
             try {
-                $totalForecast = (float) DB::table('purchase_order_quota')
-                    ->whereIn('quota_id', $quotaIds)
+                $totalForecast = (float) DB::table('purchase_order_quota as pq')
+                    ->whereIn('pq.quota_id', $quotaIds)
+                    ->whereExists(function($q){
+                        $q->select(DB::raw('1'))
+                          ->from('purchase_orders as po')
+                          ->join('po_headers as ph','po.po_number','=','ph.po_number')
+                          ->join('po_lines as pl','pl.po_header_id','=','ph.id')
+                          ->join('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
+                          ->whereRaw('pq.purchase_order_id = po.id')
+                          ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'");
+                    })
                     ->sum('allocated_qty');
             } catch (\Throwable $e) { $totalForecast = 0.0; }
             try {
-                $totalActual = (float) DB::table('quota_histories')
-                    ->where('change_type', 'actual_decrease')
-                    ->whereIn('quota_id', $quotaIds)
-                    ->whereBetween('occurred_on', [$start->toDateString(), $end->toDateString()])
-                    ->select(DB::raw('SUM(ABS(quantity_change)) as qty'))
+                $totalActual = (float) DB::table('gr_receipts as gr')
+                    ->join('po_headers as ph', 'ph.po_number', '=', 'gr.po_no')
+                    ->join('po_lines as pl', function($j){
+                        $j->on('pl.po_header_id','=','ph.id')
+                          ->whereRaw("regexp_replace(pl.line_no::text, '^0+', '') = regexp_replace(gr.line_no::text, '^0+', '')");
+                    })
+                    ->join('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
+                    ->join('purchase_orders as po', 'po.po_number', '=', 'ph.po_number')
+                    ->join('purchase_order_quota as pq', 'pq.purchase_order_id', '=', 'po.id')
+                    ->whereIn('pq.quota_id', $quotaIds)
+                    ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")
+                    ->select(DB::raw('SUM(gr.qty) as qty'))
                     ->value('qty');
             } catch (\Throwable $e) { $totalActual = 0.0; }
         }
@@ -475,15 +491,15 @@ class AnalyticsController extends Controller
                 })->all(),
             ],
             'summary' => [
-                // Business KPIs for quota period of the selected year
-                'total_allocation' => (float) $bizTotalAlloc,
-                'total_usage' => (float) $bizTotalPo,
-                'total_remaining' => (float) max($bizTotalAlloc - $bizTotalPo, 0.0),
-                'total_forecast_consumed' => (float) $bizTotalPo,
-                'total_actual_consumed' => (float) $bizTotalGr,
-                'total_in_transit' => (float) $bizInTransit,
-                'total_forecast_remaining' => (float) $bizForecastRem,
-                'total_actual_remaining' => (float) $bizActualRem,
+                // KPIs excluding ACC: Forecast from pivot, Actual from GR via pivot, In-Transit = Forecast - Actual
+                'total_allocation' => (float) $totalAllocation,
+                'total_usage' => (float) $totalForecast,
+                'total_remaining' => (float) max($totalAllocation - $totalForecast, 0.0),
+                'total_forecast_consumed' => (float) $totalForecast,
+                'total_actual_consumed' => (float) $totalActual,
+                'total_in_transit' => (float) max($totalForecast - $totalActual, 0.0),
+                'total_forecast_remaining' => (float) max($totalAllocation - $totalForecast, 0.0),
+                'total_actual_remaining' => (float) max($totalAllocation - $totalActual, 0.0),
                 'usage_label' => $primaryLabel,
                 'secondary_label' => $secondaryLabel,
                 'percentage_label' => $percentageLabel,
@@ -859,3 +875,4 @@ class AnalyticsController extends Controller
         return true;
     }
 }
+
