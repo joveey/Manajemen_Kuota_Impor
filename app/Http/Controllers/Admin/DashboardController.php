@@ -249,72 +249,26 @@ class DashboardController extends Controller
                 $q->setAttribute('actual_remaining', max($alloc - $actual_non_acc, 0));
             }
 
-            // B. Find moved POs (have pivot rows for any of these quotas)
-            $movedPoIds = collect();
-            $movedPoNos = collect();
-            if (!empty($ids)) {
-                $movedPoIds = DB::table('purchase_order_quota as pq')
-                    ->whereIn('pq.quota_id', $ids)
-                    ->distinct()
-                    ->pluck('pq.purchase_order_id');
-                if ($movedPoIds && $movedPoIds->isNotEmpty()) {
-                    $movedPoNos = DB::table('purchase_orders as po')
-                        ->whereIn('po.id', $movedPoIds->all())
-                        ->pluck('po.po_number');
-                }
-            }
+            // B. Simple DELTA only using pivot on 2026 quotas, paired with 2025
+            // Keep baseForecast/baseActual as-is (from PO/GR, non-ACC)
 
-            // B(b). Compute base forecast from moved POs only, per quota (same base filters + only moved POs)
-            $baseForecastMoved = [];
-            if ($movedPoNos && $movedPoNos->isNotEmpty()) {
-                foreach ($quotaCards as $q) {
-                    $cat = (string) ($q->government_category ?? '');
-                    $bounds = \App\Support\PkCategoryParser::parse($cat);
+            // Identify 2026 "next" quotas to consider (e.g., '<8 PK 2026')
+            $nextQuotas = $quotaCards->filter(function ($q) {
+                if (empty($q->period_start)) { return false; }
+                $yr = \Carbon\Carbon::parse($q->period_start)->year;
+                // Scope to categories that contain '<8' to match current use-case
+                $isLess8 = stripos((string) ($q->government_category ?? ''), '<8') !== false;
+                return $yr === 2026 && $isLess8;
+            });
 
-                    $grn = DB::table('gr_receipts')
-                        ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','', 'g') AS INTEGER) AS ln")
-                        ->selectRaw('SUM(qty) as qty')
-                        ->groupBy('po_no','ln');
+            $nextIds = $nextQuotas->pluck('id')->all();
 
-                    $baseAllMoved = DB::table('po_lines as pl')
-                        ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
-                        ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
-                        ->leftJoinSub($grn, 'grn', function($j){
-                            $j->on('grn.po_no','=','ph.po_number')
-                              ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','', 'g') AS INTEGER)");
-                        })
-                        ->whereNotNull('pl.hs_code_id')
-                        ->whereIn('ph.po_number', $movedPoNos->all());
-
-                    if ($bounds['min_pk'] !== null) {
-                        $baseAllMoved->where('hs.pk_capacity', $bounds['min_incl'] ? '>=' : '>', $bounds['min_pk']);
-                    }
-                    if ($bounds['max_pk'] !== null) {
-                        $baseAllMoved->where('hs.pk_capacity', $bounds['max_incl'] ? '<=' : '<', $bounds['max_pk']);
-                    }
-                    if (!empty($q->period_start) && !empty($q->period_end)) {
-                        $baseAllMoved->whereBetween('ph.po_date', [
-                            $q->period_start->toDateString(),
-                            $q->period_end->toDateString(),
-                        ]);
-                    }
-
-                    $baseAccMoved = (clone $baseAllMoved)->whereRaw("COALESCE(UPPER(hs.hs_code),'') = 'ACC'");
-
-                    $forecast_moved_all_po = (float) (clone $baseAllMoved)->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
-                    $forecast_moved_acc_po = (float) (clone $baseAccMoved)->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
-
-                    $baseForecastMoved[$q->id] = max($forecast_moved_all_po - $forecast_moved_acc_po, 0.0);
-                }
-            }
-
-            // B(c). Compute pivot forecast per quota for moved POs only (exclude ACC via EXISTS)
-            $pivotForecastByQuota = collect();
-            if (!empty($ids) && $movedPoIds && $movedPoIds->isNotEmpty()) {
-                $pivotForecastByQuota = DB::table('purchase_order_quota as pq')
+            // Move quantity per next quota from pivot (exclude ACC via EXISTS join to hs mapping)
+            $moveQtyByNextId = collect();
+            if (!empty($nextIds)) {
+                $moveQtyByNextId = DB::table('purchase_order_quota as pq')
                     ->select('pq.quota_id', DB::raw('SUM(pq.allocated_qty) as qty'))
-                    ->whereIn('pq.quota_id', $ids)
-                    ->whereIn('pq.purchase_order_id', $movedPoIds->all())
+                    ->whereIn('pq.quota_id', $nextIds)
                     ->whereExists(function($q){
                         $q->select(DB::raw('1'))
                           ->from('purchase_orders as po')
@@ -328,23 +282,43 @@ class DashboardController extends Controller
                     ->pluck('qty','pq.quota_id');
             }
 
-            // C. Build adjusted forecast using DELTA: base - baseMoved + pivot
-            $adjustedForecast = [];
-            foreach ($quotaCards as $q) {
-                $qid = $q->id;
-                $base = (float) ($baseForecast[$qid] ?? 0.0);
-                $baseMoved = (float) ($baseForecastMoved[$qid] ?? 0.0);
-                $pivot = (float) ($pivotForecastByQuota[$qid] ?? 0.0);
-                $adjustedForecast[$qid] = max($base - $baseMoved + $pivot, 0.0);
+            // Start with baseForecast for all quotas
+            $forecastFinal = $baseForecast;
+
+            // Pair prev (2025) with next (2026) using same category label
+            foreach ($nextQuotas as $next) {
+                $catKey = strtolower(trim((string) ($next->government_category ?? '')));
+                $prev = $quotaCards->first(function($q) use ($catKey) {
+                    if (empty($q->period_start)) { return false; }
+                    $sameCat = strtolower(trim((string) ($q->government_category ?? ''))) === $catKey;
+                    return $sameCat && (\Carbon\Carbon::parse($q->period_start)->year === 2025);
+                });
+                if (!$prev) { continue; }
+
+                $move = (float) ($moveQtyByNextId[$next->id] ?? 0.0);
+
+                $forecastFinal[$prev->id] = max((float) ($baseForecast[$prev->id] ?? 0.0) - $move, 0.0);
+                $forecastFinal[$next->id] = max((float) ($baseForecast[$next->id] ?? 0.0) + $move, 0.0);
+
+                // Temporary diagnostic log for <8 PK 2025/2026 pair
+                if (stripos((string) ($next->government_category ?? ''), '<8') !== false) {
+                    Log::info('PK Delta Simple', [
+                        'baseForecast_2025'     => (float) ($baseForecast[$prev->id] ?? 0.0),
+                        'baseForecast_2026'     => (float) ($baseForecast[$next->id] ?? 0.0),
+                        'moveQty_2026'          => $move,
+                        'forecast_2025_final'   => (float) $forecastFinal[$prev->id],
+                        'forecast_2026_final'   => (float) $forecastFinal[$next->id],
+                    ]);
+                }
             }
 
-            // C. Apply adjusted forecast per quota; Actual remains base
+            // Apply final KPI values using forecastFinal (actual stays base)
             $sumBaseForecast   = array_sum($baseForecast);
             $sumForecastFinal = 0.0; $sumActualFinal = 0.0; $sumInTransitFinal = 0.0;
             foreach ($quotaCards as $q) {
                 $quotaId = $q->id;
                 $alloc    = (float) ($q->total_allocation ?? 0);
-                $forecast = (float) ($adjustedForecast[$quotaId] ?? ($baseForecast[$quotaId] ?? 0.0));
+                $forecast = (float) ($forecastFinal[$quotaId] ?? ($baseForecast[$quotaId] ?? 0.0));
                 $actual   = (float) ($baseActual[$quotaId] ?? 0.0);
 
                 $inTransit         = max($forecast - $actual, 0.0);
@@ -361,41 +335,6 @@ class DashboardController extends Controller
                 $sumActualFinal   += $actual;
                 $sumInTransitFinal += $inTransit;
             }
-
-            // D. Temporary logs for <8 PK 2025/2026 and global totals (Delta model)
-            try {
-                $less8Quotas = $quotaCards->filter(function($q){
-                    return stripos((string) ($q->government_category ?? ''), '<8') !== false && !empty($q->period_start);
-                });
-                $q2025 = $less8Quotas->first(function($q){
-                    return \Carbon\Carbon::parse($q->period_start)->year === 2025;
-                });
-                $q2026 = $less8Quotas->first(function($q){
-                    return \Carbon\Carbon::parse($q->period_start)->year === 2026;
-                });
-                if ($q2025) {
-                    $qid = $q2025->id;
-                    Log::info('PK <8 2025 base vs adjusted', [
-                        'quota_id' => $qid,
-                        'baseForecast' => (float) ($baseForecast[$qid] ?? 0.0),
-                        'adjustedForecast' => (float) ($adjustedForecast[$qid] ?? ($baseForecast[$qid] ?? 0.0)),
-                    ]);
-                }
-                if ($q2026) {
-                    $qid = $q2026->id;
-                    Log::info('PK <8 2026 base vs adjusted', [
-                        'quota_id' => $qid,
-                        'baseForecast' => (float) ($baseForecast[$qid] ?? 0.0),
-                        'adjustedForecast' => (float) ($adjustedForecast[$qid] ?? ($baseForecast[$qid] ?? 0.0)),
-                    ]);
-                }
-                Log::info('PK Bucket Totals Delta', [
-                    'sum_base_forecast' => $sumBaseForecast,
-                    'sum_adjusted_forecast' => array_sum($adjustedForecast),
-                    'sum_base_actual' => array_sum($baseActual),
-                    'sum_final_in_transit' => $sumInTransitFinal,
-                ]);
-            } catch (\Throwable $e) {}
 
             // expose to view for charts
             $quotaBatches = $quotaBatches;
@@ -618,7 +557,6 @@ class DashboardController extends Controller
         ));
     }
 }
-
 
 
 
