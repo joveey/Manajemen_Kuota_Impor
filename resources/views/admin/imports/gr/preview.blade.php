@@ -5,8 +5,8 @@
 <div class="page-shell">
   <div class="page-header"><h1 class="page-header__title">Preview Import GR</h1></div>
 
-  <div class="card mb-3">
-    <div class="card-body">
+  <div class="gr-card mb-2">
+    <div class="gr-card__body">
       <div><strong>File:</strong> {{ $import->source_filename }}</div>
       <div><strong>Status:</strong> {{ $import->status }}</div>
       <div><strong>Rows:</strong> valid {{ (int)$import->valid_rows }} / total {{ (int)$import->total_rows }} / error {{ (int)$import->error_rows }}</div>
@@ -14,28 +14,30 @@
   </div>
 
   <div class="d-flex gap-2 mb-3">
-    <a class="btn btn-outline-secondary" href="{{ route('admin.imports.gr.index') }}">Back</a>
+    <a class="gr-btn gr-btn--ghost" href="{{ route('admin.imports.gr.index') }}">Back</a>
     @if($import->status === \App\Models\Import::STATUS_READY)
-      <form method="POST" action="{{ route('admin.imports.gr.publish', $import) }}">@csrf<button class="btn btn-primary">Publish</button></form>
+      <form method="POST" action="{{ route('admin.imports.gr.publish', $import) }}">@csrf<button class="gr-btn gr-btn--primary">Publish</button></form>
     @endif
   </div>
 
-  <div class="card">
-    <div class="card-header d-flex align-items-center justify-content-between">
+  <div class="gr-card">
+    <div class="gr-card__header">
       <div>
-        <strong>Review Data</strong>
-        <span class="badge bg-success ms-2" id="badge-valid">Valid: {{ (int)$import->valid_rows }}</span>
-        <span class="badge bg-danger ms-2" id="badge-error">Error: {{ (int)$import->error_rows }}</span>
+        <div class="gr-card__title">Review Data</div>
+        <div class="gr-badges">
+          <span class="gr-badge gr-badge--success" id="badge-valid">Valid: {{ (int)$import->valid_rows }}</span>
+          <span class="gr-badge gr-badge--danger" id="badge-error">Error: {{ (int)$import->error_rows }}</span>
+        </div>
       </div>
-      <div class="btn-group btn-group-sm" role="group">
-        <button type="button" class="btn btn-primary" id="tab-valid">Valid</button>
-        <button type="button" class="btn btn-outline-primary" id="tab-error">Error</button>
+      <div class="gr-tabs" role="tablist">
+        <button type="button" class="gr-tab is-active" id="tab-valid">Valid</button>
+        <button type="button" class="gr-tab" id="tab-error">Error</button>
       </div>
     </div>
-    <div class="card-body">
+    <div class="gr-card__body">
       <div id="panel-valid">
         <div class="table-responsive">
-          <table class="table table-sm mb-2">
+          <table class="gr-table mb-2">
             <thead>
               <tr>
                 <th>#</th>
@@ -52,11 +54,11 @@
             <tbody id="tbody-valid"><tr><td colspan="9">Loading...</td></tr></tbody>
           </table>
         </div>
-        <div class="d-flex justify-content-between align-items-center small">
-          <div id="pager-valid-info"></div>
-          <div class="btn-group btn-group-sm">
-            <button class="btn btn-outline-secondary" id="valid-prev">Prev</button>
-            <button class="btn btn-outline-secondary" id="valid-next">Next</button>
+        <div class="gr-pager">
+          <div class="gr-pager__info" id="pager-valid-info"></div>
+          <div class="gr-pager__btns">
+            <button class="gr-btn gr-btn--ghost gr-btn--sm" id="valid-prev">Prev</button>
+            <button class="gr-btn gr-btn--ghost gr-btn--sm" id="valid-next">Next</button>
           </div>
         </div>
       </div>
@@ -65,17 +67,41 @@
         <ul id="list-error" class="mb-2 small">
           <li>Loading...</li>
         </ul>
-        <div class="d-flex justify-content-between align-items-center small">
-          <div id="pager-error-info"></div>
-          <div class="btn-group btn-group-sm">
-            <button class="btn btn-outline-secondary" id="error-prev">Prev</button>
-            <button class="btn btn-outline-secondary" id="error-next">Next</button>
+        <div class="gr-pager">
+          <div class="gr-pager__info" id="pager-error-info"></div>
+          <div class="gr-pager__btns">
+            <button class="gr-btn gr-btn--ghost gr-btn--sm" id="error-prev">Prev</button>
+            <button class="gr-btn gr-btn--ghost gr-btn--sm" id="error-next">Next</button>
           </div>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+@push('styles')
+<style>
+.gr-card{ border:1px solid #dfe4f3; border-radius:16px; background:#fff; box-shadow:0 20px 45px -36px rgba(15,23,42,.35); }
+.gr-card__header{ padding:14px 16px; border-bottom:1px solid #eef2fb; display:flex; align-items:center; justify-content:space-between; }
+.gr-card__title{ font-size:16px; font-weight:800; color:#0f172a; margin:0; }
+.gr-card__body{ padding:16px; }
+.gr-btn{ display:inline-flex; align-items:center; gap:8px; border-radius:12px; padding:10px 16px; font-weight:700; font-size:13px; border:1px solid transparent; }
+.gr-btn--primary{ background:#2563eb; color:#fff; border-color:#2563eb; }
+.gr-btn--ghost{ background:rgba(59,130,246,.08); color:#1d4ed8; border:1px solid #3b82f6; }
+.gr-btn--sm{ padding:6px 12px; font-size:12px; }
+.gr-badge{ display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700; }
+.gr-badge--success{ background:#e8faee; color:#15803d; border:1px solid #bbf7d0; }
+.gr-badge--danger{ background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; }
+.gr-tabs{ display:inline-flex; gap:8px; background:#f1f5fe; border:1px solid #dbe4ff; padding:4px; border-radius:12px; }
+.gr-tab{ background:transparent; border:0; padding:8px 14px; border-radius:10px; font-weight:700; font-size:12px; color:#1d4ed8; cursor:pointer; }
+.gr-tab.is-active{ background:#2563eb; color:#fff; }
+.gr-table{ width:100%; border-collapse:separate; border-spacing:0; }
+.gr-table thead th{ background:#f8fbff; padding:10px 12px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:#64748b; }
+.gr-table tbody td{ padding:10px 12px; border-top:1px solid #e5eaf5; font-size:13px; color:#1f2937; }
+.gr-pager{ display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#64748b; }
+.gr-pager__btns{ display:flex; gap:6px; }
+</style>
+@endpush
 
 @push('scripts')
 <script>
@@ -98,10 +124,8 @@
 
   function switchTo(mode){
     const isValid = mode==='valid';
-    tabValid.classList.toggle('btn-primary', isValid);
-    tabValid.classList.toggle('btn-outline-primary', !isValid);
-    tabError.classList.toggle('btn-primary', !isValid);
-    tabError.classList.toggle('btn-outline-primary', isValid);
+    tabValid.classList.toggle('is-active', isValid);
+    tabError.classList.toggle('is-active', !isValid);
     panelValid.classList.toggle('d-none', !isValid);
     panelError.classList.toggle('d-none', isValid);
   }
