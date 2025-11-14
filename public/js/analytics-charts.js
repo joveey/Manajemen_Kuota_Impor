@@ -164,51 +164,56 @@
       var donutEl = q(cfg.donutElId || 'analyticsDonut');
       var dataUrl = cfg.dataUrl;
       var tbodyId = cfg.tableBodyId || 'analyticsTableBody';
-      var currentMode = (cfg.mode || 'actual');
+      var barMode = (cfg.mode || 'actual');
+      var donutMode = (cfg.mode || 'actual');
       var defaultLabels = cfg.labels || {};
       var barChart = null; var donutChart = null;
 
-      function renderAll(json){
+      function renderBarData(json){
         try{ if (barChart && barChart.destroy) { barChart.destroy(); } }catch(e){}
-        try{ if (donutChart && donutChart.destroy) { donutChart.destroy(); } }catch(e){}
         if (barEl) { barEl.innerHTML = ''; }
-        if (donutEl) { donutEl.innerHTML = ''; }
-        try{ barChart = renderBar(barEl, json.bar || {}); }catch(e){}
-        try{ donutChart = renderDonut(donutEl, json.donut || {}); }catch(e){}
+        try{ barChart = renderBar(barEl, (json && json.bar) || {}); }catch(e){}
       }
 
-      function applyModeUI(mode){
+      function renderDonutData(json){
+        try{ if (donutChart && donutChart.destroy) { donutChart.destroy(); } }catch(e){}
+        if (donutEl) { donutEl.innerHTML = ''; }
+        try{ donutChart = renderDonut(donutEl, (json && json.donut) || {}); }catch(e){}
+      }
+
+      function applyBarModeUI(mode){
         var titleMode = mode === 'forecast' ? 'Forecast' : 'Actual';
         setText('chartModeTitle', titleMode);
         setText('chartModeBadge', titleMode + ' Based');
-        setText('donutModeTitle', titleMode);
         var f = q('modeChipForecast'); var a = q('modeChipActual');
+        if (f && a){
+          if (mode === 'forecast') { f.classList.add('analytics-mode__chip--active'); a.classList.remove('analytics-mode__chip--active'); }
+          else { a.classList.add('analytics-mode__chip--active'); f.classList.remove('analytics-mode__chip--active'); }
+        }
+      }
+
+      function applyDonutModeUI(mode){
+        var titleMode = mode === 'forecast' ? 'Forecast' : 'Actual';
+        setText('donutModeTitle', titleMode);
         var f2 = q('modeChipForecast2'); var a2 = q('modeChipActual2');
-        var sets = [ [f,a], [f2,a2] ];
-        sets.forEach(function(pair){
-          var pf = pair[0], pa = pair[1];
-          if (!pf || !pa) return;
-          if (mode === 'forecast') {
-            pf.classList.add('analytics-mode__chip--active');
-            pa.classList.remove('analytics-mode__chip--active');
-          } else {
-            pa.classList.add('analytics-mode__chip--active');
-            pf.classList.remove('analytics-mode__chip--active');
-          }
-        });
+        if (f2 && a2){
+          if (mode === 'forecast') { f2.classList.add('analytics-mode__chip--active'); a2.classList.remove('analytics-mode__chip--active'); }
+          else { a2.classList.add('analytics-mode__chip--active'); f2.classList.remove('analytics-mode__chip--active'); }
+        }
       }
 
       function loadInitial(){
-        if(!dataUrl){ fillTable(tbodyId, [], currentMode, defaultLabels); return; }
+        if(!dataUrl){ fillTable(tbodyId, [], barMode, defaultLabels); return; }
         fetch(dataUrl, { headers: { 'Accept':'application/json' }})
           .then(function(r){ return r.json(); })
           .then(function(json){
-            renderAll(json);
+            renderBarData(json);
+            renderDonutData(json);
             try{
               fillTable(
                 tbodyId,
                 json.table || [],
-                json.mode || currentMode,
+                json.mode || barMode,
                 json.labels || defaultLabels
               );
             }catch(e){}
@@ -227,22 +232,32 @@
               };
               Object.keys(m).forEach(function(k){ var el = byId(k); if(el) el.textContent = nf(m[k]); });
             } catch(e){}
-            applyModeUI(json.mode || currentMode);
-            currentMode = json.mode || currentMode;
+            // Initialize both UIs with initial mode
+            barMode = json.mode || barMode;
+            donutMode = json.mode || donutMode;
+            applyBarModeUI(barMode);
+            applyDonutModeUI(donutMode);
           })
-          .catch(function(){ fillTable(tbodyId, [], currentMode, defaultLabels); });
+          .catch(function(){ fillTable(tbodyId, [], barMode, defaultLabels); });
       }
 
-      function switchMode(mode){
-        currentMode = (mode === 'forecast' || mode === 'actual') ? mode : 'actual';
-        applyModeUI(currentMode);
-        var url = updateQuery(dataUrl, 'mode', currentMode);
+      function switchBarMode(mode){
+        barMode = (mode === 'forecast' || mode === 'actual') ? mode : 'actual';
+        applyBarModeUI(barMode);
+        var url = updateQuery(dataUrl, 'mode', barMode);
         fetch(url, { headers: { 'Accept':'application/json' }})
           .then(function(r){ return r.json(); })
-          .then(function(json){
-            renderAll(json); // Only charts should refresh on toggle
-            // Do not touch table/KPI on mode switch per requirement
-          })
+          .then(function(json){ renderBarData(json); })
+          .catch(function(){ /* ignore */ });
+      }
+
+      function switchDonutMode(mode){
+        donutMode = (mode === 'forecast' || mode === 'actual') ? mode : 'actual';
+        applyDonutModeUI(donutMode);
+        var url = updateQuery(dataUrl, 'mode', donutMode);
+        fetch(url, { headers: { 'Accept':'application/json' }})
+          .then(function(r){ return r.json(); })
+          .then(function(json){ renderDonutData(json); })
           .catch(function(){ /* ignore */ });
       }
 
@@ -250,13 +265,14 @@
       var aBtn = q('modeChipActual');
       var fBtn2 = q('modeChipForecast2');
       var aBtn2 = q('modeChipActual2');
-      if (fBtn) fBtn.addEventListener('click', function(){ switchMode('forecast'); });
-      if (aBtn) aBtn.addEventListener('click', function(){ switchMode('actual'); });
-      if (fBtn2) fBtn2.addEventListener('click', function(){ switchMode('forecast'); });
-      if (aBtn2) aBtn2.addEventListener('click', function(){ switchMode('actual'); });
+      if (fBtn) fBtn.addEventListener('click', function(){ switchBarMode('forecast'); });
+      if (aBtn) aBtn.addEventListener('click', function(){ switchBarMode('actual'); });
+      if (fBtn2) fBtn2.addEventListener('click', function(){ switchDonutMode('forecast'); });
+      if (aBtn2) aBtn2.addEventListener('click', function(){ switchDonutMode('actual'); });
 
       // Initial load
-      applyModeUI(currentMode);
+      applyBarModeUI(barMode);
+      applyDonutModeUI(donutMode);
       loadInitial();
     });
   };
