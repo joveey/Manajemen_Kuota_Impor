@@ -31,220 +31,12 @@ class FinalReportController extends Controller
         ]);
     }
 
+    // Combined Report detailed export: expand Voyage splits into CSV rows
     public function exportCsv(Request $request)
     {
-        // Build an enriched per-line export covering the requested columns.
-        // We keep the logic fully read-only and re-use existing tables only.
-        [$start, $end] = $this->resolveRange($request);
-        $startDate = $start->toDateString();
-        $endDate = $end->toDateString();
-        // Default to ETA basis so export matches common PO LISTED templates
-        $basis = strtolower((string) $request->query('basis', 'eta'));
-        $basisField = $basis === 'eta' ? 'po_lines.eta_date' : 'ph.po_date';
-
-        // Preload quotas overlapping the chosen range to evaluate status/quota number per line
-        $quotaPool = Quota::query()
-            ->where(function ($q) use ($startDate, $endDate) {
-                $q->whereNull('period_start')
-                    ->orWhereNull('period_end')
-                    ->orWhere(function ($qq) use ($startDate, $endDate) {
-                        $qq->where('period_start', '<=', $endDate)
-                           ->where('period_end', '>=', $startDate);
-                    });
-            })
-            ->orderBy('quota_number')
-            ->get();
-
-        // Fetch PO lines within the header/date range and enrich with HS + voyage fields
-        $records = PoLine::query()
-            ->join('po_headers as ph', 'po_lines.po_header_id', '=', 'ph.id')
-            ->leftJoin('hs_code_pk_mappings as hs', 'po_lines.hs_code_id', '=', 'hs.id')
-            ->whereBetween(DB::raw($basisField), [$startDate, $endDate])
-            ->orderBy('ph.po_number')
-            ->orderBy('po_lines.line_no')
-            ->get([
-                'po_lines.id as line_id',
-                'ph.po_number',
-                'ph.po_date',
-                'ph.supplier',
-                'ph.note as header_text',
-                'po_lines.line_no',
-                'po_lines.model_code as material',
-                'po_lines.item_desc',
-                'po_lines.qty_ordered',
-                'po_lines.qty_to_invoice',
-                'po_lines.qty_to_deliver',
-                'po_lines.eta_date',
-                'po_lines.warehouse_code',
-                'po_lines.warehouse_name',
-                'po_lines.storage_location',
-                'po_lines.sap_order_status',
-                'po_lines.voyage_bl',
-                'po_lines.voyage_etd',
-                'po_lines.voyage_eta',
-                'po_lines.voyage_factory',
-                'po_lines.voyage_status',
-                'po_lines.voyage_issue_date',
-                'po_lines.voyage_expired_date',
-                'po_lines.voyage_remark',
-                'hs.hs_code',
-                'hs.pk_capacity',
-            ]);
-
-        // Build line-level GR index within the selected range (by PO + line no)
-        // No GR in export per new request; skip computing GR aggregates
-
-        // Prefetch voyage splits for all included lines
-        $lineIds = $records->pluck('line_id')->filter()->unique()->values();
-        $splitsByLine = [];
-        if ($lineIds->isNotEmpty() && \Illuminate\Support\Facades\Schema::hasTable('po_line_voyage_splits')) {
-            $splitRows = DB::table('po_line_voyage_splits')
-                ->whereIn('po_line_id', $lineIds)
-                ->orderBy('po_line_id')->orderBy('seq_no')->orderBy('id')
-                ->get();
-            foreach ($splitRows as $sr) { $splitsByLine[$sr->po_line_id][] = $sr; }
-        }
-
-        // Prepare export rows
-        $rows = [];
-        foreach ($records as $r) {
-            // Determine quota match for HS/PK within the period of the PO document date
-            $quotaNo = '';
-            $quotaStatus = '';
-            $quotaIssue = '';
-            $quotaExpired = '';
-            if (!empty($quotaPool)) {
-                $pseudo = new Product();
-                $pseudo->hs_code = $r->hs_code;
-                $pseudo->pk_capacity = $r->pk_capacity;
-                $q = $quotaPool->first(function (Quota $q) use ($pseudo, $r) {
-                    // Period guard per document date
-                    $doc = $r->po_date ? Carbon::parse($r->po_date)->toDateString() : null;
-                    if ($doc) {
-                        if ($q->period_start && $doc < $q->period_start->toDateString()) { return false; }
-                        if ($q->period_end && $doc > $q->period_end->toDateString()) { return false; }
-                    }
-                    return $q->matchesProduct($pseudo);
-                });
-                if ($q) {
-                    $quotaNo = (string) ($q->quota_number ?? '');
-                    // For export, display a timeline-oriented label instead of inventory status
-                    $quotaStatus = 'Current';
-                    $quotaIssue = $q->period_start ? Carbon::parse($q->period_start)->toDateString() : '';
-                    $quotaExpired = $q->period_end ? Carbon::parse($q->period_end)->toDateString() : '';
-                }
-            }
-
-            // Computations with safe fallbacks
-            $ordered = (float) ($r->qty_ordered ?? 0);
-            $toInvoice = isset($r->qty_to_invoice) ? (float) $r->qty_to_invoice : 0.0;
-            $toDeliverLine = isset($r->qty_to_deliver) ? (float) $r->qty_to_deliver : null;
-
-            $lineSplits = $splitsByLine[$r->line_id] ?? null;
-            if (!empty($lineSplits)) {
-                // Add base line first
-                $rows[] = [
-                    'Month' => ($basis === 'eta')
-                        ? ($r->eta_date ? Carbon::parse($r->eta_date)->format('M') : '')
-                        : ($r->po_date ? Carbon::parse($r->po_date)->format('M') : ''),
-                    'Purchasing Doc. Type' => '',
-                    'Vendor/supplying plant' => (string) ($r->supplier ?? ''),
-                    'Purchasing Document' => (string) ($r->po_number ?? ''),
-                    'Material' => (string) ($r->material ?? ''),
-                    'Plant' => (string) ($r->warehouse_code ?? $r->warehouse_name ?? ''),
-                    'Storage Location' => (string) ($r->storage_location ?? ''),
-                    'Order Quantity' => $ordered,
-                    'Still to be invoiced (qty)' => $toInvoice,
-                    'Still to be delivered (qty)' => $toDeliverLine ?? '',
-                    'Delivery Date' => $r->eta_date ? Carbon::parse($r->eta_date)->toDateString() : '',
-                    'Document Date' => $r->po_date ? Carbon::parse($r->po_date)->toDateString() : '',
-                    'header text' => (string) ($r->header_text ?? ''),
-                    'BL' => (string) ($r->voyage_bl ?? ''),
-                    'ETD' => $r->voyage_etd ? Carbon::parse($r->voyage_etd)->toDateString() : '',
-                    'ETA' => $r->voyage_eta ? Carbon::parse($r->voyage_eta)->toDateString() : '',
-                    'Factory' => (string) ($r->voyage_factory ?? ''),
-                    'Hs Code' => (string) ($r->hs_code ?? ''),
-                    'Status' => (string) (($r->sap_order_status ?? '') !== '' ? $r->sap_order_status : ($r->voyage_status ?? '')),
-                    'Status Quota' => $quotaStatus,
-                    'Quota No.' => $quotaNo,
-                    'Issue Date' => $quotaIssue,
-                    'Expired' => $quotaExpired,
-                    'Remark' => (string) ($r->voyage_remark ?? ''),
-                    '_sort_po' => (string) ($r->po_number ?? ''),
-                    '_sort_line' => (int) ($r->line_no ?? 0),
-                    '_sort_seq' => 0,
-                ];
-
-                $seq = 1;
-                foreach ($lineSplits as $sp) {
-                    $sq = (float) ($sp->qty ?? 0);
-                    $rows[] = [
-                        'Month' => ($basis === 'eta')
-                            ? (($sp->voyage_eta ?? $r->eta_date) ? Carbon::parse($sp->voyage_eta ?? $r->eta_date)->format('M') : '')
-                            : ($r->po_date ? Carbon::parse($r->po_date)->format('M') : ''),
-                        'Purchasing Doc. Type' => '',
-                        'Vendor/supplying plant' => (string) ($r->supplier ?? ''),
-                        'Purchasing Document' => (string) ($r->po_number ?? ''),
-                        'Material' => (string) ($r->material ?? ''),
-                        'Plant' => (string) ($r->warehouse_code ?? $r->warehouse_name ?? ''),
-                        'Storage Location' => (string) ($r->storage_location ?? ''),
-                        'Order Quantity' => $sq,
-                        'Still to be invoiced (qty)' => '',
-                        'Still to be delivered (qty)' => '',
-                        'Delivery Date' => ($sp->voyage_eta ?? $r->eta_date) ? Carbon::parse($sp->voyage_eta ?? $r->eta_date)->toDateString() : '',
-                        'Document Date' => $r->po_date ? Carbon::parse($r->po_date)->toDateString() : '',
-                        'header text' => (string) ($r->header_text ?? ''),
-                        'BL' => (string) ($sp->voyage_bl ?? $r->voyage_bl ?? ''),
-                        'ETD' => ($sp->voyage_etd ?? $r->voyage_etd) ? Carbon::parse($sp->voyage_etd ?? $r->voyage_etd)->toDateString() : '',
-                        'ETA' => ($sp->voyage_eta ?? $r->voyage_eta) ? Carbon::parse($sp->voyage_eta ?? $r->voyage_eta)->toDateString() : '',
-                        'Factory' => (string) ($sp->voyage_factory ?? $r->voyage_factory ?? ''),
-                        'Hs Code' => (string) ($r->hs_code ?? ''),
-                        'Status' => (string) (($r->sap_order_status ?? '') !== '' ? $r->sap_order_status : (($sp->voyage_status ?? $r->voyage_status) ?? '')),
-                        'Status Quota' => $quotaStatus,
-                        'Quota No.' => $quotaNo,
-                        'Issue Date' => $quotaIssue,
-                        'Expired' => $quotaExpired,
-                        'Remark' => (string) (($sp->voyage_remark ?? '') !== '' ? $sp->voyage_remark : ($r->voyage_remark ?? '')),
-                        '_sort_po' => (string) ($r->po_number ?? ''),
-                        '_sort_line' => (int) ($r->line_no ?? 0),
-                        '_sort_seq' => $seq++,
-                    ];
-                }
-            } else {
-                $toDeliver = $toDeliverLine ?? '';
-                $rows[] = [
-                    'Month' => ($basis === 'eta')
-                        ? ($r->eta_date ? Carbon::parse($r->eta_date)->format('M') : '')
-                        : ($r->po_date ? Carbon::parse($r->po_date)->format('M') : ''),
-                    'Purchasing Doc. Type' => '',
-                    'Vendor/supplying plant' => (string) ($r->supplier ?? ''),
-                    'Purchasing Document' => (string) ($r->po_number ?? ''),
-                    'Material' => (string) ($r->material ?? ''),
-                    'Plant' => (string) ($r->warehouse_code ?? $r->warehouse_name ?? ''),
-                    'Storage Location' => (string) ($r->storage_location ?? ''),
-                    'Order Quantity' => $ordered,
-                    'Still to be invoiced (qty)' => $toInvoice,
-                    'Still to be delivered (qty)' => $toDeliver,
-                    'Delivery Date' => $r->eta_date ? Carbon::parse($r->eta_date)->toDateString() : '',
-                    'Document Date' => $r->po_date ? Carbon::parse($r->po_date)->toDateString() : '',
-                    'header text' => (string) ($r->header_text ?? ''),
-                    'BL' => (string) ($r->voyage_bl ?? ''),
-                    'ETD' => $r->voyage_etd ? Carbon::parse($r->voyage_etd)->toDateString() : '',
-                    'ETA' => $r->voyage_eta ? Carbon::parse($r->voyage_eta)->toDateString() : '',
-                    'Factory' => (string) ($r->voyage_factory ?? ''),
-                    'Hs Code' => (string) ($r->hs_code ?? ''),
-                    'Status' => (string) (($r->sap_order_status ?? '') !== '' ? $r->sap_order_status : ($r->voyage_status ?? '')),
-                    'Status Quota' => $quotaStatus,
-                    'Quota No.' => $quotaNo,
-                    'Issue Date' => $quotaIssue,
-                    'Expired' => $quotaExpired,
-                    'Remark' => (string) ($r->voyage_remark ?? ''),
-                    '_sort_po' => (string) ($r->po_number ?? ''),
-                    '_sort_line' => (int) ($r->line_no ?? 0),
-                    '_sort_seq' => 0,
-                ];
-            }
-        }
+        // Build rows to match the Voyage page (parent + splits). Read-only.
+        $year = (int) ($request->query('year') ?: now()->year);
+        $rows = $this->buildVoyageLikeRows($year)->all();
 
         // Final ordering: by PO, then Line No, then seq (base first, then splits)
         usort($rows, function (array $a, array $b) {
@@ -286,6 +78,186 @@ class FinalReportController extends Controller
         };
 
         return Response::stream($callback, 200, $headers);
+    }
+
+    protected function buildVoyageLikeRows(int $year): \Illuminate\Support\Collection
+    {
+        $yearStart = Carbon::create($year, 1, 1)->toDateString();
+        $yearEnd   = Carbon::create($year, 12, 31)->toDateString();
+
+        // Pull parent + split rows (one row per vs.id, plus a parent row when no split)
+        $rows = DB::table('po_lines as pl')
+            ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
+            ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
+            ->leftJoin('po_line_voyage_splits as vs', 'vs.po_line_id', '=', 'pl.id')
+            ->whereBetween('ph.po_date', [$yearStart, $yearEnd])
+            ->orderBy('ph.po_number')
+            ->orderBy('pl.line_no')
+            ->orderBy('vs.seq_no')
+            ->get([
+                'pl.id as line_id',
+                'ph.po_number', 'ph.po_date', 'ph.supplier', 'ph.note as header_text',
+                'pl.line_no', 'pl.model_code as material', 'pl.item_desc',
+                'pl.qty_ordered', 'pl.eta_date', 'pl.warehouse_code', 'pl.warehouse_name', 'pl.storage_location', 'pl.sap_order_status',
+                'pl.voyage_bl', 'pl.voyage_etd', 'pl.voyage_eta', 'pl.voyage_factory', 'pl.voyage_status', 'pl.voyage_remark',
+                'hs.hs_code',
+                'vs.id as split_id', 'vs.seq_no', 'vs.qty as split_qty',
+                'vs.voyage_bl as split_bl', 'vs.voyage_etd as split_etd', 'vs.voyage_eta as split_eta',
+                'vs.voyage_factory as split_factory', 'vs.voyage_status as split_status', 'vs.voyage_remark as split_remark',
+            ]);
+
+        if ($rows->isEmpty()) {
+            return collect();
+        }
+
+        // GR per line (sum across all dates) using normalized line number
+        $poNumbers = $rows->pluck('po_number')->filter()->unique()->values();
+        $grIndex = [];
+        if ($poNumbers->isNotEmpty()) {
+            $grRows = DB::table('gr_receipts as gr')
+                ->whereIn('gr.po_no', $poNumbers)
+                ->select(['gr.po_no', 'gr.line_no', DB::raw('SUM(gr.qty) as total_qty')])
+                ->groupBy('gr.po_no', 'gr.line_no')
+                ->get();
+            foreach ($grRows as $g) {
+                $po = (string) $g->po_no;
+                $ln = preg_replace('/^0+/', '', (string) ($g->line_no ?? ''));
+                $grIndex[$po][$ln] = (float) ($grIndex[$po][$ln] ?? 0) + (float) ($g->total_qty ?? 0);
+            }
+        }
+
+        // Sum split qty per line and collect a representative parent row per line
+        $sumSplitByLine = [];
+        $parentByLine = [];
+        foreach ($rows as $r) {
+            $parentByLine[$r->line_id] = $r; // keep last as parent reference
+            if (!empty($r->split_id)) {
+                $sumSplitByLine[$r->line_id] = (float) ($sumSplitByLine[$r->line_id] ?? 0) + (float) ($r->split_qty ?? 0);
+            }
+        }
+
+        $out = [];
+        $linesWithSplit = [];
+        foreach ($rows as $r) {
+            $po = (string) ($r->po_number ?? '');
+            $lineNo = (string) ($r->line_no ?? '');
+            $lineNorm = preg_replace('/^0+/', '', $lineNo);
+            $parentQty = (float) ($r->qty_ordered ?? 0);
+            $totalGr = (float) ($grIndex[$po][$lineNorm] ?? 0);
+            $hasSplit = !empty($r->split_id) || (isset($sumSplitByLine[$r->line_id]) && $sumSplitByLine[$r->line_id] > 0);
+
+            // Build a row per split; if no split for this parent line_id at all, emit one parent row
+            if (!empty($r->split_id)) {
+                $sq = (float) ($r->split_qty ?? 0);
+                $sumForLine = max((float) ($sumSplitByLine[$r->line_id] ?? 0), 0.00001);
+                $alloc = min($sq, ($totalGr * ($sq / $sumForLine)));
+                $outstanding = max($sq - $alloc, 0.0);
+                $linesWithSplit[$r->line_id] = true;
+
+                $out[] = [
+                    // Month for split row is derived from split ETA/ETD (fallback parent ETA/PO date)
+                    'Month' => ($r->split_eta ? Carbon::parse($r->split_eta)->format('M') : ($r->split_etd ? Carbon::parse($r->split_etd)->format('M') : ($r->eta_date ? Carbon::parse($r->eta_date)->format('M') : ($r->po_date ? Carbon::parse($r->po_date)->format('M') : '')))),
+                    'Purchasing Doc. Type' => '',
+                    'Vendor/supplying plant' => (string) ($r->supplier ?? ''),
+                    'Purchasing Document' => $po,
+                    'Material' => (string) ($r->material ?? ''),
+                    'Plant' => (string) (($r->warehouse_code ?? '') !== '' ? $r->warehouse_code : ($r->warehouse_name ?? '')),
+                    'Storage Location' => (string) ($r->storage_location ?? ''),
+                    'Order Quantity' => $sq,
+                    'Still to be invoiced (qty)' => $outstanding,
+                    'Still to be delivered (qty)' => $outstanding,
+                    'Delivery Date' => $r->split_eta ? Carbon::parse($r->split_eta)->toDateString() : ($r->eta_date ? Carbon::parse($r->eta_date)->toDateString() : ''),
+                    'Document Date' => $r->po_date ? Carbon::parse($r->po_date)->toDateString() : '',
+                    'header text' => (string) ($r->header_text ?? ''),
+                    'BL' => (string) ($r->split_bl ?? ''),
+                    'ETD' => $r->split_etd ? Carbon::parse($r->split_etd)->toDateString() : '',
+                    'ETA' => $r->split_eta ? Carbon::parse($r->split_eta)->toDateString() : '',
+                    'Factory' => (string) ($r->split_factory ?? ''),
+                    'Hs Code' => (string) ($r->hs_code ?? ''),
+                    'Status' => (string) (($r->sap_order_status ?? '') !== '' ? $r->sap_order_status : ($r->split_status ?? '')),
+                    'Status Quota' => '',
+                    'Quota No.' => '',
+                    'Issue Date' => '',
+                    'Expired' => '',
+                    'Remark' => (string) (($r->split_remark ?? '') !== '' ? $r->split_remark : ''),
+                    '_sort_po' => $po,
+                    '_sort_line' => (int) ($r->line_no ?? 0),
+                    '_sort_seq' => (int) ($r->seq_no ?? 0),
+                ];
+            } elseif (!$hasSplit) {
+                // Unsplitted line: emit parent row once
+                $outstanding = max($parentQty - $totalGr, 0.0);
+                $out[] = [
+                    // Month for base (unsplit) row follows current behavior: prefer ETA month
+                    'Month' => ($r->eta_date ? Carbon::parse($r->eta_date)->format('M') : ($r->po_date ? Carbon::parse($r->po_date)->format('M') : '')),
+                    'Purchasing Doc. Type' => '',
+                    'Vendor/supplying plant' => (string) ($r->supplier ?? ''),
+                    'Purchasing Document' => $po,
+                    'Material' => (string) ($r->material ?? ''),
+                    'Plant' => (string) (($r->warehouse_code ?? '') !== '' ? $r->warehouse_code : ($r->warehouse_name ?? '')),
+                    'Storage Location' => (string) ($r->storage_location ?? ''),
+                    'Order Quantity' => $parentQty,
+                    'Still to be invoiced (qty)' => $outstanding,
+                    'Still to be delivered (qty)' => $outstanding,
+                    'Delivery Date' => $r->eta_date ? Carbon::parse($r->eta_date)->toDateString() : '',
+                    'Document Date' => $r->po_date ? Carbon::parse($r->po_date)->toDateString() : '',
+                    'header text' => (string) ($r->header_text ?? ''),
+                    'BL' => (string) ($r->voyage_bl ?? ''),
+                    'ETD' => $r->voyage_etd ? Carbon::parse($r->voyage_etd)->toDateString() : '',
+                    'ETA' => ($r->voyage_eta ? Carbon::parse($r->voyage_eta)->toDateString() : ($r->eta_date ? Carbon::parse($r->eta_date)->toDateString() : '')),
+                    'Factory' => (string) ($r->voyage_factory ?? ''),
+                    'Hs Code' => (string) ($r->hs_code ?? ''),
+                    'Status' => (string) ($r->sap_order_status ?? ''),
+                    'Status Quota' => '',
+                    'Quota No.' => '',
+                    'Issue Date' => '',
+                    'Expired' => '',
+                    'Remark' => '',
+                    '_sort_po' => $po,
+                    '_sort_line' => (int) ($r->line_no ?? 0),
+                    '_sort_seq' => 0,
+                ];
+            }
+        }
+
+        // For lines that have splits, emit a base remaining row if parent qty > sum(split qty)
+        foreach ($parentByLine as $lineId => $parent) {
+            if (empty($linesWithSplit[$lineId])) { continue; }
+            $po = (string) ($parent->po_number ?? '');
+            $baseQty = max((float) ($parent->qty_ordered ?? 0) - (float) ($sumSplitByLine[$lineId] ?? 0), 0.0);
+            if ($baseQty <= 0) { continue; }
+            $out[] = [
+                'Month' => ($parent->eta_date ? Carbon::parse($parent->eta_date)->format('M') : ($parent->po_date ? Carbon::parse($parent->po_date)->format('M') : '')),
+                'Purchasing Doc. Type' => '',
+                'Vendor/supplying plant' => (string) ($parent->supplier ?? ''),
+                'Purchasing Document' => $po,
+                'Material' => (string) ($parent->material ?? ''),
+                'Plant' => (string) (($parent->warehouse_code ?? '') !== '' ? $parent->warehouse_code : ($parent->warehouse_name ?? '')),
+                'Storage Location' => (string) ($parent->storage_location ?? ''),
+                'Order Quantity' => $baseQty,
+                'Still to be invoiced (qty)' => $baseQty,
+                'Still to be delivered (qty)' => $baseQty,
+                'Delivery Date' => $parent->eta_date ? Carbon::parse($parent->eta_date)->toDateString() : '',
+                'Document Date' => $parent->po_date ? Carbon::parse($parent->po_date)->toDateString() : '',
+                'header text' => (string) ($parent->header_text ?? ''),
+                'BL' => (string) ($parent->voyage_bl ?? ''),
+                'ETD' => $parent->voyage_etd ? Carbon::parse($parent->voyage_etd)->toDateString() : '',
+                'ETA' => ($parent->voyage_eta ? Carbon::parse($parent->voyage_eta)->toDateString() : ($parent->eta_date ? Carbon::parse($parent->eta_date)->toDateString() : '')),
+                'Factory' => (string) ($parent->voyage_factory ?? ''),
+                'Hs Code' => (string) ($parent->hs_code ?? ''),
+                'Status' => (string) ($parent->sap_order_status ?? ''),
+                'Status Quota' => '',
+                'Quota No.' => '',
+                'Issue Date' => '',
+                'Expired' => '',
+                'Remark' => (string) ($parent->voyage_remark ?? ''),
+                '_sort_po' => $po,
+                '_sort_line' => (int) ($parent->line_no ?? 0),
+                '_sort_seq' => 0,
+            ];
+        }
+
+        return collect($out);
     }
 
     /**
