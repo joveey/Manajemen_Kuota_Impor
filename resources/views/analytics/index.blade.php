@@ -44,19 +44,6 @@
             $selectedPk = $selected_pk ?? '';
         @endphp
         <form method="GET" action="{{ route('analytics.index') }}" class="analytics-filters">
-            <input type="hidden" name="mode" value="{{ $mode }}">
-
-            <div class="analytics-filters__group">
-                <label for="pk" class="analytics-filters__label">PK Range</label>
-                <select id="pk" name="pk" class="analytics-filters__input">
-                    <option value="" {{ $selectedPk === '' ? 'selected' : '' }}>All</option>
-                    @foreach($pkOptions as $opt)
-                        @php $val = (string) $opt; $disp = preg_match('/pk|acc/i',$val) ? $val : ($val.' PK'); @endphp
-                        <option value="{{ $val }}" {{ $selectedPk === $val ? 'selected' : '' }}>{{ $disp }}</option>
-                    @endforeach
-                </select>
-            </div>
-
             <div class="analytics-filters__group">
                 <label for="year" class="analytics-filters__label">Year</label>
                 <select id="year" name="year" class="analytics-filters__input">
@@ -69,10 +56,7 @@
                 <i class="fas fa-filter me-2"></i>Apply
             </button>
         </form>
-        <div class="analytics-mode">
-            <a href="{{ $forecastUrl }}" class="analytics-mode__chip {{ $isForecast ? 'analytics-mode__chip--active' : '' }}">Forecast</a>
-            <a href="{{ $actualUrl }}" class="analytics-mode__chip {{ $isForecast ? '' : 'analytics-mode__chip--active' }}">Actual</a>
-        </div>
+        {{-- Forecast/Actual filter removed from global header. Toggle moved to chart header. --}}
     </section>
 
     
@@ -136,8 +120,12 @@
     <section class="analytics-grid">
         <article class="analytics-card">
             <header class="analytics-card__header">
-                <h2 class="analytics-card__title">Quota vs {{ $modeLabel }} Comparison</h2>
-                <span class="analytics-card__badge">{{ $modeLabel }} Based</span>
+                <h2 class="analytics-card__title">Quota vs <span id="chartModeTitle">{{ $modeLabel }}</span> Comparison</h2>
+                <div class="analytics-mode">
+                    <button type="button" id="modeChipForecast" class="analytics-mode__chip {{ $isForecast ? 'analytics-mode__chip--active' : '' }}">Forecast</button>
+                    <button type="button" id="modeChipActual" class="analytics-mode__chip {{ $isForecast ? '' : 'analytics-mode__chip--active' }}">Actual</button>
+                    <span class="analytics-card__badge" id="chartModeBadge" style="margin-left:8px;">{{ $modeLabel }} Based</span>
+                </div>
             </header>
             <div id="analyticsBar" class="analytics-card__chart"></div>
         </article>
@@ -148,8 +136,12 @@
     <!-- Move second chart (Donut) to the bottom -->
     <section class="analytics-card">
         <header class="analytics-card__header">
-            <h2 class="analytics-card__title">{{ $modeLabel }} Usage Proportion</h2>
-            <span class="analytics-card__badge analytics-card__badge--muted">Donut</span>
+            <h2 class="analytics-card__title"><span id="donutModeTitle">{{ $modeLabel }}</span> Usage Proportion</h2>
+            <div class="analytics-mode">
+                <button type="button" id="modeChipForecast2" class="analytics-mode__chip {{ $isForecast ? 'analytics-mode__chip--active' : '' }}">Forecast</button>
+                <button type="button" id="modeChipActual2" class="analytics-mode__chip {{ $isForecast ? '' : 'analytics-mode__chip--active' }}">Actual</button>
+                <span class="analytics-card__badge analytics-card__badge--muted" style="margin-left:8px;">Donut</span>
+            </div>
         </header>
         <div id="analyticsDonut" class="analytics-card__chart"></div>
     </section>

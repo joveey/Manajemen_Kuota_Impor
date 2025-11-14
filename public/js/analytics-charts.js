@@ -35,7 +35,9 @@
     return arr.map(function(x){ return normalizeLabel(x); });
   }
 
-  function renderBar(el, data){ if(!el || !window.ApexCharts) return; new ApexCharts(el, {
+  function renderBar(el, data){
+    if(!el || !window.ApexCharts) return null;
+    var chart = new ApexCharts(el, {
       chart:{ type:'bar', height: el.clientHeight || 320, animations:{enabled:true} },
       series: normalizeSeries(data.series || []),
       xaxis: { categories: data.categories || [] },
@@ -43,16 +45,24 @@
       dataLabels: { enabled: false },
       legend: { position: 'bottom' },
       colors: ['#60a5fa','#2563eb']
-  }).render(); }
+    });
+    chart.render();
+    return chart;
+  }
 
-  function renderDonut(el, data){ if(!el || !window.ApexCharts) return; new ApexCharts(el, {
+  function renderDonut(el, data){
+    if(!el || !window.ApexCharts) return null;
+    var chart = new ApexCharts(el, {
       chart:{ type:'donut', height: el.clientHeight || 320, animations:{enabled:true} },
       series: (data && data.series) || [0,0],
       labels: normalizeLabels((data && data.labels) || ['Actual','Remaining']),
       legend: { position: 'bottom' },
       dataLabels: { enabled:false },
       colors: ['#2563eb','#94a3b8']
-  }).render(); }
+    });
+    chart.render();
+    return chart;
+  }
 
   function escapeHtml(value){
     if (value === null || value === undefined) return '';
@@ -123,46 +133,131 @@
     }catch(e){}
   }
 
+  function setText(id, text){ var el = document.getElementById(id); if(el) el.textContent = text; }
+
+  function updateQuery(url, param, value){
+    try {
+      var u = new URL(url, window.location.origin);
+      if (value === null || value === undefined || value === '') {
+        u.searchParams.delete(param);
+      } else {
+        u.searchParams.set(param, value);
+      }
+      return u.toString();
+    } catch(e){
+      // Fallback for relative URLs without base
+      var hasQ = url.indexOf('?') !== -1;
+      var base = url.split('#')[0];
+      var hash = url.indexOf('#') !== -1 ? url.slice(url.indexOf('#')) : '';
+      var params = (hasQ ? base.split('?')[1] : '') || '';
+      var path = hasQ ? base.split('?')[0] : base;
+      var sp = new URLSearchParams(params);
+      if (value === null || value === undefined || value === '') sp.delete(param); else sp.set(param, value);
+      var qs = sp.toString();
+      return path + (qs ? ('?' + qs) : '') + hash;
+    }
+  }
+
   window.initAnalyticsCharts = function(cfg){
     ready(function(){
       var barEl = q(cfg.barElId || 'analyticsBar');
       var donutEl = q(cfg.donutElId || 'analyticsDonut');
       var dataUrl = cfg.dataUrl;
       var tbodyId = cfg.tableBodyId || 'analyticsTableBody';
-      var defaultMode = cfg.mode || 'actual';
+      var currentMode = (cfg.mode || 'actual');
       var defaultLabels = cfg.labels || {};
-      if(!dataUrl){ fillTable(tbodyId, [], defaultMode, defaultLabels); return; }
+      var barChart = null; var donutChart = null;
 
-      fetch(dataUrl, { headers: { 'Accept':'application/json' }})
-        .then(function(r){ return r.json(); })
-        .then(function(json){
-          try{ renderBar(barEl, json.bar || {}); }catch(e){}
-          try{ renderDonut(donutEl, json.donut || {}); }catch(e){}
-          try{
-            fillTable(
-              tbodyId,
-              json.table || [],
-              json.mode || defaultMode,
-              json.labels || defaultLabels
-            );
-          }catch(e){}
-          try{ fillHsPkSummary('hsPkSummaryBody', (json.summary && json.summary.hs_pk) ? json.summary.hs_pk : {rows:[]}); }catch(e){}
-          try {
-            var sum = json.summary || {};
-            var nf = function(n){ n = Number(n)||0; return n.toLocaleString(); };
-            var byId = function(id){ return document.getElementById(id); };
-            var m = {
-              kpiAllocation: sum.total_allocation,
-              kpiForecast: sum.total_forecast_consumed,
-              kpiActual: sum.total_actual_consumed,
-              kpiInTransit: sum.total_in_transit,
-              kpiForecastRem: sum.total_forecast_remaining,
-              kpiActualRem: sum.total_actual_remaining
-            };
-            Object.keys(m).forEach(function(k){ var el = byId(k); if(el) el.textContent = nf(m[k]); });
-          } catch(e){}
-        })
-        .catch(function(){ fillTable(tbodyId, [], defaultMode, defaultLabels); });
+      function renderAll(json){
+        try{ if (barChart && barChart.destroy) { barChart.destroy(); } }catch(e){}
+        try{ if (donutChart && donutChart.destroy) { donutChart.destroy(); } }catch(e){}
+        if (barEl) { barEl.innerHTML = ''; }
+        if (donutEl) { donutEl.innerHTML = ''; }
+        try{ barChart = renderBar(barEl, json.bar || {}); }catch(e){}
+        try{ donutChart = renderDonut(donutEl, json.donut || {}); }catch(e){}
+      }
+
+      function applyModeUI(mode){
+        var titleMode = mode === 'forecast' ? 'Forecast' : 'Actual';
+        setText('chartModeTitle', titleMode);
+        setText('chartModeBadge', titleMode + ' Based');
+        setText('donutModeTitle', titleMode);
+        var f = q('modeChipForecast'); var a = q('modeChipActual');
+        var f2 = q('modeChipForecast2'); var a2 = q('modeChipActual2');
+        var sets = [ [f,a], [f2,a2] ];
+        sets.forEach(function(pair){
+          var pf = pair[0], pa = pair[1];
+          if (!pf || !pa) return;
+          if (mode === 'forecast') {
+            pf.classList.add('analytics-mode__chip--active');
+            pa.classList.remove('analytics-mode__chip--active');
+          } else {
+            pa.classList.add('analytics-mode__chip--active');
+            pf.classList.remove('analytics-mode__chip--active');
+          }
+        });
+      }
+
+      function loadInitial(){
+        if(!dataUrl){ fillTable(tbodyId, [], currentMode, defaultLabels); return; }
+        fetch(dataUrl, { headers: { 'Accept':'application/json' }})
+          .then(function(r){ return r.json(); })
+          .then(function(json){
+            renderAll(json);
+            try{
+              fillTable(
+                tbodyId,
+                json.table || [],
+                json.mode || currentMode,
+                json.labels || defaultLabels
+              );
+            }catch(e){}
+            try{ fillHsPkSummary('hsPkSummaryBody', (json.summary && json.summary.hs_pk) ? json.summary.hs_pk : {rows:[]}); }catch(e){}
+            try {
+              var sum = json.summary || {};
+              var nf = function(n){ n = Number(n)||0; return n.toLocaleString(); };
+              var byId = function(id){ return document.getElementById(id); };
+              var m = {
+                kpiAllocation: sum.total_allocation,
+                kpiForecast: sum.total_forecast_consumed,
+                kpiActual: sum.total_actual_consumed,
+                kpiInTransit: sum.total_in_transit,
+                kpiForecastRem: sum.total_forecast_remaining,
+                kpiActualRem: sum.total_actual_remaining
+              };
+              Object.keys(m).forEach(function(k){ var el = byId(k); if(el) el.textContent = nf(m[k]); });
+            } catch(e){}
+            applyModeUI(json.mode || currentMode);
+            currentMode = json.mode || currentMode;
+          })
+          .catch(function(){ fillTable(tbodyId, [], currentMode, defaultLabels); });
+      }
+
+      function switchMode(mode){
+        currentMode = (mode === 'forecast' || mode === 'actual') ? mode : 'actual';
+        applyModeUI(currentMode);
+        var url = updateQuery(dataUrl, 'mode', currentMode);
+        fetch(url, { headers: { 'Accept':'application/json' }})
+          .then(function(r){ return r.json(); })
+          .then(function(json){
+            renderAll(json); // Only charts should refresh on toggle
+            // Do not touch table/KPI on mode switch per requirement
+          })
+          .catch(function(){ /* ignore */ });
+      }
+
+      var fBtn = q('modeChipForecast');
+      var aBtn = q('modeChipActual');
+      var fBtn2 = q('modeChipForecast2');
+      var aBtn2 = q('modeChipActual2');
+      if (fBtn) fBtn.addEventListener('click', function(){ switchMode('forecast'); });
+      if (aBtn) aBtn.addEventListener('click', function(){ switchMode('actual'); });
+      if (fBtn2) fBtn2.addEventListener('click', function(){ switchMode('forecast'); });
+      if (aBtn2) aBtn2.addEventListener('click', function(){ switchMode('actual'); });
+
+      // Initial load
+      applyModeUI(currentMode);
+      loadInitial();
     });
   };
 })();
