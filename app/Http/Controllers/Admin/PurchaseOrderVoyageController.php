@@ -270,9 +270,21 @@ class PurchaseOrderVoyageController extends Controller
                 foreach ($splits as $sp) {
                     $sid = (int) ($sp['id'] ?? 0);
                     $delete = (bool) ($sp['delete'] ?? false);
-                    // Build base data; avoid overriding qty/seq_no unless provided
+
+                    $parentLineId = (int) ($sp['line_id'] ?? 0);
+                    if ($parentLineId <= 0) { continue; }
+
+                    // Lock parent line to compute current remaining and enforce invariants (never update parent qty)
+                    $parentLine = DB::table('po_lines')->where('id', $parentLineId)->lockForUpdate()->first();
+                    if (!$parentLine) { continue; }
+                    $existingSum = (float) DB::table('po_line_voyage_splits')
+                        ->where('po_line_id', $parentLineId)
+                        ->sum('qty');
+                    $orderedQty = (float) ($parentLine->qty_ordered ?? 0);
+
+                    // Build base data (always use parent po_line_id)
                     $data = [
-                        'po_line_id' => (int) ($sp['line_id'] ?? 0),
+                        'po_line_id' => $parentLineId,
                         'voyage_bl' => ($sp['bl'] ?? '') !== '' ? trim((string)$sp['bl']) : null,
                         'voyage_etd' => null,
                         'voyage_eta' => null,
@@ -284,7 +296,6 @@ class PurchaseOrderVoyageController extends Controller
                     if (array_key_exists('seq_no', $sp)) {
                         $data['seq_no'] = (int) max((int) $sp['seq_no'], 1);
                     }
-                    // Only update qty when explicitly provided
                     if (array_key_exists('qty', $sp)) {
                         $q = (float) $sp['qty'];
                         if ($sid > 0) {
@@ -293,7 +304,6 @@ class PurchaseOrderVoyageController extends Controller
                             $data['qty'] = max($q, 0);
                         }
                     }
-                    // normalize split dates
                     foreach (['etd' => 'voyage_etd', 'eta' => 'voyage_eta'] as $src => $dst) {
                         $val = $sp[$src] ?? null;
                         if (is_string($val)) { $val = trim($val); }
@@ -309,17 +319,50 @@ class PurchaseOrderVoyageController extends Controller
                             } catch (\Throwable $e) { $data[$dst] = null; }
                         }
                     }
+
                     if ($sid > 0 && $delete) {
-                        DB::table('po_line_voyage_splits')->where('id', $sid)->delete();
+                        // Delete split only; parent qty_ordered stays unchanged
+                        $splitRow = DB::table('po_line_voyage_splits')
+                            ->where('id', $sid)
+                            ->where('po_line_id', $parentLineId)
+                            ->first();
+                        if ($splitRow) {
+                            DB::table('po_line_voyage_splits')->where('id', $sid)->delete();
+                        }
                         continue;
                     }
                     if ($sid > 0) {
+                        // Update split quantity with validation against remaining; do not touch parent qty
+                        $prev = DB::table('po_line_voyage_splits')
+                            ->where('id', $sid)
+                            ->where('po_line_id', $parentLineId)
+                            ->lockForUpdate()
+                            ->first();
+                        if (!$prev) { continue; }
+                        $prevQty = (float) ($prev->qty ?? 0);
+                        if (array_key_exists('qty', $sp)) {
+                            $raw = $sp['qty'];
+                            // If user didn't touch qty (empty/null), skip qty update
+                            if (!($raw === '' || $raw === null)) {
+                                $newQty = (float) $raw;
+                                if ($newQty > 0) {
+                                    $sumOther = max(0, $existingSum - $prevQty); // other splits on this line
+                                    $cap = max(0, $orderedQty - $sumOther);
+                                    if ($newQty > $cap) { $newQty = $cap; }
+                                    $data['qty'] = $newQty;
+                                }
+                                // If <= 0 and not explicitly deleting, keep previous qty (no-op)
+                            }
+                        }
                         DB::table('po_line_voyage_splits')->where('id', $sid)->update($data);
                     } else {
-                        // For insert: require qty present and > 0
-                        if (!array_key_exists('qty', $sp) || (float) $sp['qty'] <= 0) {
-                            continue;
-                        }
+                        // Insert new split against remaining parent
+                        if (!array_key_exists('qty', $sp) || (float) $sp['qty'] <= 0) { continue; }
+                        $splitQty = max(0, (float) $sp['qty']);
+                        $remainingBefore = max(0, $orderedQty - $existingSum);
+                        if ($splitQty > $remainingBefore) { $splitQty = $remainingBefore; }
+                        if ($splitQty <= 0) { continue; }
+                        $data['qty'] = $splitQty;
                         if (!array_key_exists('seq_no', $sp)) { $data['seq_no'] = 1; }
                         $data['created_at'] = now();
                         $data['created_by'] = auth()->id();
