@@ -973,8 +973,8 @@
                 <strong style="font-size: 16px; font-weight: 700;">PK Bucket KPIs</strong>
                 <span class="activity-card__subtitle">Track allocation and consumption per PK bucket.</span>
             </div>
-            @if(\Illuminate\Support\Facades\Route::has('admin.quotas.index'))
-                <a href="{{ route('admin.quotas.index') }}" class="kpi-card__action">Manage Quota</a>
+            @if(\Illuminate\Support\Facades\Route::has('admin.imports.quotas.index'))
+                <a href="{{ route('admin.imports.quotas.index') }}" class="kpi-card__action">Manage Quota</a>
             @endif
         </div>
         <div class="card-body">
