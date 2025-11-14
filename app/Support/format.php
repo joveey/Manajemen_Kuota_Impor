@@ -60,6 +60,8 @@ if (! function_exists('audit_route_label')) {
             'page' => 'Page',
             'export' => 'Export',
             'import' => 'Import',
+            'bulk' => 'Bulk Update',
+            'move' => 'Move Split Quota',
         ];
 
         // Pick action from right-most known token
@@ -177,6 +179,29 @@ if (! function_exists('audit_activity_label')) {
             if ($parts) { $extra = implode(' • ', $parts); }
         }
 
+        // Purchase Orders Voyage Bulk/Move: add concise counts if available
+        if (in_array('purchase-orders', $lower, true) && in_array('voyage', $lower, true)) {
+            // Try to infer from payload keys
+            $parts = [];
+            if (isset($desc['saved_rows']) && is_numeric($desc['saved_rows'])) {
+                $parts[] = 'Lines updated: '.(int)$desc['saved_rows'];
+            } elseif (isset($desc['rows']) && is_array($desc['rows'])) {
+                $parts[] = 'Lines submitted: '.count($desc['rows']);
+            }
+            if (isset($desc['splits']) && is_array($desc['splits'])) {
+                $ins = $upd = $del = 0;
+                foreach ($desc['splits'] as $sp) {
+                    $sid = (int)($sp['id'] ?? 0);
+                    $isDel = (bool)($sp['delete'] ?? false);
+                    if ($sid > 0 && $isDel) { $del++; }
+                    elseif ($sid > 0) { $upd++; }
+                    elseif (!empty($sp)) { $ins++; }
+                }
+                $parts[] = 'Splits: add '.$ins.' upd '.$upd.' del '.$del;
+            }
+            if ($parts) { $extra = implode(' • ', $parts); }
+        }
+
         // Users
         if (isset($set['users'])) {
             if (!empty($desc['name'])) {
@@ -198,7 +223,7 @@ if (! function_exists('audit_page_label')) {
             $tokens = array_values(array_filter(explode('.', $route), function ($t) {
                 return $t !== '' && !in_array($t, ['admin','api','web'], true);
             }));
-            $actionTokens = ['index','create','store','edit','update','destroy','delete','show','upload','preview','publish','form','page','export','import'];
+            $actionTokens = ['index','create','store','edit','update','destroy','delete','show','upload','preview','publish','form','page','export','import','bulk','move'];
             $lower = array_map('strtolower', $tokens);
             $set = array_flip($lower);
             if ((isset($set['hs_pk']) || isset($set['hs-pk'])) && isset($set['manual'])) {

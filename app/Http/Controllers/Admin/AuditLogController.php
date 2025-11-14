@@ -261,7 +261,9 @@ class AuditLogController extends Controller
                 case 'CREATE':
                 case 'TAMBAH':
                 case 'MENAMBAH':
-                    $query->where('method', 'POST');
+                    // Only data-creation POSTs. Exclude login submissions which are also POST /login
+                    $query->where('method', 'POST')
+                          ->where('path', 'not like', '/login%');
                     break;
                 case 'UPDATE':
                 case 'UBAH':
