@@ -200,8 +200,12 @@
                             default => 'Waiting for SAP confirmation',
                         };
                     @endphp
+                    @php $rid = 'shp-'.$shipment->id; @endphp
                     <tr>
-                        <td>{{ $loop->iteration }}</td>
+                        <td class="shp-qn">
+                            <i class="fas fa-chevron-right me-1 text-muted shp-caret" aria-hidden="true" style="cursor:pointer" data-target="{{ $rid }}"></i>
+                            {{ $loop->iteration }}
+                        </td>
                         <td>
                             <strong>{{ $shipment->shipment_number }}</strong>
                             @if($shipment->auto_generated)
@@ -224,12 +228,15 @@
                             <span class="status-chip {{ $statusBadge }}">{{ $statusLabel }}</span>
                         </td>
                         <td class="text-end">
-                            <span class="shipment-table__subtext">{{ $confirmationMessage }}</span>
+                            <div style="display:inline-flex; align-items:center; gap:10px; justify-content:flex-end;">
+                                <span class="shipment-table__subtext">{{ $confirmationMessage }}</span>
+                                <button type="button" class="shp-btn-details shp-toggle" data-target="{{ $rid }}">Details</button>
+                            </div>
                         </td>
                     </tr>
-                    <tr>
-                        <td colspan="10">
-                            <div class="status-history-card">
+                    <tr id="{{ $rid }}" class="shp-detail" style="display:none; background:#f8fafc">
+                        <td colspan="10" class="p-0">
+                            <div class="status-history-card" style="margin:10px 14px;">
                                 <div class="status-history-header">
                                     <span class="status-history-title">Status History</span>
                                     <span class="status-history-badge">{{ $shipment->statusLogs->count() }} records</span>
@@ -259,3 +266,46 @@
 </div>
 @endsection
 
+@push('styles')
+<style>
+.shp-btn-details{ border:1px solid #3b82f6; color:#1d4ed8; background:rgba(59,130,246,0.08); border-radius:999px; padding:6px 12px; font-size:12px; font-weight:700; }
+.shp-btn-details:hover{ background:#2563eb; color:#fff; }
+.shp-detail{ border-top:1px solid #eef2fb; }
+.shp-qn{ white-space:nowrap; }
+.shp-caret{ transition: transform .2s ease; }
+.shp-caret.open{ transform: rotate(90deg); }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+(function(){
+  function hideAll(){ document.querySelectorAll('.shp-detail').forEach(function(el){ el.style.display='none'; }); }
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('.shp-toggle');
+    if(!btn) return;
+    var id = btn.getAttribute('data-target');
+    if(!id) return;
+    var el = document.getElementById(id);
+    if(!el) return;
+    var open = el.style.display !== 'none';
+    hideAll();
+    // reset carets
+    document.querySelectorAll('.shp-caret').forEach(function(c){ c.classList.remove('open'); });
+    el.style.display = open ? 'none' : '';
+    // toggle caret for this row
+    var caret = document.querySelector('.shp-caret[data-target="'+id+'"]');
+    if(caret && !open){ caret.classList.add('open'); }
+  });
+  // caret click also toggles
+  document.addEventListener('click', function(e){
+    var caret = e.target.closest('.shp-caret');
+    if(!caret) return;
+    var id = caret.getAttribute('data-target');
+    if(!id) return;
+    var btn = document.querySelector('.shp-toggle[data-target="'+id+'"]');
+    if(btn){ btn.click(); }
+  });
+})();
+</script>
+@endpush

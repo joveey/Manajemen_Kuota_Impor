@@ -14,7 +14,7 @@
     $canCreate = auth()->user()?->can('product.create');
 @endphp
 
-<div class="container-fluid px-0">
+<div class="am-shell container-fluid px-0">
     <div class="mb-4">
         <h1 class="h4 mb-2">Manual Model &gt; HS Entry</h1>
         <p class="text-muted mb-0">
@@ -31,11 +31,11 @@
 
     <div class="row gy-3">
         <div class="col-12">
-            <div class="card shadow-sm">
-                <div class="card-header fw-semibold">
-                    Form Input Manual
+            <div class="am-card">
+                <div class="am-card__header">
+                    <div class="am-card__title">Form Input Manual</div>
                 </div>
-                <div class="card-body">
+                <div class="am-card__body">
                     @if (!$canCreate)
                         <div class="alert alert-danger mb-0">
                             Access Denied (403): You do not have permission to add HS mappings.
@@ -54,17 +54,17 @@
         </div>
 
         <div class="col-xl-8">
-            <div class="card shadow-sm h-100">
-                <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-                    <span>Recent Activity</span>
-                    <a href="{{ route('admin.mapping.mapped.page') }}" class="btn btn-sm btn-outline-secondary">
+            <div class="am-card h-100">
+                <div class="am-card__header d-flex justify-content-between align-items-center">
+                    <div class="am-card__title">Recent Activity</div>
+                    <a href="{{ route('admin.mapping.mapped.page') }}" class="am-btn am-btn--ghost am-btn--sm">
                         <i class="fas fa-table-list me-1"></i> View Mapping
                     </a>
                 </div>
-                <div class="card-body p-0">
+                <div class="am-card__body p-0">
                     <div class="table-responsive">
-                        <table class="table mb-0">
-                            <thead class="table-light">
+                        <table class="am-table mb-0">
+                            <thead>
                                 <tr>
                                     <th>Model/SKU</th>
                                     <th>HS Code</th>
@@ -98,16 +98,16 @@
                         </table>
                     </div>
                 </div>
-                <div class="card-footer text-muted small">
+                <div class="am-card__footer text-muted small">
                     Showing {{ $recent->count() }} most recently updated models.
                 </div>
             </div>
         </div>
 
         <div class="col-xl-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-header fw-semibold">Suggested Format</div>
-                <div class="card-body">
+            <div class="am-card h-100">
+                <div class="am-card__header"><div class="am-card__title">Suggested Format</div></div>
+                <div class="am-card__body">
                     <ul class="mb-0">
                         <li>Enter <code>Model/SKU</code> exactly as it appears in the product master.</li>
                         <li>The HS Code must already have a PK in the HS &rarr; PK master.</li>
@@ -121,3 +121,26 @@
 </div>
 @endsection
 
+@push('styles')
+<style>
+.am-card{ border:1px solid #dfe4f3; border-radius:16px; background:#ffffff; box-shadow:0 20px 45px -36px rgba(15,23,42,.35); }
+.am-card__header{ padding:14px 16px; border-bottom:1px solid #eef2fb; display:flex; align-items:center; justify-content:space-between; }
+.am-card__title{ font-size:16px; font-weight:800; color:#0f172a; margin:0; }
+.am-card__body{ padding:16px; }
+.am-card__footer{ padding:10px 16px; border-top:1px solid #eef2fb; }
+
+/* Modernize form controls inside this page only */
+.am-shell .form-control, .am-shell .form-select{ border:1px solid #cbd5f5; border-radius:12px; padding:10px 12px; font-size:13px; transition:border-color .2s ease, box-shadow .2s ease; }
+.am-shell .form-control:focus, .am-shell .form-select:focus{ border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.15); outline:none; }
+.am-shell .btn.btn-primary{ background:#2563eb; border-color:#2563eb; border-radius:12px; font-weight:700; padding:10px 16px; }
+.am-shell .btn.btn-outline-secondary{ border-radius:12px; font-weight:700; padding:10px 16px; }
+
+.am-btn{ display:inline-flex; align-items:center; gap:8px; border-radius:12px; padding:10px 16px; font-weight:700; font-size:13px; border:1px solid transparent; }
+.am-btn--ghost{ background:rgba(59,130,246,.08); color:#1d4ed8; border:1px solid #3b82f6; }
+.am-btn--sm{ padding:6px 12px; font-size:12px; }
+
+.am-table{ width:100%; border-collapse:separate; border-spacing:0; }
+.am-table thead th{ background:#f8fbff; padding:10px 12px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:#64748b; }
+.am-table tbody td{ padding:10px 12px; border-top:1px solid #e5eaf5; font-size:13px; color:#1f2937; }
+</style>
+@endpush

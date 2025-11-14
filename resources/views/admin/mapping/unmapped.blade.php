@@ -17,49 +17,49 @@
     </div>
   </div>
 
-  <div class="card mb-3">
-    <div class="card-header">Unmapped Products</div>
-    <div class="card-body">
-      <form class="row g-3" id="filter-form">
+  <div class="um-card mb-3">
+    <div class="um-card__header"><div class="um-card__title">Unmapped Products</div></div>
+    <div class="um-card__body">
+      <form class="row g-3 align-items-end" id="filter-form">
         <div class="col-md-3">
-          <label class="form-label">Period</label>
-          <input type="text" name="period" id="period" class="form-control" value="{{ $period }}" placeholder="YYYY or YYYY-MM">
+          <label class="um-label" for="period">Period</label>
+          <input type="text" name="period" id="period" class="um-input" value="{{ $period }}" placeholder="YYYY or YYYY-MM">
         </div>
         <div class="col-md-3">
-          <label class="form-label">Reason</label>
-          <select name="reason" id="reason" class="form-select">
+          <label class="um-label" for="reason">Reason</label>
+          <select name="reason" id="reason" class="um-select">
             <option value="">(All)</option>
             <option value="missing_hs" {{ $reason==='missing_hs' ? 'selected' : '' }}>Missing HS</option>
             <option value="no_matching_quota" {{ $reason==='no_matching_quota' ? 'selected' : '' }}>No Matching Quota</option>
           </select>
         </div>
         <div class="col-md-2">
-          <label class="form-label">Per Page</label>
-          <select name="per_page" id="per_page" class="form-select">
+          <label class="um-label" for="per_page">Per Page</label>
+          <select name="per_page" id="per_page" class="um-select">
             @foreach([10,20,50,100,200] as $n)
               <option value="{{ $n }}" {{ (int)$perPage===$n ? 'selected' : '' }}>{{ $n }}</option>
             @endforeach
           </select>
         </div>
-        <div class="col-md-2 align-self-end">
-          <button type="submit" class="btn btn-primary">Search</button>
+        <div class="col-md-2">
+          <button type="submit" class="um-btn um-btn--primary w-100"><i class="fas fa-search me-2"></i>Search</button>
         </div>
-        <div class="col-md-2 align-self-end text-end">
-          <a class="btn btn-outline-secondary" href="{{ route('admin.imports.hs_pk.index') }}">Go to HS -> PK Import</a>
+        <div class="col-md-2 text-end">
+          <a class="um-btn um-btn--ghost" href="{{ route('admin.imports.hs_pk.index') }}">Go to HS -> PK Import</a>
         </div>
       </form>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <div>Results</div>
+  <div class="um-card">
+    <div class="um-card__header d-flex justify-content-between align-items-center">
+      <div class="um-card__title">Results</div>
       <div id="pager-top" class="small text-muted"></div>
     </div>
-    <div class="card-body p-0">
+    <div class="um-card__body p-0">
       <div class="p-3" id="loading">Loading...</div>
       <div class="table-responsive d-none" id="table-wrap">
-        <table class="table mb-0">
+        <table class="um-table mb-0">
           <thead>
             <tr>
               <th>Product ID</th>
@@ -73,13 +73,13 @@
           <tbody id="rows"></tbody>
         </table>
       </div>
-      <div class="p-3 d-none" id="empty">All products have been mapped in this period.</div>
+      <div class="p-3 d-none text-muted" id="empty">All products have been mapped in this period.</div>
     </div>
-    <div class="card-footer d-flex justify-content-between">
+    <div class="um-card__footer d-flex justify-content-between align-items-center">
       <div id="pager-bottom" class="small text-muted"></div>
       <div>
-        <button id="prev-btn" class="btn btn-sm btn-outline-secondary">Prev</button>
-        <button id="next-btn" class="btn btn-sm btn-outline-secondary">Next</button>
+        <button id="prev-btn" class="um-btn um-btn--ghost um-btn--sm">Prev</button>
+        <button id="next-btn" class="um-btn um-btn--ghost um-btn--sm">Next</button>
       </div>
     </div>
   </div>
@@ -171,15 +171,15 @@ document.addEventListener('DOMContentLoaded', () => {
         <td>${model}</td>
         <td>${row.hs_code ?? ''}</td>
         <td>${row.resolved_pk ?? ''}</td>
-        <td><span class=\"badge bg-secondary\">${row.reason}</span></td>
+        <td><span class=\"um-badge um-badge--muted\">${row.reason}</span></td>
         <td>
-          <a href=\"{{ route('admin.imports.hs_pk.index') }}\" class=\"btn btn-sm btn-outline-primary\">HS -> PK Import</a>
+          <a href=\"{{ route('admin.imports.hs_pk.index') }}\" class=\"um-btn um-btn--ghost um-btn--sm\">HS -> PK Import</a>
         </td>
       `;
       rows.appendChild(tr);
     });
 
-    pagerTop.textContent = `Page ${j.current_page} / ${j.last_page} â€¢ Total ${j.total}`;
+    pagerTop.textContent = `Page ${j.current_page} / ${j.last_page} | Total ${j.total}`;
     pagerBottom.textContent = pagerTop.textContent;
 
     prevBtn.disabled = j.current_page <= 1;
@@ -196,4 +196,25 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 @endsection
 
+@push('styles')
+<style>
+.um-card{ border:1px solid #dfe4f3; border-radius:16px; background:#fff; box-shadow:0 20px 45px -36px rgba(15,23,42,.35); }
+.um-card__header{ padding:14px 16px; border-bottom:1px solid #eef2fb; }
+.um-card__title{ font-size:16px; font-weight:800; color:#0f172a; margin:0; }
+.um-card__body{ padding:16px; }
+.um-card__footer{ padding:10px 16px; border-top:1px solid #eef2fb; }
+.um-label{ display:block; font-weight:600; margin-bottom:6px; color:#334155; }
+.um-input, .um-select{ width:100%; border:1px solid #cbd5f5; border-radius:12px; padding:10px 12px; font-size:13px; transition:border-color .2s ease, box-shadow .2s ease; }
+.um-input:focus, .um-select:focus{ border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.15); outline:none; }
+.um-btn{ display:inline-flex; align-items:center; gap:8px; border-radius:12px; padding:10px 16px; font-weight:700; font-size:13px; border:1px solid transparent; }
+.um-btn--primary{ background:#2563eb; color:#fff; border-color:#2563eb; }
+.um-btn--ghost{ background:rgba(59,130,246,.08); color:#1d4ed8; border:1px solid #3b82f6; }
+.um-btn--sm{ padding:6px 12px; font-size:12px; }
+.um-table{ width:100%; border-collapse:separate; border-spacing:0; }
+.um-table thead th{ background:#f8fbff; padding:12px 14px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:#64748b; }
+.um-table tbody td{ padding:12px 14px; border-top:1px solid #e5eaf5; font-size:13px; color:#1f2937; }
+.um-badge{ display:inline-flex; align-items:center; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700; }
+.um-badge--muted{ background:#e2e8f0; color:#475569; border:1px solid #d1d5db; }
+</style>
+@endpush
 
