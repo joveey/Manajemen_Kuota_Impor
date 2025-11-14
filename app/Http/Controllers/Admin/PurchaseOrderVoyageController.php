@@ -329,6 +329,15 @@ class PurchaseOrderVoyageController extends Controller
             }
         });
 
+        // Enrich audit log with concise counters so labels are clearer
+        try {
+            $request->attributes->set('audit_extra', [
+                'saved_rows' => (int) $saved,
+                'rows_count' => is_array($rows) ? count($rows) : 0,
+                'splits' => is_array($splits) ? array_values($splits) : [],
+            ]);
+        } catch (\Throwable $e) { /* ignore */ }
+
         if ($request->wantsJson()) {
             return back()->with('status', "Saved: $saved rows");
         }
