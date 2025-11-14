@@ -8,7 +8,7 @@
         'SHIPMENT' => ['icon' => 'fa-truck', 'variant' => 'success'],
         'USER' => ['icon' => 'fa-user-check', 'variant' => 'success'],
     ];
-    $hasImportRoute = \Illuminate\Support\Facades\Route::has('admin.imports.quotas.index');
+    $hasAuditRoute = \Illuminate\Support\Facades\Route::has('admin.audit-logs.index');
 @endphp
 <div class="card activity-card">
     <div class="card-header">
@@ -16,8 +16,8 @@
             <strong>Activity (last 7 days)</strong>
             <span class="activity-card__subtitle">Recent import and update activity.</span>
         </div>
-        @if($hasImportRoute)
-            <a href="{{ route('admin.imports.quotas.index') }}" class="kpi-card__action">Import History</a>
+        @if($hasAuditRoute)
+            <a href="{{ route('admin.audit-logs.index', ['method' => 'create']) }}" class="kpi-card__action">Import History</a>
         @endif
     </div>
     <div class="card-body">
