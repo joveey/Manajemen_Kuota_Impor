@@ -681,6 +681,9 @@ class AnalyticsController extends Controller
         $quotaRanges = [];
         $selectedCategories = [];
         foreach ($quotaSet as $q) {
+            if (!$q instanceof Quota) {
+                continue;
+            }
             $p = PkCategoryParser::parse((string) ($q->government_category ?? ''));
             $quotaRanges[] = [
                 'min_pk' => $p['min_pk'],

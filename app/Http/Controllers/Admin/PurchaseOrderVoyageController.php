@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Quota;
 use App\Models\PurchaseOrder;
 
@@ -381,7 +382,7 @@ class PurchaseOrderVoyageController extends Controller
                                                 // Refund on target quota and reduce/delete pivot
                                                 $tgt = Quota::lockForUpdate()->find($t->quota_id);
                                                 if ($tgt) {
-                                                    $tgt->incrementForecast((int)$take, 'Voyage split delete (refund)', $poModel, $poInfo->po_date ? new \DateTimeImmutable((string)$poInfo->po_date) : null, auth()->id());
+                                                    $tgt->incrementForecast((int)$take, 'Voyage split delete (refund)', $poModel, $poInfo->po_date ? new \DateTimeImmutable((string)$poInfo->po_date) : null, Auth::id());
                                                 }
                                                 $pivotRow = DB::table('purchase_order_quota')->where('id', $t->pivot_id)->first();
                                                 if ($pivotRow) {
@@ -399,7 +400,7 @@ class PurchaseOrderVoyageController extends Controller
                                                 // Reserve back on source quota and grow/inset its pivot
                                                 $src = Quota::lockForUpdate()->find((int)$source->quota_id);
                                                 if ($src) {
-                                                    $src->decrementForecast((int)$movedBack, 'Voyage split delete (reserve)', $poModel, $poInfo->po_date ? new \DateTimeImmutable((string)$poInfo->po_date) : null, auth()->id());
+                                                    $src->decrementForecast((int)$movedBack, 'Voyage split delete (reserve)', $poModel, $poInfo->po_date ? new \DateTimeImmutable((string)$poInfo->po_date) : null, Auth::id());
                                                 }
                                                 $pvSrc = DB::table('purchase_order_quota')
                                                     ->where('purchase_order_id', $poModel->id)
@@ -460,7 +461,7 @@ class PurchaseOrderVoyageController extends Controller
                         $data['qty'] = $splitQty;
                         if (!array_key_exists('seq_no', $sp)) { $data['seq_no'] = 1; }
                         $data['created_at'] = now();
-                        $data['created_by'] = auth()->id();
+                        $data['created_by'] = Auth::id();
                         DB::table('po_line_voyage_splits')->insert($data);
                     }
                 }
@@ -526,7 +527,7 @@ class PurchaseOrderVoyageController extends Controller
 
         $eta = $data['eta_date'] ?? ($split->voyage_eta ?? null);
         $occurredOn = $eta ? new \DateTimeImmutable((string)$eta) : null;
-        $userId = auth()->id();
+        $userId = Auth::id();
 
         // Qty default to split qty
         $qty = (float) ($data['move_qty'] ?? $split->qty ?? 0);

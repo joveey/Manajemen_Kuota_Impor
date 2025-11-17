@@ -8,6 +8,7 @@ use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules;
 
 class UserController extends Controller
@@ -21,7 +22,7 @@ class UserController extends Controller
         $baseQuery = User::whereDoesntHave('roles', function ($query) {
             $query->where('name', 'admin');
         })
-        ->where('id', '!=', auth()->id());
+        ->where('id', '!=', Auth::id());
 
         $users = (clone $baseQuery)
             ->orderBy('created_at', 'desc')
@@ -53,11 +54,14 @@ class UserController extends Controller
      */
     public function create()
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         // Hanya Admin dan Editor yang boleh memilih role selain default
-        if (auth()->user()->hasRole(['admin', 'editor'])) {
+        if ($currentUser->hasRole(['admin', 'editor'])) {
             // Admin dapat melihat semua role termasuk admin; Editor semua kecuali admin
             $q = Role::query();
-            if (!auth()->user()->hasRole('admin')) { $q->where('name', '!=', 'admin'); }
+            if (!$currentUser->hasRole('admin')) { $q->where('name', '!=', 'admin'); }
             $roles = $q->orderBy('name', 'asc')->get();
         } else {
             // Manager atau selainnya tidak bisa memilih role; fallback ke role default
@@ -72,6 +76,9 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
@@ -95,10 +102,10 @@ class UserController extends Controller
         ]);
 
         // Assign roles: Admin/Editor dapat set role; Editor tidak boleh set admin
-        if (auth()->user()->hasRole(['admin', 'editor'])) {
+        if ($currentUser->hasRole(['admin', 'editor'])) {
             if ($request->has('roles')) {
                 $q = Role::whereIn('id', $request->roles);
-                if (!auth()->user()->hasRole('admin')) { $q->where('name', '!=', 'admin'); }
+                if (!$currentUser->hasRole('admin')) { $q->where('name', '!=', 'admin'); }
                 $roleIds = $q->pluck('id')->toArray();
                 $user->roles()->sync($roleIds);
             }
@@ -120,8 +127,11 @@ class UserController extends Controller
      */
     public function show(User $user)
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         // Prevent viewing admin users kecuali current user adalah admin
-        if ($user->isAdmin() && !auth()->user()->hasRole('admin')) {
+        if ($user->isAdmin() && !$currentUser->hasRole('admin')) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'Cannot view admin user details here.');
         }
@@ -136,15 +146,18 @@ class UserController extends Controller
      */
     public function edit(User $user)
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         // Prevent editing admin users kecuali current user adalah admin
-        if ($user->isAdmin() && !auth()->user()->hasRole('admin')) {
+        if ($user->isAdmin() && !$currentUser->hasRole('admin')) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'Cannot edit admin user here.');
         }
 
-        if (auth()->user()->hasRole(['admin', 'editor'])) {
+        if ($currentUser->hasRole(['admin', 'editor'])) {
             $q = Role::query();
-            if (!auth()->user()->hasRole('admin')) { $q->where('name', '!=', 'admin'); }
+            if (!$currentUser->hasRole('admin')) { $q->where('name', '!=', 'admin'); }
             $roles = $q->orderBy('name', 'asc')->get();
             $userRoles = $user->roles->pluck('id')->toArray();
         } else {
@@ -160,8 +173,11 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         // Prevent updating admin users kecuali current user adalah admin
-        if ($user->isAdmin() && !auth()->user()->hasRole('admin')) {
+        if ($user->isAdmin() && !$currentUser->hasRole('admin')) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'Cannot edit admin user here.');
         }
@@ -202,10 +218,10 @@ class UserController extends Controller
         $user->update($userData);
 
         // Sync roles hanya jika Admin/Editor; Editor tidak boleh set admin
-        if (auth()->user()->hasRole(['admin', 'editor'])) {
+        if ($currentUser->hasRole(['admin', 'editor'])) {
             if ($request->has('roles')) {
                 $q = Role::whereIn('id', $request->roles);
-                if (!auth()->user()->hasRole('admin')) { $q->where('name', '!=', 'admin'); }
+                if (!$currentUser->hasRole('admin')) { $q->where('name', '!=', 'admin'); }
                 $roleIds = $q->pluck('id')->toArray();
                 $user->roles()->sync($roleIds);
             } else {
@@ -222,14 +238,17 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         // Prevent deleting admin users kecuali current user adalah admin
-        if ($user->isAdmin() && !auth()->user()->hasRole('admin')) {
+        if ($user->isAdmin() && !$currentUser->hasRole('admin')) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'Cannot delete admin user. Please change to regular user first.');
         }
 
         // Prevent deleting current user
-        if ($user->id === auth()->id()) {
+        if ($user->id === Auth::id()) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'Cannot delete your own account.');
         }

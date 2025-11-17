@@ -140,7 +140,6 @@
             <div class="analytics-mode">
                 <button type="button" id="modeChipForecast2" class="analytics-mode__chip {{ $isForecast ? 'analytics-mode__chip--active' : '' }}">Forecast</button>
                 <button type="button" id="modeChipActual2" class="analytics-mode__chip {{ $isForecast ? '' : 'analytics-mode__chip--active' }}">Actual</button>
-                <span class="analytics-card__badge analytics-card__badge--muted" style="margin-left:8px;">Donut</span>
             </div>
         </header>
         <div id="analyticsDonut" class="analytics-card__chart"></div>

@@ -3,12 +3,16 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Auth;
 
 class StoreQuickProductRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return (bool) auth()->user()?->can('product.create');
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) ($user?->can('product.create'));
     }
 
     public function rules(): array
@@ -23,4 +27,3 @@ class StoreQuickProductRequest extends FormRequest
         ];
     }
 }
-

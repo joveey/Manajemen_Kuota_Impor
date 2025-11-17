@@ -40,8 +40,11 @@ class PermissionController extends Controller
      */
     public function create()
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         // Guard by permission (middleware already enforces)
-        if (!Auth::user()->can('create permissions')) {
+        if (!$currentUser->can('create permissions')) {
             return redirect()->route('admin.permissions.index')
                 ->with('error', 'You do not have permission to create permissions.');
         }
@@ -54,8 +57,11 @@ class PermissionController extends Controller
      */
     public function store(Request $request)
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         // Guard by permission (middleware already enforces)
-        if (!Auth::user()->can('create permissions')) {
+        if (!$currentUser->can('create permissions')) {
             return redirect()->route('admin.permissions.index')
                 ->with('error', 'You do not have permission to create permissions.');
         }
@@ -104,8 +110,11 @@ class PermissionController extends Controller
      */
     public function edit(Permission $permission)
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         // Guard by permission (middleware already enforces)
-        if (!Auth::user()->can('update permissions')) {
+        if (!$currentUser->can('update permissions')) {
             return redirect()->route('admin.permissions.index')
                 ->with('error', 'You do not have permission to edit permissions.');
         }
@@ -118,8 +127,11 @@ class PermissionController extends Controller
      */
     public function update(Request $request, Permission $permission)
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         // Guard by permission (middleware already enforces)
-        if (!Auth::user()->can('update permissions')) {
+        if (!$currentUser->can('update permissions')) {
             return redirect()->route('admin.permissions.index')
                 ->with('error', 'You do not have permission to update permissions.');
         }
@@ -158,8 +170,11 @@ class PermissionController extends Controller
      */
     public function destroy(Permission $permission)
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         // Guard by permission (middleware already enforces)
-        if (!Auth::user()->can('delete permissions')) {
+        if (!$currentUser->can('delete permissions')) {
             return redirect()->route('admin.permissions.index')
                 ->with('error', 'You do not have permission to delete permissions.');
         }

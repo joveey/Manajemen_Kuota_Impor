@@ -8,6 +8,7 @@ use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class RoleController extends Controller
 {
@@ -35,8 +36,11 @@ class RoleController extends Controller
      */
     public function create()
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         // Guard by permission via Gate (admin bypass respected); middleware already enforces
-        if (!auth()->user()->can('create roles')) {
+        if (!$currentUser->can('create roles')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You do not have permission to create roles.');
         }
@@ -51,8 +55,11 @@ class RoleController extends Controller
      */
     public function store(Request $request)
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         // Guard by permission via Gate (admin bypass respected); middleware already enforces
-        if (!auth()->user()->can('create roles')) {
+        if (!$currentUser->can('create roles')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You do not have permission to create roles.');
         }
@@ -100,14 +107,17 @@ class RoleController extends Controller
      */
     public function edit(Role $role)
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         // Guard by permission via Gate (admin bypass respected); middleware already enforces
-        if (!auth()->user()->can('update roles')) {
+        if (!$currentUser->can('update roles')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You do not have permission to edit roles.');
         }
 
         // Prevent non-admin from editing admin role
-        if ($role->name === 'admin' && !auth()->user()->hasRole('admin')) {
+        if ($role->name === 'admin' && !$currentUser->hasRole('admin')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You cannot modify the Admin role.');
         }
@@ -123,14 +133,17 @@ class RoleController extends Controller
      */
     public function update(Request $request, Role $role)
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         // Guard by permission via Gate (admin bypass respected); middleware already enforces
-        if (!auth()->user()->can('update roles')) {
+        if (!$currentUser->can('update roles')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You do not have permission to update roles.');
         }
 
         // Prevent non-admin from updating admin role
-        if ($role->name === 'admin' && !auth()->user()->hasRole('admin')) {
+        if ($role->name === 'admin' && !$currentUser->hasRole('admin')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You cannot modify the Admin role.');
         }
@@ -169,8 +182,11 @@ class RoleController extends Controller
      */
     public function destroy(Role $role)
     {
+        /** @var \App\Models\User $currentUser */
+        $currentUser = Auth::user();
+
         // Guard by permission via Gate (admin bypass respected); middleware already enforces
-        if (!auth()->user()->can('delete roles')) {
+        if (!$currentUser->can('delete roles')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You do not have permission to delete roles.');
         }
@@ -182,7 +198,7 @@ class RoleController extends Controller
         }
 
         // Prevent non-admin from deleting any role (additional check)
-        if ($role->name === 'admin' && !auth()->user()->hasRole('admin')) {
+        if ($role->name === 'admin' && !$currentUser->hasRole('admin')) {
             return redirect()->route('admin.roles.index')
                 ->with('error', 'You cannot delete the Admin role.');
         }

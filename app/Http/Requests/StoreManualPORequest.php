@@ -3,12 +3,16 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Auth;
 
 class StoreManualPORequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return (bool) auth()->user()?->can('po.create');
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) ($user?->can('po.create'));
     }
 
     public function rules(): array

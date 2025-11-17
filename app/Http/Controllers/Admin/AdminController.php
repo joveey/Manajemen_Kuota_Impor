@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules;
 
@@ -188,7 +189,7 @@ class AdminController extends Controller
         }
 
         // Prevent converting current user
-        if ($admin->id === auth()->id()) {
+        if ($admin->id === Auth::id()) {
             return redirect()->route('admin.admins.index')
                 ->with('error', 'Cannot convert your own admin account.');
         }
@@ -215,7 +216,7 @@ class AdminController extends Controller
         }
 
         // Prevent deleting current user
-        if ($admin->id === auth()->id()) {
+        if ($admin->id === Auth::id()) {
             return redirect()->route('admin.admins.index')
                 ->with('error', 'Cannot delete your own admin account.');
         }
