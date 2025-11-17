@@ -15,7 +15,10 @@ class RoleMiddleware
             abort(401, 'Unauthorized - Please login first');
         }
 
-        if (!Auth::user()->hasRole($roles)) {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        if (!$user->hasRole($roles)) {
             abort(403, 'Forbidden - You do not have the required role to access this resource');
         }
 

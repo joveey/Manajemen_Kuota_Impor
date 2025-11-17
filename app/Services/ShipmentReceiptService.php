@@ -11,7 +11,7 @@ class ShipmentReceiptService
 {
     public function processReceipt($shipmentId, array $payload, $performedByUserId = null): ShipmentReceipt
     {
-        return DB::transaction(function () use ($shipmentId, $payload) {
+        return DB::transaction(function () use ($shipmentId, $payload, $performedByUserId) {
             $shipment = Shipment::with(['purchaseOrder.quota'])
                 ->lockForUpdate()
                 ->findOrFail($shipmentId);
