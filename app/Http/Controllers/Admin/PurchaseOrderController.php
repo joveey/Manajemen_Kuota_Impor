@@ -30,94 +30,46 @@ class PurchaseOrderController extends Controller
         $hasVendorNumber = Schema::hasColumn('po_headers', 'vendor_number');
         $hasAmount = Schema::hasColumn('po_lines', 'amount');
         $hasQtyOrdered = Schema::hasColumn('po_lines', 'qty_ordered');
-        $hasQtyReceived = Schema::hasColumn('po_lines', 'qty_received');
         $hasSapStatus = Schema::hasColumn('po_lines', 'sap_order_status');
         $hasQtyToInvoice = Schema::hasColumn('po_lines', 'qty_to_invoice');
         $hasQtyToDeliver = Schema::hasColumn('po_lines', 'qty_to_deliver');
         $hasStorageLocation = Schema::hasColumn('po_lines', 'storage_location');
 
-        $qtyOrderedExprBase = $hasQtyOrdered ? 'COALESCE(pl.qty_ordered,0)' : '0';
-
-        $sumQtyOrderedExpr = "SUM($qtyOrderedExprBase)";
-        // Received will be computed from GR (normalized by line number) via leftJoinSub
-        $sumQtyToInvoiceExpr = $hasQtyToInvoice ? 'SUM(COALESCE(pl.qty_to_invoice,0))' : 'NULL';
-        $sumQtyToDeliverExpr = $hasQtyToDeliver ? 'SUM(COALESCE(pl.qty_to_deliver,0))' : 'NULL';
-        $storagesExpr = $hasStorageLocation ? "STRING_AGG(DISTINCT NULLIF(pl.storage_location,''), ', ')" : 'NULL';
-        // Outstanding at PO level: max(total ordered - total received, 0)
-        // Avoid per-line clipping which can overstate outstanding when some lines are over-received
-        $sumOutstandingExpr = "GREATEST(SUM($qtyOrderedExprBase) - COALESCE(SUM(grn.qty),0), 0)";
-
-        // Status uses GR-based received as well
-        $statusExpr = sprintf(
-            "CASE WHEN %s >= %s AND %s > 0 THEN '%s' WHEN %s > 0 THEN '%s' ELSE '%s' END",
-            'COALESCE(SUM(grn.qty),0)',
-            $sumQtyOrderedExpr,
-            $sumQtyOrderedExpr,
-            PurchaseOrder::STATUS_COMPLETED,
-            'COALESCE(SUM(grn.qty),0)',
-            PurchaseOrder::STATUS_PARTIAL,
-            PurchaseOrder::STATUS_ORDERED
-        );
-
-        $select = [
-            DB::raw('ph.po_number as po_number'),
-            DB::raw('MIN(ph.po_date) as first_order_date'),
-            DB::raw('MAX(ph.po_date) as latest_order_date'),
-            DB::raw('MIN(pl.eta_date) as first_deliv_date'),
-            DB::raw('MAX(pl.eta_date) as latest_deliv_date'),
-            DB::raw($hasVendorNumber ? "STRING_AGG(DISTINCT NULLIF(ph.vendor_number,''), ', ') as vendor_number" : 'NULL as vendor_number'),
-            DB::raw("STRING_AGG(DISTINCT ph.supplier, ', ') as vendor_name"),
-            DB::raw("STRING_AGG(DISTINCT NULLIF(pl.voyage_factory,''), ', ') as vendor_factories"),
-            DB::raw('COUNT(DISTINCT ph.id) as header_count'),
-            DB::raw('COUNT(pl.id) as total_lines'),
-            DB::raw("$sumQtyOrderedExpr as total_qty_ordered"),
-            DB::raw('COALESCE(SUM(grn.qty),0) as total_qty_received'),
-            DB::raw("$sumOutstandingExpr as total_qty_outstanding"),
-            DB::raw("$sumQtyToInvoiceExpr as total_qty_to_invoice"),
-            DB::raw("$sumQtyToDeliverExpr as total_qty_to_deliver"),
-            DB::raw("$storagesExpr as storage_locations"),
-            DB::raw("$statusExpr as status_key"),
-        ];
-
-        if ($hasAmount) {
-            $select[] = DB::raw('SUM(COALESCE(pl.amount,0)) as total_amount');
-        } else {
-            $select[] = DB::raw('NULL as total_amount');
-        }
-
-        if ($hasSapStatus) {
-            $select[] = DB::raw("STRING_AGG(DISTINCT NULLIF(pl.sap_order_status,''), ', ') as sap_statuses");
-        } else {
-            $select[] = DB::raw("NULL as sap_statuses");
-        }
-
-        // Build normalized GR subquery grouped by (po_no, ln)
-        $grn = DB::table('gr_receipts')
-            ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','','g') AS INTEGER) AS ln")
-            ->selectRaw('SUM(qty) as qty')
-            ->groupBy('po_no','ln');
-
-        $query = DB::table('po_headers as ph')
+        $baseQuery = DB::table('po_headers as ph')
             ->leftJoin('po_lines as pl', 'pl.po_header_id', '=', 'ph.id')
-            ->leftJoinSub($grn, 'grn', function($j){
-                $j->on('grn.po_no','=','ph.po_number')
-                  ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','','g') AS INTEGER)");
-            })
-            ->select($select)
-            ->groupBy('ph.po_number');
+            ->select([
+                'ph.id as header_id',
+                'ph.po_number',
+                'ph.po_date',
+                'ph.supplier',
+                $hasVendorNumber ? 'ph.vendor_number' : DB::raw('NULL as vendor_number'),
+                'pl.id as line_id',
+                'pl.eta_date',
+                'pl.voyage_factory',
+                $hasStorageLocation ? 'pl.storage_location' : DB::raw('NULL as storage_location'),
+                $hasSapStatus ? 'pl.sap_order_status' : DB::raw('NULL as sap_order_status'),
+                $hasQtyOrdered ? 'pl.qty_ordered' : DB::raw('0 as qty_ordered'),
+                $hasQtyToInvoice ? 'pl.qty_to_invoice' : DB::raw('NULL as qty_to_invoice'),
+                $hasQtyToDeliver ? 'pl.qty_to_deliver' : DB::raw('NULL as qty_to_deliver'),
+                $hasAmount ? 'pl.amount' : DB::raw('NULL as amount'),
+            ]);
 
         if ($request->filled('period')) {
             $period = (string) $request->string('period');
             if (preg_match('/^\d{4}-\d{2}$/', $period)) {
-                $query->whereRaw("to_char(ph.po_date, 'YYYY-MM') = ?", [$period]);
+                $start = Carbon::createFromFormat('Y-m', $period)->startOfMonth();
+                $end   = Carbon::createFromFormat('Y-m', $period)->endOfMonth();
+                $baseQuery->whereBetween('ph.po_date', [$start->toDateString(), $end->toDateString()]);
             } elseif (preg_match('/^\d{4}$/', $period)) {
-                $query->whereRaw("to_char(ph.po_date, 'YYYY') = ?", [$period]);
+                $start = Carbon::createFromDate((int) $period, 1, 1)->startOfYear();
+                $end   = Carbon::createFromDate((int) $period, 12, 31)->endOfYear();
+                $baseQuery->whereBetween('ph.po_date', [$start->toDateString(), $end->toDateString()]);
             }
         }
 
         if ($request->filled('search')) {
             $term = '%'.$request->string('search').'%';
-            $query->where(function ($w) use ($term) {
+            $baseQuery->where(function ($w) use ($term) {
                 $w->where('ph.po_number', 'like', $term)
                     ->orWhere('ph.supplier', 'like', $term)
                     ->orWhereExists(function ($sub) use ($term) {
@@ -132,9 +84,109 @@ class PurchaseOrderController extends Controller
             });
         }
 
+        // Pull raw rows and aggregate per PO number in PHP to keep the query portable
+        $rows = $baseQuery
+            ->orderByDesc('ph.po_date')
+            ->orderBy('ph.po_number')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            $purchaseOrders = new LengthAwarePaginator([], 0, 20, 1, [
+                'path'  => $request->url(),
+                'query' => $request->query(),
+            ]);
+
+            $stats = [
+                'total_po'   => 0,
+                'ordered'    => 0,
+                'in_transit' => 0,
+                'completed'  => 0,
+            ];
+
+            return view('admin.purchase_order.index', compact('purchaseOrders', 'stats'));
+        }
+
+        // Use GR receipts as the single source of truth for received quantity per PO
+        $poNumbers = $rows->pluck('po_number')->filter()->unique()->values();
+        $grSums = DB::table('gr_receipts')
+            ->select('po_no', DB::raw('SUM(qty) as qty'))
+            ->whereIn('po_no', $poNumbers)
+            ->groupBy('po_no')
+            ->pluck('qty', 'po_no');
+
+        $grouped = $rows->groupBy('po_number')->map(function ($group) use ($grSums, $hasAmount, $hasQtyToInvoice, $hasQtyToDeliver, $hasStorageLocation, $hasSapStatus) {
+            $poNumber = (string) $group->first()->po_number;
+
+            $firstOrderDate  = $group->min('po_date');
+            $latestOrderDate = $group->max('po_date');
+            $firstDelivDate  = $group->min('eta_date');
+            $latestDelivDate = $group->max('eta_date');
+
+            $vendorNames = $group->pluck('supplier')->filter()->unique()->values();
+            $vendorFactories = $group->pluck('voyage_factory')->filter()->unique()->values();
+            $vendorNumbers = $group->pluck('vendor_number')->filter()->unique()->values();
+
+            $totalQtyOrdered = $group->sum(fn ($row) => (float) ($row->qty_ordered ?? 0));
+            $totalQtyReceived = (float) ($grSums[$poNumber] ?? 0.0);
+            $totalQtyOutstanding = max($totalQtyOrdered - $totalQtyReceived, 0.0);
+
+            $totalQtyToInvoice = $hasQtyToInvoice
+                ? $group->sum(fn ($row) => (float) ($row->qty_to_invoice ?? 0))
+                : null;
+            $totalQtyToDeliver = $hasQtyToDeliver
+                ? $group->sum(fn ($row) => (float) ($row->qty_to_deliver ?? 0))
+                : null;
+
+            $storageLocations = $hasStorageLocation
+                ? $group->pluck('storage_location')->filter()->unique()->implode(', ')
+                : null;
+
+            $sapStatuses = $hasSapStatus
+                ? $group->pluck('sap_order_status')->filter()->unique()->implode(', ')
+                : null;
+
+            $totalAmount = $hasAmount
+                ? $group->sum(fn ($row) => (float) ($row->amount ?? 0))
+                : null;
+
+            // Status: completed if fully received, partial if some received, otherwise ordered
+            $statusKey = PurchaseOrder::STATUS_ORDERED;
+            if ($totalQtyOrdered > 0) {
+                if ($totalQtyReceived >= $totalQtyOrdered) {
+                    $statusKey = PurchaseOrder::STATUS_COMPLETED;
+                } elseif ($totalQtyReceived > 0) {
+                    $statusKey = PurchaseOrder::STATUS_PARTIAL;
+                }
+            }
+
+            return (object) [
+                'po_number'            => $poNumber,
+                'first_order_date'     => $firstOrderDate,
+                'latest_order_date'    => $latestOrderDate,
+                'first_deliv_date'     => $firstDelivDate,
+                'latest_deliv_date'    => $latestDelivDate,
+                'vendor_number'        => $vendorNumbers->implode(', '),
+                'vendor_name'          => $vendorNames->implode(', '),
+                'vendor_factories'     => $vendorFactories->implode(', '),
+                'header_count'         => $group->pluck('header_id')->unique()->count(),
+                'total_lines'          => $group->pluck('line_id')->filter()->count(),
+                'total_qty_ordered'    => $totalQtyOrdered,
+                'total_qty_received'   => $totalQtyReceived,
+                'total_qty_outstanding'=> $totalQtyOutstanding,
+                'total_qty_to_invoice' => $totalQtyToInvoice,
+                'total_qty_to_deliver' => $totalQtyToDeliver,
+                'storage_locations'    => $storageLocations,
+                'total_amount'         => $totalAmount,
+                'sap_statuses'         => $sapStatuses,
+                'status_key'           => $statusKey,
+            ];
+        });
+
+        // Optional status filtering on the aggregated collection
         if ($request->filled('status')) {
             $statusFilter = (string) $request->string('status');
             if ($statusFilter === PurchaseOrder::STATUS_IN_TRANSIT) {
+                // Keep behaviour: treat "in_transit" filter as "partial"
                 $statusFilter = PurchaseOrder::STATUS_PARTIAL;
             }
 
@@ -143,35 +195,37 @@ class PurchaseOrderController extends Controller
                 PurchaseOrder::STATUS_PARTIAL,
                 PurchaseOrder::STATUS_COMPLETED,
             ], true)) {
-                $query->havingRaw("$statusExpr = ?", [$statusFilter]);
+                $grouped = $grouped->filter(fn ($row) => $row->status_key === $statusFilter);
             }
         }
 
-        $statsQuery = clone $query;
+        // Sort by latest_order_date desc, then po_number
+        $sorted = $grouped->sortBy([
+            ['latest_order_date', 'desc'],
+            ['po_number', 'asc'],
+        ])->values();
 
-        $query->orderByDesc('latest_order_date')->orderBy('po_number');
+        $perPage     = 20;
+        $currentPage = LengthAwarePaginator::resolveCurrentPage();
+        $total       = $sorted->count();
+        $items       = $sorted->slice(($currentPage - 1) * $perPage, $perPage)->values();
 
-        $purchaseOrders = $query->paginate(20)->withQueryString();
-
-        $statusCountsRow = DB::query()
-            ->fromSub($statsQuery, 'agg')
-            ->selectRaw(
-                "SUM(CASE WHEN status_key = ? THEN 1 ELSE 0 END) AS ordered,
-                 SUM(CASE WHEN status_key = ? THEN 1 ELSE 0 END) AS partial,
-                 SUM(CASE WHEN status_key = ? THEN 1 ELSE 0 END) AS completed",
-                [
-                    PurchaseOrder::STATUS_ORDERED,
-                    PurchaseOrder::STATUS_PARTIAL,
-                    PurchaseOrder::STATUS_COMPLETED,
-                ]
-            )
-            ->first();
+        $purchaseOrders = new LengthAwarePaginator(
+            $items,
+            $total,
+            $perPage,
+            $currentPage,
+            [
+                'path'  => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
 
         $stats = [
-            'total_po' => (int) DB::table('po_headers')->distinct('po_number')->count('po_number'),
-            'ordered' => (int) ($statusCountsRow->ordered ?? 0),
-            'in_transit' => (int) ($statusCountsRow->partial ?? 0),
-            'completed' => (int) ($statusCountsRow->completed ?? 0),
+            'total_po'   => $total,
+            'ordered'    => $sorted->where('status_key', PurchaseOrder::STATUS_ORDERED)->count(),
+            'in_transit' => $sorted->where('status_key', PurchaseOrder::STATUS_PARTIAL)->count(),
+            'completed'  => $sorted->where('status_key', PurchaseOrder::STATUS_COMPLETED)->count(),
         ];
 
         return view('admin.purchase_order.index', compact('purchaseOrders', 'stats'));
@@ -682,6 +736,5 @@ class PurchaseOrderController extends Controller
         return $redir;
     }
 }
-
 
 
