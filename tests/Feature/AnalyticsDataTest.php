@@ -40,7 +40,7 @@ class AnalyticsDataTest extends TestCase
 
         $product = Product::create([
             'code' => 'PRD-001',
-            'name' => 'Produk Uji',
+            'name' => 'Test Product',
             'sap_model' => 'SAP-01',
             'category' => 'AC',
             'pk_capacity' => 1.5,

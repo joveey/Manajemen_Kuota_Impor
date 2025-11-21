@@ -58,7 +58,7 @@
                             <div class="col-12">
                                 <label for="manual-quota-no" class="form-label">Quota No.</label>
                                 <input type="text" id="manual-quota-no" name="quota_no" value="{{ old('quota_no') }}" class="iq-input @error('quota_no') is-invalid @enderror" placeholder="e.g., 04.PI-76.25.0108" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
-                                <div class="form-text">Quota No. boleh diulang dan periode yang sama akan membuat entri baru.</div>
+                                <div class="form-text">Quota No. can repeat; using the same period will create a new entry.</div>
                                 @error('quota_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
                             <div class="col-12">
@@ -256,7 +256,7 @@
                                     <td class="text-end">
                                         <div class="qh-action">
                                             <button type="button" class="qh-btn-details qh-toggle" data-target="{{ $qid }}">Details</button>
-                                            <form method="POST" action="{{ route('admin.imports.quotas.delete-number') }}" onsubmit="return confirm('Hapus semua entri untuk Quota No. {{ $row['quota_no'] }}?');">
+                                            <form method="POST" action="{{ route('admin.imports.quotas.delete-number') }}" onsubmit="return confirm('Delete all entries for Quota No. {{ $row['quota_no'] }}?');">
                                                 @csrf
                                                 @method('DELETE')
                                                 <input type="hidden" name="quota_no" value="{{ $row['quota_no'] }}">
@@ -287,7 +287,7 @@
                                                             <div class="qh-qty">{{ number_format((float) $it['quantity'], 0) }}</div>
                                                             <div class="qh-period">{{ $it['period_start'] ?? '-' }}@if(!empty($it['period_end'])) - {{ $it['period_end'] }}@endif</div>
                                                             <div class="text-end">
-                                                                <form method="POST" action="{{ route('admin.imports.quotas.delete-one', $it['id']) }}" onsubmit="return confirm('Hapus entri ini?');" class="d-inline">
+                                                                <form method="POST" action="{{ route('admin.imports.quotas.delete-one', $it['id']) }}" onsubmit="return confirm('Delete this entry?');" class="d-inline">
                                                                     @csrf
                                                                     @method('DELETE')
                                                                     <button type="submit" class="qh-btn-delete" title="Delete"><i class="fas fa-trash"></i></button>
@@ -442,3 +442,4 @@
 </style>
 @endpush
     // (Export CSV tersedia via tombol di header)
+

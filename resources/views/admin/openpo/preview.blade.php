@@ -89,7 +89,7 @@
                 ? (string)($productHsMap[$modelKey] ?? '') !== ''
                 : false;
             $notes = strtolower((string)($ln['validation_notes'] ?? ''));
-            $hintNoMap = str_contains($notes, 'model_code belum punya hs mapping') || str_contains($notes, 'hs mapping');
+            $hintNoMap = str_contains($notes, 'model_code does not have an hs mapping yet') || str_contains($notes, 'hs mapping');
             return ($modelKey !== '') && (!$hasMasterMap || $hintNoMap);
         })->count();
       @endphp
@@ -105,7 +105,7 @@
                   <span class="badge bg-danger" title="Number of rows with errors">Err: {{ $errorCount }}</span>
                 @endif
                 @if($missingHsCount > 0)
-                  <span class="badge bg-warning text-dark" title="Rows missing model → HS mapping">No HS: {{ $missingHsCount }}</span>
+                  <span class="badge bg-warning text-dark" title="Rows missing model -> HS mapping">No HS: {{ $missingHsCount }}</span>
                 @endif
               </div>
             </div>
@@ -153,7 +153,7 @@
                         {{ $ln['validation_notes'] }}
                         @php
                           $notes = strtolower((string)($ln['validation_notes'] ?? ''));
-                          $needsModel = str_contains($notes, 'model_code belum punya hs mapping') || str_contains($notes, 'hs mapping');
+                          $needsModel = str_contains($notes, 'model_code does not have an hs mapping yet') || str_contains($notes, 'hs mapping');
                           // Also treat as needs model when product master has no HS mapping for this model
                           $modelKey = strtoupper((string)($ln['model_code'] ?? ''));
                           $productHasHs = isset($productHsMap) && is_array($productHsMap)
@@ -189,3 +189,4 @@
   </div>
 </div>
 @endsection
+

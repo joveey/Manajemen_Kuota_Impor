@@ -207,8 +207,8 @@ class QuotaImportPageController extends Controller
             'period_start' => ['required', 'date_format:Y-m-d'],
             'period_end' => ['required', 'date_format:Y-m-d', 'after_or_equal:period_start'],
         ], [
-            'quantity.min' => 'Quantity harus lebih besar dari 0.',
-            'quota_no.regex' => 'Quota No. hanya boleh berisi huruf/angka, titik, garis miring, dan strip.'
+            'quantity.min' => 'Quantity must be greater than 0.',
+            'quota_no.regex' => 'Quota No. may only contain letters/numbers, dots, slashes, and hyphens.'
         ]);
 
         $hsRowQuery = DB::table('hs_code_pk_mappings')
@@ -224,7 +224,7 @@ class QuotaImportPageController extends Controller
 
         $hsRow = $hsRowQuery->first(['hs_code', 'pk_capacity'] + ($this->hsHasDesc ? ['desc'] : []));
         if (!$hsRow) {
-            return back()->withErrors(['hs_code' => 'HS code tidak ditemukan pada master HS→PK.'])->withInput();
+            return back()->withErrors(['hs_code' => 'HS code was not found in the HS->PK master.'])->withInput();
         }
 
         $desc = $this->hsHasDesc ? ($hsRow->desc ?? '') : '';
@@ -252,7 +252,7 @@ class QuotaImportPageController extends Controller
 
         session(['quotas.manual.preview' => $preview]);
 
-        return back()->with('status', 'Item ditambahkan ke preview.');
+        return back()->with('status', 'Item added to the preview.');
     }
 
     public function removeManual(Request $request): RedirectResponse
@@ -261,13 +261,13 @@ class QuotaImportPageController extends Controller
         $preview = session('quotas.manual.preview', []);
         $preview = array_values(array_filter($preview, fn ($item) => ($item['id'] ?? null) !== $id));
         session(['quotas.manual.preview' => $preview]);
-        return back()->with('status', 'Item dihapus dari preview.');
+        return back()->with('status', 'Item removed from the preview.');
     }
 
     public function resetManual(): RedirectResponse
     {
         session()->forget('quotas.manual.preview');
-        return back()->with('status', 'Preview dikosongkan.');
+        return back()->with('status', 'Preview cleared.');
     }
 
     public function deleteByNumber(Request $request): RedirectResponse
@@ -277,18 +277,18 @@ class QuotaImportPageController extends Controller
         ]);
         $quotaNo = strtoupper(trim((string) $data['quota_no']));
         if ($quotaNo === '') {
-            return back()->withErrors(['delete' => 'Quota No. tidak valid.']);
+            return back()->withErrors(['delete' => 'Quota No. is not valid.']);
         }
         $count = Quota::query()->where('quota_number', $quotaNo)->count();
         Quota::query()->where('quota_number', $quotaNo)->delete();
-        return back()->with('status', "Quota '$quotaNo' dihapus (".$count.") entri.");
+        return back()->with('status', "Quota '$quotaNo' deleted ({$count} entries).");
     }
 
     public function deleteOne(Quota $quota): RedirectResponse
     {
         $qn = (string) ($quota->quota_number ?? '');
         $quota->delete();
-        return back()->with('status', "1 entri pada Quota '$qn' dihapus.");
+        return back()->with('status', "1 entry on Quota '$qn' deleted.");
     }
 
     public function publishManual(Request $request): RedirectResponse
@@ -300,7 +300,7 @@ class QuotaImportPageController extends Controller
 
         $applied = 0;
         $skipped = 0;
-        // Kumpulkan unique tahun dari periode untuk automap setelah publish
+        // Collect unique years from the period so automap can run after publish
         $years = collect($preview)
             ->flatMap(function ($item) {
                 $years = [];
@@ -332,7 +332,7 @@ class QuotaImportPageController extends Controller
                 $notesValue = $this->buildHsNotesTag($hsCode);
                 $name = 'Quota HS '.$hsCode.' '.$periodStart.'-'.$periodEnd;
 
-                // Selalu insert record baru agar periode yang sama tetap tercatat sebagai entri terpisah
+                // Always insert a new record so identical periods are tracked as separate entries
                 DB::table('quotas')->insert([
                     'quota_number' => $quotaNo,
                     'name' => $name,
@@ -352,7 +352,7 @@ class QuotaImportPageController extends Controller
             }
         });
 
-        // Jalankan automap kuota -> produk berdasarkan tahun periode
+        // Run quota -> product automap based on the period year
         $automapRan = false; $automapNotes = '';
         if (!empty($years)) {
             foreach ($years as $y) {
@@ -525,3 +525,4 @@ class QuotaImportPageController extends Controller
         return $preview;
     }
 }
+

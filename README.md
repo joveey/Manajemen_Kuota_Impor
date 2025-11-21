@@ -185,7 +185,7 @@ Route::get('/users', [UserController::class, 'index'])
 
 ### Active User Check
 
-Otomatis logout user yang di-nonaktifkan:
+Automatically log out deactivated users:
 
 ```php
 Route::middleware(['auth', 'active'])->group(function () {
@@ -195,36 +195,36 @@ Route::middleware(['auth', 'active'])->group(function () {
 
 ---
 
-## 💻 Penggunaan di Code
+## Usage in Code
 
-### Cek Role
+### Check Role
 
 ```php
-// Di Controller
+// In a controller
 if (auth()->user()->hasRole('admin')) {
     // Admin only code
 }
 
 // Multiple roles
 if (auth()->user()->hasRole(['admin', 'manager'])) {
-    // Admin atau Manager
+    // Admin or Manager
 }
 
-// Di Blade
+// In Blade
 @if(auth()->user()->hasRole('admin'))
     <a href="/admin">Admin Panel</a>
 @endif
 ```
 
-### Cek Permission
+### Check Permission
 
 ```php
-// Di Controller
+// In a controller
 if (auth()->user()->hasPermission('create users')) {
-    // User boleh create users
+    // User may create users
 }
 
-// Di Blade
+// In Blade
 @if(auth()->user()->hasPermission('create users'))
     <button>Create User</button>
 @endif
@@ -334,7 +334,7 @@ foreach($user->roles as $role) {
 php artisan db:seed --class=RolePermissionSeeder
 ```
 
-### User tidak bisa login
+### User cannot log in
 
 ```bash
 php artisan tinker
@@ -357,9 +357,9 @@ php artisan view:clear
 
 ---
 
-## 🛠️ Development
+## Development
 
-### Tambah Permission Baru
+### Add a New Permission
 
 Edit `database/seeders/RolePermissionSeeder.php`:
 
@@ -372,13 +372,13 @@ Edit `database/seeders/RolePermissionSeeder.php`:
 ],
 ```
 
-Jalankan seeder:
+Run the seeder:
 
 ```bash
 php artisan db:seed --class=RolePermissionSeeder
 ```
 
-### Tambah Role Baru
+### Add a New Role
 
 ```php
 $customRole = Role::create([

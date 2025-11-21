@@ -62,8 +62,7 @@ class AuthServiceProvider extends ServiceProvider
                 });
             }
         } catch (\Exception $e) {
-            // Handle error saat migration belum jalan
-            // Ini penting agar tidak error saat fresh install
+            // Handle the case when migrations have not run yet (fresh installs)
         }
     }
 }

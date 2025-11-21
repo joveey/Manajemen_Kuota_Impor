@@ -53,8 +53,8 @@ class HsPkManualController extends Controller
             'pk_value' => ['required', 'string', 'max:50'],
             'period_key' => ['nullable', 'regex:/^\d{4}$/'],
         ], [
-            'period_key.regex' => 'Periode harus format YYYY atau kosong.',
-            'pk_value.required' => 'PK wajib diisi (contoh: 8-10, <8, >10, atau angka).',
+            'period_key.regex' => 'Period must be in YYYY format or left empty.',
+            'pk_value.required' => 'PK is required (e.g., 8-10, <8, >10, or a number).',
         ]);
 
         $period = (string) ($data['period_key'] ?? '');
@@ -75,7 +75,7 @@ class HsPkManualController extends Controller
         }
 
         if ($anchor === null || !is_numeric($anchor) || $anchor < 0) {
-            return back()->withErrors(['pk_value' => 'Format PK tidak dikenali. Gunakan 8-10, <8, >10, atau angka ≥ 0.'])->withInput();
+            return back()->withErrors(['pk_value' => 'PK format is not recognized. Use 8-10, <8, >10, or a number >= 0.'])->withInput();
         }
         $pk = round((float)$anchor, 2);
 
@@ -95,7 +95,6 @@ class HsPkManualController extends Controller
         if ($hasDescCol) { $updateCols[] = 'desc'; }
         DB::table('hs_code_pk_mappings')->upsert([$row], $keys, $updateCols);
 
-        return back()->with('status', 'Mapping disimpan.');
+        return back()->with('status', 'Mapping saved.');
     }
 }
-

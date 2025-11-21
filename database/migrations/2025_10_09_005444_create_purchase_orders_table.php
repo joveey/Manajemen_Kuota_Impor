@@ -59,7 +59,7 @@ return new class extends Migration
                     $table->unsignedInteger('quantity_received')->default(0);
                 }
                 if (Schema::hasColumn('purchase_orders', 'po_date') && !Schema::hasColumn('purchase_orders', 'order_date')) {
-                    // Jika skema lama memakai 'po_date', biarkan tetap; tambahkan 'order_date' bila belum ada
+                    // If legacy schema uses 'po_date', keep it; add 'order_date' when missing
                     $table->date('order_date')->nullable();
                 } elseif (!Schema::hasColumn('purchase_orders', 'order_date')) {
                     $table->date('order_date');

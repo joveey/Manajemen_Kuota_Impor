@@ -10,12 +10,12 @@
   function normalizeLabel(str){
     if(!str) return str;
     var m = {
-      'Kuota': 'Quota',
-      'Sisa Kuota': 'Remaining Quota',
-      'Realisasi': 'Actual',
-      'Belum Direalisasi': 'Not Yet Realized',
-      'Penerimaan': 'Receipts',
-      'Pengiriman': 'Shipments'
+      'Quota': 'Quota',
+      'Remaining Quota': 'Remaining Quota',
+      'Actual': 'Actual',
+      'Not Yet Realized': 'Not Yet Realized',
+      'Receipts': 'Receipts',
+      'Shipments': 'Shipments'
     };
     return m[str] || str;
   }

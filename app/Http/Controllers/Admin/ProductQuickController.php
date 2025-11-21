@@ -67,7 +67,7 @@ class ProductQuickController extends Controller
             }
         }
 
-        // Seed HS options for manual form (like Input Kuota)
+        // Seed HS options for manual form (like the Quota Input)
         $hsSeedOptions = [];
         if (Schema::hasTable('hs_code_pk_mappings')) {
             $hasDesc = Schema::hasColumn('hs_code_pk_mappings', 'desc');
@@ -119,14 +119,14 @@ class ProductQuickController extends Controller
             ? (string) $data['return']
             : route('admin.master.quick_hs.index');
 
-        // Pastikan kolom hs_code tersedia pada schema
+        // Ensure hs_code column exists on the schema
         if (!Schema::hasColumn('products', 'hs_code')) {
             return back()->withErrors([
-                'hs_code' => 'Kolom hs_code belum ada pada tabel products. Jalankan migrasi: php artisan migrate (pastikan migration 2025_10_21_000004_add_hs_code_to_products_table.php telah terapply).',
+                'hs_code' => 'The hs_code column is missing on the products table. Run the migrations (including 2025_10_21_000004_add_hs_code_to_products_table.php).',
             ])->withInput();
         }
 
-        // Cari produk berdasarkan sap_model atau code (case-insensitive)
+        // Find product by sap_model or code (case-insensitive)
         $product = Product::query()
             ->whereRaw('LOWER(sap_model) = ?', [strtolower($model)])
             ->orWhereRaw('LOWER(code) = ?', [strtolower($model)])

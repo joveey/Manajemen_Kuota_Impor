@@ -39,11 +39,11 @@ class ProductAutoMappingTest extends TestCase
         $response = $this->actingAs($user)
             ->post(route('admin.master-data.store'), [
                 'code' => 'PRD-AUTO',
-                'name' => 'Produk Auto Mapping',
+                'name' => 'Auto Mapping Product',
                 'sap_model' => 'SAP-AUTO',
                 'category' => 'Testing',
                 'pk_capacity' => 1.2,
-                'description' => 'Produk untuk menguji auto mapping',
+                'description' => 'Product used to test auto mapping',
                 'is_active' => true,
             ]);
 

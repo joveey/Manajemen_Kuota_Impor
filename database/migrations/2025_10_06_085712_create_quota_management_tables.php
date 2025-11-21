@@ -9,8 +9,8 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Hanya buat tabel yang tidak memiliki migrasi khusus di batch berikutnya.
-        // Tabel lain (products, quotas, purchase_orders, shipments, quota_histories)
+        // Only create tables that do not have dedicated migrations in the next batch.
+        // Other tables (products, quotas, purchase_orders, shipments, quota_histories)
         // dibuat oleh migrasi terpisah ber-timestamp 2025_10_09_*. Menjaga ini
         // mencegah duplikasi tabel saat menjalankan ulang migrasi.
 

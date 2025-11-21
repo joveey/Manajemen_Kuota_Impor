@@ -23,12 +23,12 @@ class QuotaManagementService
             $quota = Quota::with('product')->findOrFail($data['quota_id']);
             
             if (!$quota->isAvailable($data['quantity'])) {
-                throw new Exception("Kuota tidak mencukupi. Tersisa: {$quota->remaining} unit");
+                throw new Exception("Quota is insufficient. Remaining: {$quota->remaining} units");
             }
 
             // 2. Check if quota is still in period
             if (now()->lt($quota->period_start) || now()->gt($quota->period_end)) {
-                throw new Exception("Kuota sudah tidak berlaku pada periode ini");
+                throw new Exception("Quota is no longer valid in this period");
             }
 
             // 3. Create Purchase Order
@@ -74,12 +74,12 @@ class QuotaManagementService
             $po = PurchaseOrder::with('quota')->findOrFail($poId);
             
             if ($po->status !== 'created') {
-                throw new Exception("Purchase Order sudah diproses atau dibatalkan");
+                throw new Exception("Purchase Order has already been processed or cancelled");
             }
 
             // Validate quantity
             if ($data['quantity_shipped'] > $po->quantity) {
-                throw new Exception("Quantity shipment melebihi quantity PO");
+                throw new Exception("Shipment quantity exceeds PO quantity");
             }
 
             // 2. Create Shipment
@@ -127,7 +127,7 @@ class QuotaManagementService
             $shipment = Shipment::with(['purchaseOrder.quota'])->findOrFail($shipmentId);
             
             if ($shipment->status === 'completed') {
-                throw new Exception("Shipment sudah selesai diterima");
+                throw new Exception("Shipment has already been fully received");
             }
 
             // Default to full quantity if not specified
@@ -135,7 +135,7 @@ class QuotaManagementService
 
             // Validate quantity
             if ($qtyReceived > $shipment->quantity_shipped) {
-                throw new Exception("Quantity received melebihi quantity shipped");
+                throw new Exception("Quantity received exceeds quantity shipped");
             }
 
             // 2. Update shipment
@@ -153,8 +153,8 @@ class QuotaManagementService
 
             // 4. Update quota actual (confirmed received)
             $quota = $po->quota;
-            // Note: actual_quantity sudah di-update saat PO dibuat (forecast)
-            // Kita hanya perlu update status
+            // Note: actual_quantity was updated when the PO was created (forecast)
+            // We only need to update the status here
             $quota->updateStatus();
 
             // 5. Create history log
@@ -182,11 +182,11 @@ class QuotaManagementService
             
             // Check if PO can be cancelled
             if ($po->status === 'completed') {
-                throw new Exception("PO yang sudah completed tidak dapat dibatalkan");
+                throw new Exception("A completed PO cannot be cancelled");
             }
 
             if ($po->shipments()->whereIn('status', ['in_transit', 'completed'])->count() > 0) {
-                throw new Exception("PO dengan shipment aktif tidak dapat dibatalkan");
+                throw new Exception("A PO with active shipments cannot be cancelled");
             }
 
             // Restore quota

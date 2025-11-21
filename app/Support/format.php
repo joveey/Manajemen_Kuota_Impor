@@ -1,9 +1,15 @@
 <?php
 
 if (! function_exists('fmt_qty')) {
-    function fmt_qty($n, $dec = 2) {
-        if ($n === null) return '0';
-        $s = number_format((float)$n, $dec, '.', ',');
+    /**
+     * Format a number with trimmed trailing zeros (default 2 decimals).
+     */
+    function fmt_qty($n, $dec = 2): string
+    {
+        if ($n === null) {
+            return '0';
+        }
+        $s = number_format((float) $n, $dec, '.', ',');
         $s = rtrim($s, '0');
         $s = rtrim($s, '.');
         return $s === '' ? '0' : $s;
@@ -11,13 +17,23 @@ if (! function_exists('fmt_qty')) {
 }
 
 if (! function_exists('audit_route_label')) {
-    function audit_route_label(?string $route): string {
-        if (!$route) return '-';
-        $tokens = array_values(array_filter(explode('.', $route), function ($t) {
-            return $t !== '' && !in_array($t, ['admin','api','web'], true);
-        }));
+    /**
+     * Build a human-friendly label from a route name.
+     */
+    function audit_route_label(?string $route): string
+    {
+        if (!$route) {
+            return '-';
+        }
 
-        if (empty($tokens)) return '-';
+        $tokens = array_values(array_filter(
+            explode('.', $route),
+            fn ($t) => $t !== '' && !in_array($t, ['admin', 'api', 'web'], true)
+        ));
+
+        if (empty($tokens)) {
+            return '-';
+        }
 
         $map = [
             'imports' => 'Import',
@@ -68,23 +84,32 @@ if (! function_exists('audit_route_label')) {
         $rev = array_reverse($tokens);
         $action = null;
         foreach ($rev as $tk) {
-            if (isset($actionMap[$tk])) { $action = $actionMap[$tk]; break; }
+            if (isset($actionMap[$tk])) {
+                $action = $actionMap[$tk];
+                break;
+            }
         }
-        if (!$action) { $last = $tokens[count($tokens)-1]; $action = ucwords(str_replace(['_','-'], ' ', $last)); }
+        if (!$action) {
+            $last = $tokens[count($tokens) - 1];
+            $action = ucwords(str_replace(['_', '-'], ' ', $last));
+        }
 
-        // Build module label from remaining tokens (excluding action candidates like 'index','page')
-        $moduleTokens = array_values(array_filter($tokens, function ($tk) use ($actionMap) {
-            return !isset($actionMap[$tk]);
-        }));
-        if (empty($moduleTokens)) return $action;
+        // Build module label from remaining tokens (excluding action candidates)
+        $moduleTokens = array_values(array_filter(
+            $tokens,
+            fn ($tk) => !isset($actionMap[$tk])
+        ));
+        if (empty($moduleTokens)) {
+            return $action;
+        }
 
         $parts = [];
         foreach ($moduleTokens as $tk) {
-            $parts[] = $map[$tk] ?? ucwords(str_replace(['_','-'], ' ', $tk));
+            $parts[] = $map[$tk] ?? ucwords(str_replace(['_', '-'], ' ', $tk));
         }
         $module = trim(implode(' ', $parts));
 
-        return $module.' - '.$action;
+        return $module . ' - ' . $action;
     }
 }
 
@@ -117,7 +142,7 @@ if (! function_exists('audit_activity_label')) {
 
         // Helper to find uploaded filename in payload
         $findUploaded = function (array $d): ?string {
-            foreach ($d as $k => $v) {
+            foreach ($d as $v) {
                 if (is_string($v) && str_starts_with($v, 'uploaded_file:')) {
                     return substr($v, strlen('uploaded_file:'));
                 }
@@ -136,96 +161,109 @@ if (! function_exists('audit_activity_label')) {
         if ((isset($set['hs_pk']) || isset($set['hs-pk'])) && (isset($set['manual']) || isset($set['manuals']))) {
             $parts = [];
             if (!empty($desc['product_model'])) {
-                $parts[] = 'Model '.(string) $desc['product_model'];
+                $parts[] = 'Model ' . (string) $desc['product_model'];
             }
             if (isset($desc['quantity'])) {
                 $qty = is_numeric($desc['quantity']) ? (int) $desc['quantity'] : (string) $desc['quantity'];
-                $parts[] = $qty.' unit';
+                $parts[] = $qty . ' unit';
             }
             if (isset($desc['unit_price']) && $desc['unit_price'] !== '') {
-                $parts[] = 'Harga @ '.fmt_qty($desc['unit_price']);
+                $parts[] = 'Harga @ ' . fmt_qty($desc['unit_price']);
             }
             if ($parts) {
-                $extra = implode(' • ', $parts);
+                $extra = implode(' | ', $parts);
             }
         }
 
         // Import GR upload
         if (isset($set['imports']) && isset($set['gr']) && (isset($set['upload']) || isset($set['import']))) {
             $parts = [];
-            if ($fname = $findUploaded($desc)) { $parts[] = 'File: '.$fname; }
-            foreach (['inserted' => 'Inserted', 'updated' => 'Updated', 'skipped' => 'Skipped', 'errors' => 'Errors'] as $k => $label) {
-                if (isset($desc[$k]) && is_numeric($desc[$k])) { $parts[] = $label.': '.(int)$desc[$k]; }
+            if ($fname = $findUploaded($desc)) {
+                $parts[] = 'File: ' . $fname;
             }
-            if ($parts) { $extra = implode(' • ', $parts); }
+            foreach (['inserted' => 'Inserted', 'updated' => 'Updated', 'skipped' => 'Skipped', 'errors' => 'Errors'] as $k => $label) {
+                if (isset($desc[$k]) && is_numeric($desc[$k])) {
+                    $parts[] = $label . ': ' . (int) $desc[$k];
+                }
+            }
+            if ($parts) { $extra = implode(' | ', $parts); }
         }
 
         // Import GR publish
         if (isset($set['imports']) && isset($set['gr']) && isset($set['publish'])) {
             $parts = [];
             foreach (['inserted' => 'Inserted', 'updated' => 'Updated', 'skipped' => 'Skipped', 'errors' => 'Errors', 'count' => 'Total'] as $k => $label) {
-                if (isset($desc[$k]) && is_numeric($desc[$k])) { $parts[] = $label.': '.(int)$desc[$k]; }
+                if (isset($desc[$k]) && is_numeric($desc[$k])) {
+                    $parts[] = $label . ': ' . (int) $desc[$k];
+                }
             }
-            if ($parts) { $extra = implode(' • ', $parts); }
+            if ($parts) { $extra = implode(' | ', $parts); }
         }
 
         // Open PO import
         if ((isset($set['openpo']) || isset($set['open-po'])) && (isset($set['import']) || isset($set['upload']))) {
             $parts = [];
-            if ($fname = $findUploaded($desc)) { $parts[] = 'File: '.$fname; }
-            foreach (['created' => 'Created', 'updated' => 'Updated', 'duplicated' => 'Duplicated', 'invalid' => 'Invalid'] as $k => $label) {
-                if (isset($desc[$k]) && is_numeric($desc[$k])) { $parts[] = $label.': '.(int)$desc[$k]; }
+            if ($fname = $findUploaded($desc)) {
+                $parts[] = 'File: ' . $fname;
             }
-            if ($parts) { $extra = implode(' • ', $parts); }
+            foreach (['created' => 'Created', 'updated' => 'Updated', 'duplicated' => 'Duplicated', 'invalid' => 'Invalid'] as $k => $label) {
+                if (isset($desc[$k]) && is_numeric($desc[$k])) {
+                    $parts[] = $label . ': ' . (int) $desc[$k];
+                }
+            }
+            if ($parts) { $extra = implode(' | ', $parts); }
         }
 
         // Purchase Orders Voyage Bulk/Move: add concise counts if available
         if (in_array('purchase-orders', $lower, true) && in_array('voyage', $lower, true)) {
-            // Try to infer from payload keys
             $parts = [];
             if (isset($desc['saved_rows']) && is_numeric($desc['saved_rows'])) {
-                $parts[] = 'Lines updated: '.(int)$desc['saved_rows'];
+                $parts[] = 'Lines updated: ' . (int) $desc['saved_rows'];
             } elseif (isset($desc['rows']) && is_array($desc['rows'])) {
-                $parts[] = 'Lines submitted: '.count($desc['rows']);
+                $parts[] = 'Lines submitted: ' . count($desc['rows']);
             }
             if (isset($desc['splits']) && is_array($desc['splits'])) {
                 $ins = $upd = $del = 0;
                 foreach ($desc['splits'] as $sp) {
-                    $sid = (int)($sp['id'] ?? 0);
-                    $isDel = (bool)($sp['delete'] ?? false);
+                    $sid = (int) ($sp['id'] ?? 0);
+                    $isDel = (bool) ($sp['delete'] ?? false);
                     if ($sid > 0 && $isDel) { $del++; }
                     elseif ($sid > 0) { $upd++; }
                     elseif (!empty($sp)) { $ins++; }
                 }
-                $parts[] = 'Splits: add '.$ins.' upd '.$upd.' del '.$del;
+                $parts[] = 'Splits: add ' . $ins . ' upd ' . $upd . ' del ' . $del;
             }
-            if ($parts) { $extra = implode(' • ', $parts); }
+            if ($parts) { $extra = implode(' | ', $parts); }
         }
 
         // Users
         if (isset($set['users'])) {
             if (!empty($desc['name'])) {
-                $extra = 'Pengguna: '.(string) $desc['name'];
+                $extra = 'User: ' . (string) $desc['name'];
             } elseif (!empty($desc['email'])) {
-                $extra = 'Email: '.(string) $desc['email'];
+                $extra = 'Email: ' . (string) $desc['email'];
             }
         }
 
-        return $extra ? ($base.' — '.$extra) : $base;
+        return $extra ? ($base . ' - ' . $extra) : $base;
     }
 }
 
-
-
 if (! function_exists('audit_page_label')) {
-    function audit_page_label(?string $route, ?string $path): string {
+    /**
+     * Build a title from route or path (fallback to path segments).
+     */
+    function audit_page_label(?string $route, ?string $path): string
+    {
         if ($route) {
-            $tokens = array_values(array_filter(explode('.', $route), function ($t) {
-                return $t !== '' && !in_array($t, ['admin','api','web'], true);
-            }));
+            $tokens = array_values(array_filter(
+                explode('.', $route),
+                fn ($t) => $t !== '' && !in_array($t, ['admin', 'api', 'web'], true)
+            ));
             $actionTokens = ['index','create','store','edit','update','destroy','delete','show','upload','preview','publish','form','page','export','import','bulk','move'];
             $lower = array_map('strtolower', $tokens);
             $set = array_flip($lower);
+
             if ((isset($set['hs_pk']) || isset($set['hs-pk'])) && isset($set['manual'])) {
                 return 'Input HS PK';
             }
@@ -235,24 +273,31 @@ if (! function_exists('audit_page_label')) {
             if (isset($set['imports']) && isset($set['gr']) && isset($set['publish'])) {
                 return 'Publish GR';
             }
-            $moduleTokens = array_values(array_filter($tokens, function ($tk) use ($actionTokens) {
-                return !in_array(strtolower($tk), $actionTokens, true);
-            }));
+
+            $moduleTokens = array_values(array_filter(
+                $tokens,
+                fn ($tk) => !in_array(strtolower($tk), $actionTokens, true)
+            ));
             if (!empty($moduleTokens)) {
                 $parts = [];
                 foreach ($moduleTokens as $tk) {
-                    $parts[] = ucwords(str_replace(['_','-'], ' ', $tk));
+                    $parts[] = ucwords(str_replace(['_', '-'], ' ', $tk));
                 }
                 return implode(' ', $parts);
             }
         }
+
         $p = trim((string) $path);
-        if ($p === '') return '-';
+        if ($p === '') {
+            return '-';
+        }
         $p = trim($p, '/');
-        if ($p === '') return '/';
+        if ($p === '') {
+            return '/';
+        }
         $seg = explode('/', $p);
         $slice = array_slice($seg, -2);
-        $title = ucwords(str_replace(['-','_'], ' ', implode(' ', $slice)));
+        $title = ucwords(str_replace(['-', '_'], ' ', implode(' ', $slice)));
         return $title !== '' ? $title : (string) $path;
     }
 }

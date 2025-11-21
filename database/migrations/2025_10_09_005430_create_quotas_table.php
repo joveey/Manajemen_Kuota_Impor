@@ -62,7 +62,7 @@ return new class extends Migration
                 if (!Schema::hasColumn('quotas', 'deleted_at')) {
                     $table->softDeletes();
                 }
-                // Hapus kolom lama yang tidak lagi dipakai
+                // Drop legacy columns that are no longer used
                 if (Schema::hasColumn('quotas', 'product_id')) {
                     $table->dropConstrainedForeignId('product_id');
                 }

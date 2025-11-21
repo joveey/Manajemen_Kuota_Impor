@@ -24,7 +24,7 @@
                         <i class="fas fa-info-circle"></i> 
                         <strong>Important:</strong> Sistem menggunakan 3 permission saja: <code>create</code> (global), <code>read</code> (read semua modul), dan <code>read limited</code> (read operasional saja, tanpa Administration).
                         <br>
-                        <small>Contoh valid: <code>create</code>, <code>read users</code>, <code>read quota</code>, <code>read reports</code></small>
+                        <small>Valid examples: <code>create</code>, <code>read users</code>, <code>read quota</code>, <code>read reports</code></small>
                     </div>
 
                     <div class="form-group">

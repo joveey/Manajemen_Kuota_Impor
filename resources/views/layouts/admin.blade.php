@@ -812,7 +812,7 @@
                                 </a>
                             @endif
                         @endif
-                        {{-- Products & Tambah Products removed per request --}}
+                        {{-- Products & Add Products removed per request --}}
                     </div>
                 </div>
 

@@ -491,10 +491,10 @@ class PurchaseOrderController extends Controller
 
         if (!$product) {
             if (!$createProduct) {
-                return back()->withErrors(['product_model' => 'Produk tidak ditemukan, dan opsi pembuatan produk dimatikan.'])->withInput();
+                return back()->withErrors(['product_model' => 'Product was not found and product creation is disabled.'])->withInput();
             }
 
-            // Buat produk minimal: code, name, sap_model diisi dengan model; kolom lain biarkan null/DEFAULT
+            // Create minimal product: code, name, and sap_model filled with the model; leave other columns null/DEFAULT
             $product = \App\Models\Product::create([
                 'code' => $model,
                 'name' => $model,
@@ -503,7 +503,7 @@ class PurchaseOrderController extends Controller
             ]);
         }
 
-        // Tentukan kuota yang akan dipakai
+        // Determine which quota to use
         $quota = null;
         $mappings = \App\Models\ProductQuotaMapping::with('quota')
             ->where('product_id', $product->id)
@@ -555,12 +555,12 @@ class PurchaseOrderController extends Controller
                 ->allocateForecast($product->id, (int) $po->quantity, $po->order_date, $po);
 
             if ($left > 0) {
-                $allocationNote = 'Sebagian belum teralokasi: '.number_format($left).' unit. Mohon impor kuota periode berikutnya.';
+                $allocationNote = 'Partially unallocated: '.number_format($left).' units. Please import quota for the next period.';
             }
         });
 
         $redir = redirect()->route('admin.purchase-orders.show', $po)
-            ->with('status', 'PO dibuat & alokasi forecast diproses.');
+            ->with('status', 'PO created and forecast allocation processed.');
         if ($allocationNote) { $redir->with('warning', $allocationNote); }
         return $redir;
     }
@@ -579,19 +579,19 @@ class PurchaseOrderController extends Controller
         $target = Quota::lockForUpdate()->findOrFail($data['target_quota_id']);
 
         if ($source->id === $target->id) {
-            return back()->withErrors(['target_quota_id' => 'Kuota tujuan harus berbeda dari kuota asal.']);
+            return back()->withErrors(['target_quota_id' => 'Target quota must be different from the source quota.']);
         }
 
         // Validate target matches product
         if (!$target->matchesProduct($po->product)) {
-            return back()->withErrors(['target_quota_id' => 'Kuota tujuan tidak sesuai produk/PK.']);
+            return back()->withErrors(['target_quota_id' => 'Target quota does not match the product/PK.']);
         }
 
         // Validate ETA within target period if provided
         if (!empty($data['eta_date'])) {
             $eta = \Illuminate\Support\Carbon::parse($data['eta_date'])->toDateString();
             if (!($target->period_start && $target->period_end && $target->period_start->toDateString() <= $eta && $target->period_end->toDateString() >= $eta)) {
-                return back()->withErrors(['eta_date' => 'Tanggal ETA baru tidak berada dalam periode kuota tujuan.']);
+                return back()->withErrors(['eta_date' => 'The new ETA does not fall within the target quota period.']);
             }
         }
 
@@ -608,7 +608,7 @@ class PurchaseOrderController extends Controller
         $requested = isset($data['move_qty']) ? (int) $data['move_qty'] : (int) $pivot->allocated_qty;
         $requested = max(0, min($requested, (int) $pivot->allocated_qty));
         if ($requested <= 0) {
-            return back()->withErrors(['move_qty' => 'Jumlah yang dipindahkan tidak valid.']);
+            return back()->withErrors(['move_qty' => 'The quantity to move is not valid.']);
         }
 
         $available = (int) ($target->forecast_remaining ?? 0);
@@ -616,7 +616,7 @@ class PurchaseOrderController extends Controller
 
         if ($move <= 0) {
             return back()
-                ->with('warning', 'Kuota tujuan tidak memiliki sisa kapasitas. Mohon buat kuota baru untuk periode terkait.')
+                ->with('warning', 'The target quota has no remaining capacity. Please create a new quota for the relevant period.')
                 ->withInput();
         }
 
@@ -627,7 +627,7 @@ class PurchaseOrderController extends Controller
             // 1) Free forecast from source
             $source->incrementForecast(
                 (int) $move,
-                sprintf('Realokasi forecast: kembalikan %s unit dari PO %s', number_format($move), $po->po_number),
+                sprintf('Forecast reallocation: return %s units from PO %s', number_format($move), $po->po_number),
                 $po,
                 $occurredOn,
                 $userId
@@ -636,7 +636,7 @@ class PurchaseOrderController extends Controller
             // 2) Reserve forecast on target
             $target->decrementForecast(
                 (int) $move,
-                sprintf('Realokasi forecast: pindahkan %s unit untuk PO %s', number_format($move), $po->po_number),
+                sprintf('Forecast reallocation: move %s units for PO %s', number_format($move), $po->po_number),
                 $po,
                 $occurredOn,
                 $userId
@@ -672,16 +672,15 @@ class PurchaseOrderController extends Controller
             }
         });
 
-        $msg = sprintf('Berhasil memindahkan %s unit dari kuota %s ke kuota %s.', number_format($move), $source->quota_number, $target->quota_number);
+        $msg = sprintf('Successfully moved %s units from quota %s to quota %s.', number_format($move), $source->quota_number, $target->quota_number);
         $redir = redirect()->route('admin.purchase-orders.show', $po)->with('status', $msg);
 
         if ($move < $requested) {
-            $redir->with('warning', sprintf('Kapasitas terbatas: hanya %s dari %s yang dipindahkan. Sisa %s unit belum teralokasi di periode baru. Mohon buat kuota baru.', number_format($move), number_format($requested), number_format($requested - $move)));
+            $redir->with('warning', sprintf('Limited capacity: only %s of %s were moved. Remaining %s units are not yet allocated in the new period. Please create a new quota.', number_format($move), number_format($requested), number_format($requested - $move)));
         }
 
         return $redir;
     }
 }
-
 
 

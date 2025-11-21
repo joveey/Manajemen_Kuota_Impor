@@ -30,23 +30,23 @@ echo   DONE!
 echo ========================================
 echo.
 echo Next steps:
-echo 1. Logout dari semua akun
-echo 2. Login kembali
+echo 1. Log out from all accounts
+echo 2. Log back in
 echo 3. Test permissions:
 echo.
 echo    MANAGER:
-echo    - Bisa akses Administration (Users, Roles, Permissions)
-echo    - Bisa VIEW data (Quota, PO, Master Data, Reports)
-echo    - TIDAK bisa edit data
+echo    - Can access Administration (Users, Roles, Permissions)
+echo    - Can VIEW data (Quota, PO, Master Data, Reports)
+echo    - CANNOT edit data
 echo.
 echo    EDITOR:
-echo    - TIDAK bisa akses Administration
-echo    - Bisa manage data (Create, Edit, Delete)
+echo    - CANNOT access Administration
+echo    - Can manage data (Create, Edit, Delete)
 echo.
 echo    VIEWER:
-echo    - TIDAK bisa akses Administration
-echo    - Bisa VIEW data (read-only)
+echo    - CANNOT access Administration
+echo    - Can VIEW data (read-only)
 echo.
-echo Lihat dokumentasi lengkap di: FINAL_ROLE_PERMISSIONS.md
+echo See full documentation at: FINAL_ROLE_PERMISSIONS.md
 echo.
 pause

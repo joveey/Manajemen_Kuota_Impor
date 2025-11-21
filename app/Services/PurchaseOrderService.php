@@ -84,7 +84,7 @@ class PurchaseOrderService
 
             $selectedQuota->decrementForecast(
                 $quantity,
-                sprintf('Forecast dikurangi oleh PO %s', $po->po_number),
+                sprintf('Forecast reduced by PO %s', $po->po_number),
                 $po,
                 $orderDate,
                 $user?->getAuthIdentifier()
@@ -92,7 +92,7 @@ class PurchaseOrderService
 
             if ($allocation->switched()) {
                 $selectedQuota->switchOver(
-                    sprintf('Auto switch ke kuota %s untuk PO %s', $selectedQuota->quota_number, $po->po_number),
+                    sprintf('Auto switch to quota %s for PO %s', $selectedQuota->quota_number, $po->po_number),
                     $po,
                     $user?->getAuthIdentifier()
                 );
@@ -118,7 +118,7 @@ class PurchaseOrderService
                 'auto_generated' => Arr::get($data, 'auto_generated', false),
             ]);
 
-            $shipment->logStatus($initialStatus, 'Shipment dibuat.');
+            $shipment->logStatus($initialStatus, 'Shipment created.');
 
             $purchaseOrder->refreshAggregates();
 
@@ -148,7 +148,7 @@ class PurchaseOrderService
 
             $quota->decrementActual(
                 $quantity,
-                sprintf('Aktual dikurangi oleh receipt %s', $shipment->shipment_number),
+                sprintf('Actual reduced by receipt %s', $shipment->shipment_number),
                 $shipment,
                 $receiptDate,
                 $user?->getAuthIdentifier()
@@ -178,7 +178,7 @@ class PurchaseOrderService
                         'detail' => 'Auto-generated after partial receipt',
                     ]);
 
-                    $autoShipment->logStatus(Shipment::STATUS_PENDING, 'Shipment lanjutan otomatis dibuat.');
+                    $autoShipment->logStatus(Shipment::STATUS_PENDING, 'Follow-up shipment auto-created.');
                 }
             }
 

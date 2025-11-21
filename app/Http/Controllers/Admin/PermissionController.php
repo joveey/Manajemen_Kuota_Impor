@@ -179,7 +179,7 @@ class PermissionController extends Controller
                 ->with('error', 'You do not have permission to delete permissions.');
         }
 
-        // Detach permission dari semua roles sebelum dihapus
+        // Detach permission from all roles before deleting
         $permission->roles()->detach();
         
         $permission->delete();
