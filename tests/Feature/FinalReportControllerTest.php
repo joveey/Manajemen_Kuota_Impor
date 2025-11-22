@@ -42,11 +42,11 @@ class FinalReportControllerTest extends TestCase
 
         $product = Product::create([
             'code' => 'REP-01',
-            'name' => 'Produk Laporan',
+            'name' => 'Report Product',
             'sap_model' => 'REP-01',
             'category' => 'Testing',
             'pk_capacity' => 1.5,
-            'description' => 'Produk untuk laporan akhir',
+            'description' => 'Product for final report testing',
             'is_active' => true,
         ]);
 
@@ -62,7 +62,7 @@ class FinalReportControllerTest extends TestCase
             'status' => PurchaseOrder::STATUS_IN_TRANSIT,
             'status_po_display' => 'In Transit',
             'plant_name' => 'Test Plant',
-            'plant_detail' => 'Jl. Pengujian',
+            'plant_detail' => 'Testing Street',
         ]);
 
         $shipment = Shipment::create([

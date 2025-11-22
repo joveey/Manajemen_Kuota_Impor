@@ -32,13 +32,13 @@ class AutoSwitchQuotaTest extends TestCase
             'sap_model' => 'AUTO-SW',
             'category' => 'Test',
             'pk_capacity' => 1.0,
-            'description' => 'Unit untuk pengujian auto switch',
+            'description' => 'Unit for auto switch testing',
             'is_active' => true,
         ]);
 
         $this->currentYearQuota = Quota::create([
             'quota_number' => 'Q-2025',
-            'name' => 'Kuota Tahun Berjalan',
+            'name' => 'Current Year Quota',
             'government_category' => 'AC 0.5 PK - 2 PK',
             'period_start' => '2025-01-01',
             'period_end' => '2025-12-31',
@@ -51,7 +51,7 @@ class AutoSwitchQuotaTest extends TestCase
 
         $this->nextYearQuota = Quota::create([
             'quota_number' => 'Q-2026',
-            'name' => 'Kuota Tahun Berikutnya',
+            'name' => 'Next Year Quota',
             'government_category' => 'AC 0.5 PK - 2 PK',
             'period_start' => '2026-01-01',
             'period_end' => '2026-12-31',
@@ -89,7 +89,7 @@ class AutoSwitchQuotaTest extends TestCase
             'plant_detail' => 'Jl. Pengujian 1',
         ]);
 
-        $this->assertSame($this->nextYearQuota->id, $po->quota_id, 'PO bulan Desember harus memakai kuota tahun berikutnya.');
+        $this->assertSame($this->nextYearQuota->id, $po->quota_id, 'POs in December must use next year quota.');
 
         $this->assertDatabaseHas('quota_histories', [
             'quota_id' => $this->nextYearQuota->id,
@@ -111,7 +111,7 @@ class AutoSwitchQuotaTest extends TestCase
             'plant_detail' => 'Jl. Pengujian 1',
         ]);
 
-        $this->assertSame($this->currentYearQuota->id, $po->quota_id, 'PO di luar bulan Desember tetap memakai kuota primary.');
+        $this->assertSame($this->currentYearQuota->id, $po->quota_id, 'POs outside December should still use the primary quota.');
 
         $this->assertDatabaseMissing('quota_histories', [
             'change_type' => QuotaHistory::TYPE_SWITCH_OVER,

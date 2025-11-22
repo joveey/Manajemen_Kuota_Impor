@@ -13,11 +13,11 @@ use Illuminate\Support\Carbon;
 class ProductQuotaAutoMapper
 {
     /**
-     * Jalankan automapping untuk satu periode (idempotent per-periode).
+     * Run automapping for a single period (idempotent per period).
      *
-     * - periodKey bisa: YYYY, YYYY-MM, atau YYYY-MM-DD.
-     * - Menghapus mapping source='auto' untuk period_key terkait sebelum insert ulang.
-     * - Insert primary (priority=1, is_primary=true) + backups (priority 2+), menandai source='auto' dan period_key.
+     * - periodKey can be: YYYY, YYYY-MM, or YYYY-MM-DD.
+     * - Removes mappings with source='auto' for the period_key before inserting again.
+     * - Inserts primary (priority=1, is_primary=true) + backups (priority 2+) with source='auto' and period_key.
      */
     public function runForPeriod(string|int $periodKey): array
     {
@@ -28,7 +28,7 @@ class ProductQuotaAutoMapper
         ];
 
         DB::transaction(function () use ($periodKey, &$summary) {
-            // 1) Normalisasi quotas di periode tersebut
+            // 1) Normalize quotas in the target period
             $quotaQuery = $this->queryQuotasByPeriodKey($periodKey);
 
             $quotaQuery->chunkById(500, function ($quotas) use (&$summary) {
@@ -50,16 +50,16 @@ class ProductQuotaAutoMapper
                 }
             });
 
-            // Ambil ulang quotas kandidat (sudah ternormalisasi)
+            // Fetch normalized candidate quotas again
             $quotasForPeriod = $this->queryQuotasByPeriodKey($periodKey)->get();
 
-            // 2) Ambil semua product sebagai master data
+            // 2) Fetch all products as master data
             $products = Product::query()->get();
             $summary['total_products'] = $products->count();
 
             $resolver = app(HsCodeResolver::class);
 
-            // Bersihkan mapping otomatis periode ini terlebih dahulu (idempotent)
+            // Remove auto-generated mappings for this period first (idempotent)
             DB::table('product_quota_mappings')
                 ->where('period_key', (string)$periodKey)
                 ->where('source', 'auto')
@@ -72,7 +72,7 @@ class ProductQuotaAutoMapper
                     continue;
                 }
 
-                // 3) Filter quotas yang mengandung pk dalam rentang
+                // 3) Filter quotas whose range contains the PK
                 $candidates = $quotasForPeriod->filter(function (Quota $q) use ($pk) {
                     $minOk = true;
                     if (!is_null($q->min_pk)) {
@@ -90,7 +90,7 @@ class ProductQuotaAutoMapper
                     continue;
                 }
 
-                // Hitung lebar rentang (null => INF agar kalah prioritas)
+                // Compute range width (null => INF so it loses priority)
                 $computeWidth = function (Quota $q) {
                     $min = is_null($q->min_pk) ? null : (float)$q->min_pk;
                     $max = is_null($q->max_pk) ? null : (float)$q->max_pk;
@@ -104,7 +104,7 @@ class ProductQuotaAutoMapper
                 $primary = $sorted->first();
                 $backups = $sorted->slice(1)->values();
 
-                // 4) Insert mappings (auto) untuk periode ini
+                // 4) Insert mappings (auto) for this period
                 $toInsert = [];
                 $priority = 1;
 

@@ -8,10 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Hindari error kolom duplikat jika sudah ada
+        // Avoid duplicate column errors if it already exists
         if (!Schema::hasColumn('users', 'is_active')) {
             Schema::table('users', function (Blueprint $table) {
-                // Tambahkan kolom boolean is_active, default 1 (true)
+                // Add boolean is_active column, default true
                 $table->boolean('is_active')->default(true);
             });
         }

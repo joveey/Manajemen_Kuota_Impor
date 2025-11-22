@@ -16,29 +16,29 @@ class ShipmentReceiptService
                 ->lockForUpdate()
                 ->findOrFail($shipmentId);
 
-            // Validasi quantity_received > 0 (integer)
+            // Validate quantity_received > 0 (integer)
             $qty = (int) ($payload['quantity_received'] ?? 0);
             if ($qty <= 0) {
                 throw ValidationException::withMessages([
-                    'quantity_received' => 'Quantity received harus lebih dari 0.'
+                    'quantity_received' => 'Quantity received must be greater than 0.'
                 ]);
             }
 
-            // Validasi planned > 0
+            // Validate planned > 0
             $planned = (int) $shipment->quantity_planned;
             if ($planned <= 0) {
                 throw ValidationException::withMessages([
-                    'quantity_planned' => 'Quantity planned shipment tidak valid.'
+                    'quantity_planned' => 'Planned shipment quantity is not valid.'
                 ]);
             }
 
-            // Hitung total yang sudah diterima sejauh ini
+            // Calculate total received so far
             $receivedSoFar = (int) $shipment->receipts()->sum('quantity_received');
 
-            // Validasi over-receive terhadap quantity planned
+            // Prevent receiving more than planned quantity
             if ($receivedSoFar + $qty > $planned) {
                 throw ValidationException::withMessages([
-                    'quantity_received' => 'Total penerimaan melebihi quantity planned shipment.'
+                    'quantity_received' => 'Total received exceeds the planned shipment quantity.'
                 ]);
             }
 
@@ -52,13 +52,13 @@ class ShipmentReceiptService
             $receipt->notes = $payload['notes'] ?? null;
             $receipt->save();
 
-            // Tentukan kuota berdasarkan PK & periode tanggal penerimaan (tanpa overwrite forecast)
+            // Pick quota based on PK & receipt date period (without overwriting forecast)
             $po = $shipment->purchaseOrder;
             $product = $po?->product;
             $date = $receipt->receipt_date ?? now()->toDateString();
 
             if (!$product) {
-                throw ValidationException::withMessages(['product' => 'Produk untuk PO tidak ditemukan.']);
+                throw ValidationException::withMessages(['product' => 'Product for the PO was not found.']);
             }
 
             $quota = \App\Models\Quota::query()
@@ -69,10 +69,10 @@ class ShipmentReceiptService
                 ->first(function ($q) use ($product) { return $q->matchesProduct($product); });
 
             if (!$quota) {
-                throw ValidationException::withMessages(['quota' => 'Kuota yang cocok untuk periode/PK tidak ditemukan.']);
+                throw ValidationException::withMessages(['quota' => 'No matching quota found for the period/PK.']);
             }
 
-            // Idempoten: hindari pengurangan berulang untuk receipt yang sama
+            // Idempotent: avoid repeated decrements for the same receipt
             $existsHist = \Illuminate\Support\Facades\DB::table('quota_histories')
                 ->where('change_type', \App\Models\QuotaHistory::TYPE_ACTUAL_DECREASE)
                 ->where('meta->receipt_id', $receipt->id)
@@ -80,7 +80,7 @@ class ShipmentReceiptService
             if (!$existsHist) {
                 $quota->decrementActual(
                     (int)$qty,
-                    sprintf('GR %s pada %s', (string)($po?->po_number ?? $shipment->id), (string)$date),
+                    sprintf('GR %s on %s', (string)($po?->po_number ?? $shipment->id), (string)$date),
                     $receipt,
                     new \DateTimeImmutable((string)$date),
                     $performedByUserId,
@@ -92,14 +92,14 @@ class ShipmentReceiptService
                 );
             }
 
-            // Update status shipment bila seluruh quantity sudah diterima
+            // Update shipment status when all quantity is received
             $totalReceived = (int) $shipment->receipts()->sum('quantity_received');
             if ($totalReceived === $planned) {
                 $shipment->status = 'received';
                 $shipment->save();
             }
 
-            // Kembalikan receipt yang baru dibuat
+            // Return the newly-created receipt
             return $receipt;
         });
     }

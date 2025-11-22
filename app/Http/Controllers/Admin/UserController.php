@@ -57,14 +57,14 @@ class UserController extends Controller
         /** @var \App\Models\User $currentUser */
         $currentUser = Auth::user();
 
-        // Hanya Admin dan Editor yang boleh memilih role selain default
+        // Only Admin and Editor may choose roles other than the default
         if ($currentUser->hasRole(['admin', 'editor'])) {
-            // Admin dapat melihat semua role termasuk admin; Editor semua kecuali admin
+            // Admin can see all roles including admin; Editor sees all except admin
             $q = Role::query();
             if (!$currentUser->hasRole('admin')) { $q->where('name', '!=', 'admin'); }
             $roles = $q->orderBy('name', 'asc')->get();
         } else {
-            // Manager atau selainnya tidak bisa memilih role; fallback ke role default
+            // Manager or others cannot choose roles; fallback to the default role
             $roles = collect();
         }
         
@@ -101,7 +101,7 @@ class UserController extends Controller
             'is_active' => $request->input('is_active', 0) == 1,
         ]);
 
-        // Assign roles: Admin/Editor dapat set role; Editor tidak boleh set admin
+        // Assign roles: Admin/Editor can set roles; Editor cannot set admin
         if ($currentUser->hasRole(['admin', 'editor'])) {
             if ($request->has('roles')) {
                 $q = Role::whereIn('id', $request->roles);
@@ -110,7 +110,7 @@ class UserController extends Controller
                 $user->roles()->sync($roleIds);
             }
         } else {
-            // Untuk selain Admin/Editor, set role default "user"
+            // For non Admin/Editor, apply the default "user" role
             try {
                 $user->assignRole('user');
             } catch (\Throwable $e) {
@@ -210,14 +210,14 @@ class UserController extends Controller
             'is_active' => $request->input('is_active', 0) == 1,
         ];
 
-        // Update password hanya jika diisi
+        // Update password only if provided
         if ($request->filled('password')) {
             $userData['password'] = Hash::make($request->password);
         }
 
         $user->update($userData);
 
-        // Sync roles hanya jika Admin/Editor; Editor tidak boleh set admin
+        // Sync roles only for Admin/Editor; Editor cannot set admin
         if ($currentUser->hasRole(['admin', 'editor'])) {
             if ($request->has('roles')) {
                 $q = Role::whereIn('id', $request->roles);

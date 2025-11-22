@@ -67,7 +67,7 @@ class MappingController extends Controller
             }
 
             $pk = $resolver->resolveForProduct($product, $periodKey);
-            // Abaikan kasus missing PK (diasumsikan tidak terjadi)
+            // Ignore missing PK cases (assumed not to happen)
             if ($pk === null) { continue; }
 
             // Check if there exists any quota that contains this PK

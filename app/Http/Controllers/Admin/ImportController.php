@@ -398,8 +398,8 @@ class ImportController extends Controller
                         ->leftJoin('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
                         ->where('ph.po_number',$po)->where('pl.line_no',$ln)
                         ->select('pl.id','pl.hs_code_id','hs.pk_capacity')->first();
-                    if (!$pl) { $errors[]='PO/Line tidak ditemukan'; }
-                    elseif (is_null($pl->pk_capacity)) { $errors[]='Unmapped: HS/PK belum tersedia'; }
+                    if (!$pl) { $errors[]='PO/Line not found'; }
+                    elseif (is_null($pl->pk_capacity)) { $errors[]='Unmapped: HS/PK not available yet'; }
                 }
 
                 if ($errors) {
@@ -1121,7 +1121,7 @@ class ImportController extends Controller
                             $applied++;
                         } else {
                             // Insert then set unified quota number using generated ID.
-                            $name = 'Kuota '.$label.' '.$pStart.'-'.$pEnd;
+                            $name = 'Quota '.$label.' '.$pStart.'-'.$pEnd;
                             $tmpNumber = 'TMP-'.Str::uuid()->toString();
                             $newId = DB::table('quotas')->insertGetId([
                                 'quota_number' => $tmpNumber,

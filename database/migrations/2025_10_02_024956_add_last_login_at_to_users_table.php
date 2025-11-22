@@ -8,10 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Hindari duplikasi kolom jika sudah ada di tabel users
+        // Avoid duplicate column if it already exists on users
         if (!Schema::hasColumn('users', 'last_login_at')) {
             Schema::table('users', function (Blueprint $table) {
-                // Kolom timestamp untuk waktu login terakhir
+                // Timestamp column for the last login time
                 $table->timestamp('last_login_at')->nullable();
             });
         }

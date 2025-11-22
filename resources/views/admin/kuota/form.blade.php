@@ -135,7 +135,7 @@
 
                     <div class="mb-3">
                         <label for="source_document" class="form-label">Source Document</label>
-                        <input type="text" class="form-control" id="source_document" name="source_document" value="{{ old('source_document', $quota->source_document) }}" placeholder="Contoh: SK Menteri ...">
+                        <input type="text" class="form-control" id="source_document" name="source_document" value="{{ old('source_document', $quota->source_document) }}" placeholder="Example: Ministerial Decree ...">
                     </div>
 
                     <div class="mb-3">

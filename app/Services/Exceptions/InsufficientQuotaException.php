@@ -10,7 +10,7 @@ class InsufficientQuotaException extends Exception
     {
         return new self(
             sprintf(
-                'Kuota tidak mencukupi untuk produk %s (permintaan %d unit)',
+                'Insufficient quota for product %s (requested %d units)',
                 $productName,
                 $requestedQuantity
             )

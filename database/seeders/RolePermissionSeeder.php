@@ -18,11 +18,11 @@ class RolePermissionSeeder extends Seeder
          */
         $permissionGroups = [
             'Global' => [
-                // Global create: boleh create di semua modul
+                // Global create: allowed to create in all modules
                 'create' => 'Create any resource across the system.',
                 // Global read all
                 'read' => 'Read access to all modules.',
-                // Limited read: tidak termasuk Administration (users/roles/permissions)
+                // Limited read: excludes Administration (users/roles/permissions)
                 'read limited' => 'Read access to operational modules only (no administration).',
             ],
         ];
@@ -53,7 +53,7 @@ class RolePermissionSeeder extends Seeder
                       ->orWhere('name', 'like', 'delete %')
                       // remove any 'create *' granular permissions (we keep only the global 'create')
                       ->orWhere('name', 'like', 'create %')
-                      // remove any 'read *' per modul, kecuali 'read limited'
+                    // remove any 'read *' per module, except 'read limited'
                       ->orWhere(function ($q2) {
                           $q2->where('name', 'like', 'read %')
                              ->where('name', '!=', 'read limited');

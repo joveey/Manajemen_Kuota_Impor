@@ -107,7 +107,7 @@
                         @if($remaining === 0) disabled @endif>
                     @error('quantity_received')<small class="text-danger d-block mt-1">{{ $message }}</small>@enderror
                     @if($remaining === 0)
-                        <small class="text-warning d-block mt-1">Seluruh quantity sudah diterima untuk shipment ini.</small>
+                        <small class="text-warning d-block mt-1">All quantities have been received for this shipment.</small>
                     @endif
                 </div>
 

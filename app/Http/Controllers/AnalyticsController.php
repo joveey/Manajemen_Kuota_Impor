@@ -79,13 +79,13 @@ class AnalyticsController extends Controller
 
         $labels = $dataset['labels'] ?? [];
         $tableRows = $dataset['table']['rows'] ?? ($dataset['table'] ?? []);
-        $primaryLabel = $labels['primary'] ?? 'Nilai';
-        $secondaryLabel = $labels['secondary'] ?? 'Sisa';
-        $percentageLabel = $labels['percentage'] ?? 'Persentase';
+        $primaryLabel = $labels['primary'] ?? 'Value';
+        $secondaryLabel = $labels['secondary'] ?? 'Remaining';
+        $percentageLabel = $labels['percentage'] ?? 'Percentage';
         $filters = $dataset['filters'] ?? [];
         $year = (int) ($filters['year'] ?? now()->year);
 
-        $columns = ['Nomor Kuota', 'Range PK', 'Kuota Awal', $primaryLabel, $secondaryLabel, $percentageLabel];
+        $columns = ['Quota Number', 'PK Range', 'Initial Quota', $primaryLabel, $secondaryLabel, $percentageLabel];
         $rows = collect($tableRows)->map(function ($row) {
             return [
                 $row['quota_number'] ?? '',
@@ -326,13 +326,13 @@ class AnalyticsController extends Controller
         if ($mode === 'forecast') {
             $rows = $this->buildForecastRows($start, $end, $pkFilter);
             $primaryLabel = 'Forecast (Consumption)';
-            $secondaryLabel = 'Sisa Forecast';
-            $percentageLabel = 'Penggunaan Forecast %';
+            $secondaryLabel = 'Remaining Forecast';
+            $percentageLabel = 'Forecast Usage %';
         } else {
             $rows = $this->buildActualRows($start, $end, $pkFilter);
             $primaryLabel = 'Actual (Good Receipt)';
-            $secondaryLabel = 'Sisa Kuota';
-            $percentageLabel = 'Pemakaian Actual %';
+            $secondaryLabel = 'Remaining Quota';
+            $percentageLabel = 'Actual Usage %';
         }
 
         $rows = $rows->values();

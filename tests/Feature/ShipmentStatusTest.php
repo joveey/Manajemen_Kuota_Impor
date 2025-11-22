@@ -30,13 +30,13 @@ class ShipmentStatusTest extends TestCase
             'sap_model' => 'SHIP-PENDING',
             'category' => 'Test',
             'pk_capacity' => 1.0,
-            'description' => 'Produk uji shipment',
+            'description' => 'Shipment test product',
             'is_active' => true,
         ]);
 
         $quota = Quota::create([
             'quota_number' => 'QT-TEST',
-            'name' => 'Kuota Shipment Test',
+            'name' => 'Shipment Test Quota',
             'government_category' => 'AC 0.5 PK - 2 PK',
             'period_start' => '2025-01-01',
             'period_end' => '2026-12-31',
@@ -68,7 +68,7 @@ class ShipmentStatusTest extends TestCase
             'category' => 'Testing',
             'plant_name' => 'Test Plant',
             'plant_detail' => 'Jl. Test No 1',
-            'remarks' => 'PO untuk pengujian shipment',
+            'remarks' => 'PO for shipment testing',
         ]);
     }
 
@@ -88,7 +88,7 @@ class ShipmentStatusTest extends TestCase
         $this->assertTrue($shipment->statusLogs->pluck('status')->contains(Shipment::STATUS_PENDING));
 
         Carbon::setTestNow('2025-12-21');
-        $shipment->syncScheduledStatus('Status otomatis pengujian.');
+        $shipment->syncScheduledStatus('Automated test status.');
         $shipment->refresh()->load('statusLogs');
 
         $this->assertSame(Shipment::STATUS_IN_TRANSIT, $shipment->status);

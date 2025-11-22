@@ -59,8 +59,8 @@
       <span class="text-muted small me-1">Quick actions:</span>
       <button type="button" class="btn btn-outline-secondary btn-sm qa-fill-bl" title="Isi ke bawah nilai BL dari nilai terakhir">Fill BL ↓</button>
       <button type="button" class="btn btn-outline-secondary btn-sm qa-fill-factory" title="Isi ke bawah nilai Factory dari nilai terakhir">Fill Factory ↓</button>
-      <button type="button" class="btn btn-outline-secondary btn-sm qa-copy-etd-eta" title="Salin ETD ke ETA jika ETA kosong">Copy ETD → ETA</button>
-      <button type="button" class="btn btn-outline-secondary btn-sm qa-parent-to-splits" title="Salin nilai baris parent ke semua split yang masih kosong">Parent → Splits (empty)</button>
+      <button type="button" class="btn btn-outline-secondary btn-sm qa-copy-etd-eta" title="Copy ETD to ETA when ETA is empty">Copy ETD -> ETA</button>
+      <button type="button" class="btn btn-outline-secondary btn-sm qa-parent-to-splits" title="Copy parent row values to all empty splits">Parent -> Splits (empty)</button>
       <button type="button" class="btn btn-outline-secondary btn-sm qa-status-finish" title="Set status Finish untuk baris yang punya BL">Set Finish if BL</button>
     </div>
     <div class="voyage-table-wrapper">
@@ -129,7 +129,7 @@
                   <div class="d-flex gap-2">
                     <input type="text" class="form-control form-control-sm s-remark" value="{{ $sp->voyage_remark ?? '' }}">
                     <button type="button" class="btn btn-sm btn-outline-primary btn-split-move" data-line-id="{{ $ln->id }}" data-split-id="{{ $sp->id }}" data-qty="{{ (int)($sp->qty ?? 0) }}">Move</button>
-                    <button type="button" class="btn btn-sm btn-outline-danger btn-split-delete" title="Hapus split ini">Delete</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-split-delete" title="Delete this split">Delete</button>
                   </div>
                 </td>
               </tr>

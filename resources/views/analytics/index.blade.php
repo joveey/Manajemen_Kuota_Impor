@@ -83,7 +83,7 @@
         <header class="analytics-card__header">
             <div>
                 <h2 class="analytics-card__title">HS/PK Summary</h2>
-                <p class="analytics-card__subtitle">Ringkasan kuota dan realisasi berdasarkan HS Code dan kapasitas (PK).</p>
+                <p class="analytics-card__subtitle">Summary of quotas and realization by HS Code and capacity (PK).</p>
             </div>
             @php $y = (int) ($year ?? now()->year); @endphp
             <span class="analytics-card__badge analytics-card__badge--muted">Until Dec-{{ $y }}, Jan-{{ $y+1 }}</span>
@@ -101,7 +101,7 @@
                     </tr>
                 </thead>
                 <tbody id="hsPkSummaryBody">
-                    <tr><td colspan="6" class="text-center text-muted py-4">Memuat ringkasan...</td></tr>
+                    <tr><td colspan="6" class="text-center text-muted py-4">Loading summary...</td></tr>
                 </tbody>
                 <tfoot>
                     <tr>

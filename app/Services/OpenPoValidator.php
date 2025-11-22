@@ -68,8 +68,8 @@ class OpenPoValidator
 
             $errors = [];
 
-            if ($po === '') { $errors[] = 'Kolom PO_DOC kosong'; }
-            if ($model === '') { $errors[] = 'Kolom ITEM_CODE kosong'; }
+            if ($po === '') { $errors[] = 'PO_DOC column is empty'; }
+            if ($model === '') { $errors[] = 'ITEM_CODE column is empty'; }
 
             // date parse (support dd-mm-yyyy, general strings, and Excel serial number)
             $excelSerialToDate = static function ($v): ?string {
@@ -84,7 +84,7 @@ class OpenPoValidator
             if ($poDate !== '') {
                 $poDateNorm = $excelSerialToDate($poDate);
                 if (!$poDateNorm) {
-                    try { $poDateNorm = Carbon::parse($poDate)->toDateString(); } catch (\Throwable $e) { $errors[] = 'CREATED_DATE tidak valid (gunakan YYYY-MM-DD)'; }
+                    try { $poDateNorm = Carbon::parse($poDate)->toDateString(); } catch (\Throwable $e) { $errors[] = 'CREATED_DATE is invalid (use YYYY-MM-DD)'; }
                 }
             } else {
                 // tolerate missing date; leave null
@@ -98,7 +98,7 @@ class OpenPoValidator
                         $etaNorm = Carbon::createFromFormat('d-m-Y', $eta)->toDateString();
                     } catch (\Throwable $e1) {
                         try { $etaNorm = Carbon::parse($eta)->toDateString(); }
-                        catch (\Throwable $e2) { $errors[] = 'DELIV_DATE tidak valid (gunakan dd-mm-yyyy)'; }
+                        catch (\Throwable $e2) { $errors[] = 'DELIV_DATE is invalid (use dd-mm-yyyy)'; }
                     }
                 }
             }
@@ -109,7 +109,7 @@ class OpenPoValidator
                 $num = preg_replace('/[^0-9.\-]/', '', (string)$qtyRaw);
                 if ($num !== '' && is_numeric($num)) { $qty = (float)$num; }
             }
-            if (!is_numeric($qty) || $qty <= 0) { $errors[] = 'QTY tidak valid (> 0)'; }
+            if (!is_numeric($qty) || $qty <= 0) { $errors[] = 'QTY is not valid (> 0 required)'; }
 
             $qtyToInvoice = null; $qtyToDeliver = null;
             if ($qtyToInvRaw !== null && $qtyToInvRaw !== '') {
@@ -132,7 +132,7 @@ class OpenPoValidator
                         ->exists();
                     // Allow alphabetic codes (e.g., ACC) even if not yet in master
                     if (!$exists && !preg_match('/[A-Za-z]/', (string)$hsCode)) {
-                        $errors[] = 'HS_CODE tidak ada di HS master';
+                        $errors[] = 'HS_CODE is not present in the HS master';
                     }
                 }
                 // If there is a model->HS mapping table (not present in this repo), you could check consistency here.
@@ -147,7 +147,7 @@ class OpenPoValidator
                     if ($product && isset($product->hs_code) && $product->hs_code) {
                         $hsCode = (string) $product->hs_code;
                     } else {
-                        $errors[] = 'MODEL_CODE belum punya HS mapping';
+                        $errors[] = 'MODEL_CODE does not have an HS mapping yet';
                     }
                 }
             }

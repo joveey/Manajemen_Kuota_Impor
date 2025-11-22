@@ -24,9 +24,9 @@ echo   DONE!
 echo ========================================
 echo.
 echo Next steps:
-echo 1. Logout dari akun viewer (Annisa)
-echo 2. Login kembali
-echo 3. Coba akses /admin/users (seharusnya 403 Forbidden)
-echo 4. Menu Administration seharusnya TIDAK muncul
+echo 1. Log out from the viewer account (Annisa)
+echo 2. Log back in
+echo 3. Try visiting /admin/users (should be 403 Forbidden)
+echo 4. The Administration menu should NOT appear
 echo.
 pause

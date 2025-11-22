@@ -26,16 +26,16 @@ use App\Http\Controllers\Admin\HsPkManualController;
 | Web Routes
 |--------------------------------------------------------------------------
 |
-| Di sini Anda bisa mendaftarkan rute web untuk aplikasi Anda. Rute-rute
-| ini dimuat oleh RouteServiceProvider dan semuanya akan
-| ditugaskan ke grup middleware "web".
+| Here is where you can register web routes for your application.
+| These routes are loaded by the RouteServiceProvider and all will
+| be assigned to the "web" middleware group.
 |
 */
 
-// Mengarahkan halaman utama ke login atau dashboard
+// Direct the root page to login or dashboard
 Route::get('/', function () {
     return Auth::check() 
-        ? redirect()->route('admin.dashboard') // Arahkan ke dashboard admin jika sudah login
+        ? redirect()->route('admin.dashboard') // Send to admin dashboard if already logged in
         : redirect()->route('login');
 });
 
@@ -120,33 +120,33 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     });
     
     // ============================================
-    // MANAJEMEN KUOTA IMPOR
+    // IMPORT QUOTA MANAGEMENT
     // ============================================
 
     // Removed master-data UI per request
     // Route::resource('master-data', ProductController::class)->except(['show']);
 
-    // Disable manual create form; use Import Kuota page instead
+    // Disable manual create form; use Import Quota page instead
     // Also disable edit/update per request (read-only from UI)
     Route::resource('quotas', QuotaController::class)->except(['create','store','show','edit','update']);
     Route::get('quotas/export/csv', [QuotaController::class, 'export'])->name('quotas.export');
-    // Halaman Quota Management sudah dipindahkan ke Import Kuota
+    // Quota Management page has been moved to Import Quota
     Route::get('kuota', function(){
         return redirect()->route('admin.imports.quotas.index')
-            ->with('status', 'Halaman Quota Management dipindahkan ke Import Kuota.');
+            ->with('status', 'Quota Management page has been moved to Import Quota.');
     })->name('kuota.index');
-    // Redirect legacy create routes to Import Kuota
+    // Redirect legacy create routes to Import Quota
     Route::get('quotas/create', function(){
-        return redirect()->route('admin.imports.quotas.index')->with('warning','Form kuota manual dinonaktifkan. Gunakan Import Kuota.');
+        return redirect()->route('admin.imports.quotas.index')->with('warning','Manual quota form is disabled. Use Import Quota.');
     })->name('quotas.create');
     Route::get('kuota/create', function(){
-        return redirect()->route('admin.imports.quotas.index')->with('warning','Form kuota manual dinonaktifkan. Gunakan Import Kuota.');
+        return redirect()->route('admin.imports.quotas.index')->with('warning','Manual quota form is disabled. Use Import Quota.');
     })->name('kuota.create');
     // block legacy store endpoint
     Route::post('kuota', function(){
-        return redirect()->route('admin.imports.quotas.index')->with('warning','Form kuota manual dinonaktifkan. Gunakan Import Kuota.');
+        return redirect()->route('admin.imports.quotas.index')->with('warning','Manual quota form is disabled. Use Import Quota.');
     })->name('kuota.store');
-    // Remove dedicated edit page for kuota
+    // Remove dedicated edit page for quota
     // Route::get('kuota/{quota}/edit', [QuotaController::class, 'edit'])->name('kuota.edit');
     Route::middleware(['permission:read reports'])->group(function () {
         Route::get('reports/final', [FinalReportController::class, 'index'])->name('reports.final');
@@ -156,7 +156,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // Constrain route model binding for PurchaseOrder to numeric IDs to avoid clashes
     Route::pattern('purchase_order', '[0-9]+');
 
-    // Quick Product -> HS (aksi cepat)
+    // Quick Product -> HS (quick action)
     Route::middleware(['permission:product.create'])->group(function () {
         Route::get('master-data/model-hs', [ProductQuickController::class, 'index'])->name('master.quick_hs.index');
         Route::post('master-data/store-hs', [ProductQuickController::class, 'store'])->name('master.quick_hs.store');
@@ -204,10 +204,10 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::get('imports/quotas', [QuotaImportPageController::class, 'index'])->name('imports.quotas.index');
         // CSV upload (Quota) – enabled on Import Quota page
         Route::post('imports/quotas', [ImportController::class, 'uploadQuotas'])->name('imports.quotas.upload');
-        // Hapus semua kuota berdasarkan Quota No. (soft delete)
+        // Delete all quotas by Quota No. (soft delete)
         Route::delete('imports/quotas/delete-by-number', [QuotaImportPageController::class, 'deleteByNumber'])
             ->name('imports.quotas.delete-number');
-        // Hapus satu entri kuota berdasarkan ID
+        // Delete a single quota entry by ID
         Route::delete('imports/quotas/{quota}', [QuotaImportPageController::class, 'deleteOne'])
             ->name('imports.quotas.delete-one');
         Route::post('imports/quotas/manual/add', [QuotaImportPageController::class, 'addManual'])->name('imports.quotas.manual.add');
