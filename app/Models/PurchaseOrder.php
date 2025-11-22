@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use App\Models\User;
 
 class PurchaseOrder extends Model
@@ -107,10 +108,21 @@ class PurchaseOrder extends Model
     public function refreshAggregates(): void
     {
         $shipped = (int) $this->shipments()->sum('quantity_planned');
-        $received = (int) $this->shipments()->sum('quantity_received');
 
-        $this->quantity_shipped = $shipped;
-        $this->quantity_received = $received;
+        // Prefer GR receipts (SAP actuals) as the single source of truth for received quantity.
+        // Fall back to shipment receipts if no GR data exists for this PO.
+        $receivedFromGr = DB::table('gr_receipts')
+            ->where('po_no', $this->po_number)
+            ->sum('qty');
+
+        if ($receivedFromGr > 0) {
+            $received = (int) $receivedFromGr;
+        } else {
+            $received = (int) $this->shipments()->sum('quantity_received');
+        }
+
+        $this->quantity_shipped   = $shipped;
+        $this->quantity_received  = $received;
 
         if ($received >= $this->quantity) {
             $this->status = self::STATUS_COMPLETED;
