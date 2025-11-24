@@ -578,6 +578,7 @@ class AnalyticsController extends Controller
                 'min_incl' => (bool)($p['min_incl'] ?? true),
                 'max_incl' => (bool)($p['max_incl'] ?? true),
                 'allocation' => (float) ($q->total_allocation ?? 0),
+                'label' => (string) ($q->government_category ?? ''),
             ];
             if (!empty($q->government_category)) {
                 $selectedCategories[(string)$q->government_category] = true;
@@ -669,22 +670,29 @@ class AnalyticsController extends Controller
             $pk = isset($r->pk_capacity) ? (float) $r->pk_capacity : null;
             if ($pk === null) { continue; }
             $approved = 0.0;
+            $matchedLabel = null;
             foreach ($quotaRanges as $qr) {
                 $min = $qr['min_pk']; $max = $qr['max_pk'];
                 $minI = $qr['min_incl']; $maxI = $qr['max_incl'];
                 $match = ($min === null || ($minI ? $pk >= $min : $pk > $min))
                       && ($max === null || ($maxI ? $pk <= $max : $pk < $max));
-                if ($match) { $approved += (float) ($qr['allocation'] ?? 0); }
+                if ($match) {
+                    $approved += (float) ($qr['allocation'] ?? 0);
+                    if ($matchedLabel === null && !empty($qr['label'])) {
+                        $matchedLabel = (string) $qr['label'];
+                    }
+                }
             }
             $consumed = (float) ($grByHs[$r->id] ?? 0);
             if ($approved > 0 && $consumed > $approved) { $consumed = $approved; }
             $balance = max($approved - $consumed, 0.0);
 
             $consumedNextJan = (float) ($nextYearByHs[$r->id] ?? 0);
+            $bucketLabel = $matchedLabel ?: (string) $r->pk_capacity;
 
             $rows[] = [
                 'hs_code' => (string) $r->hs_code,
-                'capacity_label' => $this->formatCapacityDisplay($this->normalizeBucketKey((string) $r->pk_capacity)),
+                'capacity_label' => $this->formatCapacityDisplay($this->normalizeBucketKey($bucketLabel)),
                 'approved' => round($approved, 2),
                 'consumed_until_dec' => round($consumed, 2),
                 'consumed_pct' => $approved > 0 ? round(($consumed / $approved) * 100, 2) : 0.0,

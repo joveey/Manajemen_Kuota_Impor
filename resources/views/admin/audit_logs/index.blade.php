@@ -163,6 +163,24 @@
                                 $data = is_array($log->description) ? $log->description : (array) $log->description;
                                 $hideKeys = ['_token','password','password_confirmation','current_password'];
                                 $nice = [];
+                                $summarizeLines = function (array $items): string {
+                                    $parts = [];
+                                    foreach ($items as $item) {
+                                        if (!is_array($item)) { continue; }
+                                        $lineId = $item['line_id'] ?? $item['line'] ?? $item['id'] ?? '?';
+                                        $fields = [];
+                                        foreach (['qty','bl','etd','eta','factory','status','remark'] as $f) {
+                                            if (isset($item[$f]) && $item[$f] !== '') {
+                                                $fields[] = strtoupper($f).': '.$item[$f];
+                                            }
+                                        }
+                                        $parts[] = 'Line '.$lineId.(!empty($fields) ? ' ('.implode(', ', $fields).')' : '');
+                                    }
+                                    if (empty($parts)) {
+                                        return 'Tidak ada detail baris';
+                                    }
+                                    return count($parts).' baris: '.implode(' | ', $parts);
+                                };
                                 foreach ($data as $k => $v) {
                                     if (in_array($k, $hideKeys, true)) continue;
 
@@ -179,6 +197,15 @@
                                     $value = $v;
                                     if (is_string($v) && str_starts_with($v, 'uploaded_file:')) {
                                         $value = 'Uploaded file: ' . substr($v, strlen('uploaded_file:'));
+                                    } elseif (is_string($v) && (str_starts_with(trim($v), '[') || str_starts_with(trim($v), '{'))) {
+                                        $decoded = json_decode($v, true);
+                                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                                            if (in_array($k, ['rows_json','rows','splits_json','splits'], true)) {
+                                                $value = $summarizeLines($decoded);
+                                            } else {
+                                                $value = json_encode($decoded, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+                                            }
+                                        }
                                     } elseif (is_array($v)) {
                                         // ringkas array sederhana menjadi daftar koma
                                         $flat = [];
