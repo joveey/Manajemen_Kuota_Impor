@@ -668,8 +668,8 @@ class FinalReportController extends Controller
             ->whereBetween('receive_date', [$startDate, $endDate])
             ->selectRaw(DbExpression::monthBucket('receive_date').' as period')
             ->selectRaw('SUM(qty) as total')
-            ->groupBy('period')
-            ->orderBy('period')
+            ->groupByRaw(DbExpression::monthBucket('receive_date'))
+            ->orderByRaw(DbExpression::monthBucket('receive_date'))
             ->get();
 
         $categories = [];

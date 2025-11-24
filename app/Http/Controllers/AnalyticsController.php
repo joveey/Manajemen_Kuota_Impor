@@ -320,7 +320,8 @@ class AnalyticsController extends Controller
         // Resolve quotas for the selected year + PK filter
         $quotaQuery = $this->queryQuotasByDateRange($yearStart, $yearEnd);
         if ($pkFilter !== '') { $quotaQuery->where('government_category', $pkFilter); }
-        $quotaSet = $quotaQuery->orderBy('quota_number')->get(['id','quota_number','government_category','total_allocation','period_start','period_end']);
+        // queryQuotasByDateRange already orders by quota_number; avoid double orderBy for SQL Server
+        $quotaSet = $quotaQuery->get(['id','quota_number','government_category','total_allocation','period_start','period_end']);
         $quotaIds = $quotaSet->pluck('id')->all();
         $totalAllocationSummary = (float) $quotaSet->sum('total_allocation');
 
@@ -337,135 +338,19 @@ class AnalyticsController extends Controller
         }
 
         $rows = $rows->values();
-        // Compute totals using PO/GR + MOVE overlay; allocation from quotas only
+
+        // Normalize totals from visible rows to avoid driver quirks
+        if ($mode === 'forecast') {
+            $totalForecast = (float) $rows->sum('primary_value');
+            $totalActual = 0.0;
+        } else {
+            $totalActual = (float) $rows->sum('primary_value');
+            $totalForecast = 0.0;
+        }
+
+        // Allocation total from selected quotas
         $quotaIds = !empty($quotaIds) ? $quotaIds : $rows->pluck('quota_id')->all();
         $totalAllocation = $totalAllocationSummary;
-        $totalForecast = 0.0; $totalActual = 0.0;
-        if (!empty($quotaIds)) {
-            try {
-                // Load quota cards for pairing and bounds
-                $quotaCards = $quotaSet->isNotEmpty() ? $quotaSet : Quota::whereIn('id', $quotaIds)->get();
-
-                // A. Build base arrays per quota from PO/GR, excluding ACC via subtraction
-                $baseForecast = [];
-                $baseActual = [];
-                foreach ($quotaCards as $q) {
-                    $cat = (string) ($q->government_category ?? '');
-                    $bounds = PkCategoryParser::parse($cat);
-
-                    $grn = DB::table('gr_receipts')
-                        ->selectRaw("po_no, ".DbExpression::lineNoInt('line_no')." AS ln")
-                        ->selectRaw('SUM(qty) as qty')
-                        ->groupBy('po_no','ln');
-
-                    $baseAll = DB::table('po_lines as pl')
-                        ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
-                        ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
-                        ->leftJoinSub($grn, 'grn', function($j){
-                            $j->on('grn.po_no','=','ph.po_number')
-                              ->whereRaw("grn.ln = ".DbExpression::lineNoInt('pl.line_no'));
-                        })
-                        ->whereNotNull('pl.hs_code_id');
-
-                    if ($bounds['min_pk'] !== null) {
-                        $baseAll->where('hs.pk_capacity', $bounds['min_incl'] ? '>=' : '>', $bounds['min_pk']);
-                    }
-                    if ($bounds['max_pk'] !== null) {
-                        $baseAll->where('hs.pk_capacity', $bounds['max_incl'] ? '<=' : '<', $bounds['max_pk']);
-                    }
-                    if (!empty($q->period_start) && !empty($q->period_end)) {
-                        $baseAll->whereBetween('ph.po_date', [
-                            $q->period_start->toDateString(),
-                            $q->period_end->toDateString(),
-                        ]);
-                    }
-
-                    $baseAcc = (clone $baseAll)->whereRaw("COALESCE(UPPER(hs.hs_code),'') = 'ACC'");
-
-                    $forecast_all_po = (float) (clone $baseAll)->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
-                    $forecast_acc_po = (float) (clone $baseAcc)->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
-                    $actual_all_gr   = (float) (clone $baseAll)->selectRaw('SUM(COALESCE(grn.qty,0)) as s')->value('s');
-                    $actual_acc_gr   = (float) (clone $baseAcc)->selectRaw('SUM(COALESCE(grn.qty,0)) as s')->value('s');
-
-                    $baseForecast[$q->id] = max($forecast_all_po - $forecast_acc_po, 0.0);
-                    $baseActual[$q->id]   = max($actual_all_gr - $actual_acc_gr, 0.0);
-                }
-                // Recompute base forecast excluding any PO that has pivot, add pivot overlay, compute totals
-                // Base forecast (no pivot) per quota
-                $baseForecastNoPivot = [];
-                foreach ($quotaCards as $q) {
-                    $cat = (string) ($q->government_category ?? '');
-                    $bounds = PkCategoryParser::parse($cat);
-
-                    $grn = DB::table('gr_receipts')
-                        ->selectRaw("po_no, ".DbExpression::lineNoInt('line_no')." AS ln")
-                        ->selectRaw('SUM(qty) as qty')
-                        ->groupBy('po_no','ln');
-
-                    $baseJoin = DB::table('po_lines as pl')
-                        ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
-                        ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
-                        ->leftJoinSub($grn, 'grn', function($j){
-                            $j->on('grn.po_no','=','ph.po_number')
-                              ->whereRaw("grn.ln = ".DbExpression::lineNoInt('pl.line_no'));
-                        })
-                        ->whereNotNull('pl.hs_code_id');
-
-                    if ($bounds['min_pk'] !== null) {
-                        $baseJoin->where('hs.pk_capacity', $bounds['min_incl'] ? '>=' : '>', $bounds['min_pk']);
-                    }
-                    if ($bounds['max_pk'] !== null) {
-                        $baseJoin->where('hs.pk_capacity', $bounds['max_incl'] ? '<=' : '<', $bounds['max_pk']);
-                    }
-                    if (!empty($q->period_start) && !empty($q->period_end)) {
-                        $baseJoin->whereBetween('ph.po_date', [
-                            $q->period_start->toDateString(),
-                            $q->period_end->toDateString(),
-                        ]);
-                    }
-
-                    // Exclude any PO that has a pivot (any quota)
-                    $bf = (clone $baseJoin)
-                        ->join('purchase_orders as po','po.po_number','=','ph.po_number')
-                        ->whereNotExists(function($qq){
-                            $qq->select(DB::raw('1'))
-                               ->from('purchase_order_quota as pq')
-                               ->whereColumn('pq.purchase_order_id', 'po.id');
-                        });
-                    $bfAcc = (clone $bf)->whereRaw("COALESCE(UPPER(hs.hs_code),'') = 'ACC'");
-                    $forecast_all_po = (float) (clone $bf)->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
-                    $forecast_acc_po = (float) (clone $bfAcc)->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
-                    $baseForecastNoPivot[$q->id] = max($forecast_all_po - $forecast_acc_po, 0.0);
-                }
-
-                // Pivot overlay (moved POs)
-                $forecastFromPivot = DB::table('purchase_order_quota as pq')
-                    ->select('pq.quota_id', DB::raw('SUM(COALESCE(pq.allocated_qty,0)) as qty'))
-                    ->whereIn('pq.quota_id', $quotaIds)
-                    ->whereExists(function($q){
-                        $q->select(DB::raw('1'))
-                          ->from('purchase_orders as po')
-                          ->join('po_headers as ph','po.po_number','=','ph.po_number')
-                          ->join('po_lines as pl','pl.po_header_id','=','ph.id')
-                          ->join('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
-                          ->whereRaw('pq.purchase_order_id = po.id')
-                          ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'");
-                    })
-                    ->groupBy('pq.quota_id')
-                    ->pluck('qty','pq.quota_id');
-
-                $forecastFinal = [];
-                foreach ($quotaCards as $q) {
-                    $forecastFinal[$q->id] = (float) ($baseForecastNoPivot[$q->id] ?? 0.0) + (float) ($forecastFromPivot[$q->id] ?? 0.0);
-                }
-
-                $totalForecast = array_sum($forecastFinal);
-                $totalActual   = array_sum($baseActual);
-
-            } catch (\Throwable $e) {
-                $totalForecast = 0.0; $totalActual = 0.0;
-            }
-        }
 
         // Build HS/PK summary using the same quota set
         $hsSummary = $this->buildHsPkSummaryForQuotas($yearStart, $yearEnd, $quotaSet);
@@ -486,10 +371,11 @@ class AnalyticsController extends Controller
         $seriesQuota = $rows->pluck('initial_quota')->map(fn ($v) => (float) $v)->all();
         $seriesPrimary = $rows->pluck('primary_value')->map(fn ($v) => (float) $v)->all();
 
-        // Donut uses current mode values
-        $donutSeries = $mode === 'forecast'
-            ? [ (float) $totalForecast, max(0.0, (float) $totalAllocation - (float) $totalForecast) ]
-            : [ (float) $totalActual,   max(0.0, (float) $totalAllocation - (float) $totalActual) ];
+        // Donut and summary use mode-specific totals
+        $isForecastMode = $mode === 'forecast';
+        $primaryTotal = $isForecastMode ? (float) $totalForecast : (float) $totalActual;
+        $remainingTotal = max(0.0, (float) $totalAllocation - $primaryTotal);
+        $donutSeries = [$primaryTotal, $remainingTotal];
 
         return [
             'mode' => $mode,
@@ -514,8 +400,8 @@ class AnalyticsController extends Controller
             'table' => [ 'rows' => $rows->all() ],
             'summary' => [
                 'total_allocation' => (float) $totalAllocationSummary,
-                'total_usage' => (float) $totalForecast,
-                'total_remaining' => (float) max($totalAllocation - $totalForecast, 0.0),
+                'total_usage' => $primaryTotal,
+                'total_remaining' => $remainingTotal,
                 'total_forecast_consumed' => (float) $totalForecast,
                 'total_actual_consumed' => (float) $totalActual,
                 'total_in_transit' => (float) max($totalForecast - $totalActual, 0.0),
