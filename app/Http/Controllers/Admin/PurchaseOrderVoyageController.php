@@ -47,8 +47,11 @@ class PurchaseOrderVoyageController extends Controller
             ->where('ph.po_number', $poNumber)
             ->whereNotNull('pl.voyage_factory')
             ->whereRaw("NULLIF(pl.voyage_factory,'') <> ''")
-            ->selectRaw("STRING_AGG(DISTINCT pl.voyage_factory, ', ') as fs")
-            ->value('fs');
+            ->pluck('pl.voyage_factory')
+            ->filter()
+            ->unique()
+            ->values()
+            ->implode(', ');
         if ($factories) { $vendorName = trim($vendorName.' - '.$factories); }
 
         $summary = [

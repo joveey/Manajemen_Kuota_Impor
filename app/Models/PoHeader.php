@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use App\Support\DbExpression;
-use App\Support\DbExpression;
 
 class PoHeader extends Model
 {
