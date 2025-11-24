@@ -84,7 +84,19 @@ class OpenPoValidator
             if ($poDate !== '') {
                 $poDateNorm = $excelSerialToDate($poDate);
                 if (!$poDateNorm) {
-                    try { $poDateNorm = Carbon::parse($poDate)->toDateString(); } catch (\Throwable $e) { $errors[] = 'CREATED_DATE is invalid (use YYYY-MM-DD)'; }
+                    // accept common date formats to avoid false errors on future dates
+                    $formats = ['Y-m-d', 'd-m-Y', 'd/m/Y', 'm/d/Y'];
+                    foreach ($formats as $fmt) {
+                        try {
+                            $poDateNorm = Carbon::createFromFormat($fmt, $poDate)->toDateString();
+                            break;
+                        } catch (\Throwable $e) {
+                            // keep trying
+                        }
+                    }
+                    if (!$poDateNorm) {
+                        try { $poDateNorm = Carbon::parse($poDate)->toDateString(); } catch (\Throwable $e) { $errors[] = 'CREATED_DATE is invalid (use YYYY-MM-DD)'; }
+                    }
                 }
             } else {
                 // tolerate missing date; leave null

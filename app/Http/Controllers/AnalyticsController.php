@@ -10,6 +10,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Log;
+use App\Support\DbExpression;
 
 class AnalyticsController extends Controller
 {
@@ -353,7 +354,7 @@ class AnalyticsController extends Controller
                     $bounds = PkCategoryParser::parse($cat);
 
                     $grn = DB::table('gr_receipts')
-                        ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','', 'g') AS INTEGER) AS ln")
+                        ->selectRaw("po_no, ".DbExpression::lineNoInt('line_no')." AS ln")
                         ->selectRaw('SUM(qty) as qty')
                         ->groupBy('po_no','ln');
 
@@ -362,7 +363,7 @@ class AnalyticsController extends Controller
                         ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
                         ->leftJoinSub($grn, 'grn', function($j){
                             $j->on('grn.po_no','=','ph.po_number')
-                              ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','', 'g') AS INTEGER)");
+                              ->whereRaw("grn.ln = ".DbExpression::lineNoInt('pl.line_no'));
                         })
                         ->whereNotNull('pl.hs_code_id');
 
@@ -397,7 +398,7 @@ class AnalyticsController extends Controller
                     $bounds = PkCategoryParser::parse($cat);
 
                     $grn = DB::table('gr_receipts')
-                        ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','', 'g') AS INTEGER) AS ln")
+                        ->selectRaw("po_no, ".DbExpression::lineNoInt('line_no')." AS ln")
                         ->selectRaw('SUM(qty) as qty')
                         ->groupBy('po_no','ln');
 
@@ -406,7 +407,7 @@ class AnalyticsController extends Controller
                         ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
                         ->leftJoinSub($grn, 'grn', function($j){
                             $j->on('grn.po_no','=','ph.po_number')
-                              ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','', 'g') AS INTEGER)");
+                              ->whereRaw("grn.ln = ".DbExpression::lineNoInt('pl.line_no'));
                         })
                         ->whereNotNull('pl.hs_code_id');
 
@@ -725,7 +726,7 @@ class AnalyticsController extends Controller
             ->join('po_headers as ph', 'ph.po_number', '=', 'gr.po_no')
             ->join('po_lines as pl', function ($join) {
                 $join->on('pl.po_header_id', '=', 'ph.id')
-                    ->whereRaw("regexp_replace(pl.line_no::text, '^0+', '') = regexp_replace(gr.line_no::text, '^0+', '')");
+                    ->whereRaw(DbExpression::lineNoTrimmed('pl.line_no').' = '.DbExpression::lineNoTrimmed('gr.line_no'));
             })
             ->join('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
             ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")

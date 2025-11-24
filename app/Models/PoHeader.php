@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use App\Support\DbExpression;
+use App\Support\DbExpression;
 
 class PoHeader extends Model
 {
@@ -40,12 +42,13 @@ class PoHeader extends Model
         $hasQtyToInvoice    = Schema::hasColumn('po_lines', 'qty_to_invoice');
         $hasQtyToDeliver    = Schema::hasColumn('po_lines', 'qty_to_deliver');
         $hasStorageLocation = Schema::hasColumn('po_lines', 'storage_location');
+        $driver = DB::connection()->getDriverName();
 
         $qtyOrderedExprBase   = $hasQtyOrdered ? 'COALESCE(pl.qty_ordered,0)' : '0';
         $sumQtyOrderedExpr    = "SUM($qtyOrderedExprBase)";
         $sumQtyToInvoiceExpr  = $hasQtyToInvoice ? 'SUM(COALESCE(pl.qty_to_invoice,0))' : 'NULL';
         $sumQtyToDeliverExpr  = $hasQtyToDeliver ? 'SUM(COALESCE(pl.qty_to_deliver,0))' : 'NULL';
-        $storagesExpr         = $hasStorageLocation ? "STRING_AGG(DISTINCT NULLIF(pl.storage_location,''), ', ')" : 'NULL';
+        $storagesExpr         = $hasStorageLocation ? DbExpression::stringAgg("NULLIF(pl.storage_location,'')", ', ', true) : 'NULL';
         $sumOutstandingExpr   = "GREATEST(SUM($qtyOrderedExprBase) - COALESCE(SUM(grn.qty),0), 0)";
 
         $statusExpr = sprintf(
@@ -60,7 +63,7 @@ class PoHeader extends Model
         );
 
         $grn = DB::table('gr_receipts')
-            ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','','g') AS INTEGER) AS ln")
+            ->selectRaw("po_no, ".DbExpression::lineNoInt('line_no')." AS ln")
             ->selectRaw('SUM(qty) as qty')
             ->groupBy('po_no', 'ln');
 
@@ -69,7 +72,7 @@ class PoHeader extends Model
             ->leftJoin('po_lines as pl', 'pl.po_header_id', '=', 'ph.id')
             ->leftJoinSub($grn, 'grn', function ($j) {
                 $j->on('grn.po_no', '=', 'ph.po_number')
-                  ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','','g') AS INTEGER)");
+                  ->whereRaw("grn.ln = ".DbExpression::lineNoInt('pl.line_no'));
             })
             ->select([
                 DB::raw('ph.po_number as po_number'),
@@ -77,9 +80,9 @@ class PoHeader extends Model
                 DB::raw('MAX(ph.po_date) as latest_order_date'),
                 DB::raw('MIN(pl.eta_date) as first_deliv_date'),
                 DB::raw('MAX(pl.eta_date) as latest_deliv_date'),
-                DB::raw($hasVendorNumber ? "STRING_AGG(DISTINCT NULLIF(ph.vendor_number,''), ', ') as vendor_number" : 'NULL as vendor_number'),
-                DB::raw("STRING_AGG(DISTINCT ph.supplier, ', ') as vendor_name"),
-                DB::raw("STRING_AGG(DISTINCT NULLIF(pl.voyage_factory,''), ', ') as vendor_factories"),
+                DB::raw($hasVendorNumber ? DbExpression::stringAgg("NULLIF(ph.vendor_number,'')", ', ', true)." as vendor_number" : 'NULL as vendor_number'),
+                DB::raw(DbExpression::stringAgg("ph.supplier", ', ', true)." as vendor_name"),
+                DB::raw(DbExpression::stringAgg("NULLIF(pl.voyage_factory,'')", ', ', true)." as vendor_factories"),
                 DB::raw('COUNT(DISTINCT ph.id) as header_count'),
                 DB::raw('COUNT(pl.id) as total_lines'),
                 DB::raw("$sumQtyOrderedExpr as total_qty_ordered"),
@@ -91,7 +94,7 @@ class PoHeader extends Model
                 DB::raw("$statusExpr as status_key"),
                 // optional monetary and SAP status aggregates
                 DB::raw($hasAmount ? 'SUM(COALESCE(pl.amount,0)) as total_amount' : 'NULL as total_amount'),
-                DB::raw($hasSapStatus ? "STRING_AGG(DISTINCT NULLIF(pl.sap_order_status,''), ', ') as sap_statuses" : "NULL as sap_statuses"),
+                DB::raw($hasSapStatus ? DbExpression::stringAgg("NULLIF(pl.sap_order_status,'')", ', ', true)." as sap_statuses" : "NULL as sap_statuses"),
             ])
             ->groupBy('ph.po_number');
     }

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Carbon;
+use App\Support\DbExpression;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -481,7 +482,7 @@ class ImportController extends Controller
                 $pl = \Illuminate\Support\Facades\DB::table('po_lines as pl')
                     ->join('po_headers as ph','pl.po_header_id','=','ph.id')
                     ->where('ph.po_number',$po)
-                    ->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''), '[^0-9]', '', 'g') AS INTEGER) = CAST(regexp_replace(?, '[^0-9]', '', 'g') AS INTEGER)", [$ln])
+                    ->whereRaw(DbExpression::lineNoInt('pl.line_no').' = '.DbExpression::lineNoInt('?'), [$ln])
                     ->select('pl.id','pl.qty_received','pl.model_code','pl.hs_code_id')->lockForUpdate()->first();
                 // Allow unmatched: we still insert GR row; cache update will be skipped
 
@@ -513,7 +514,7 @@ class ImportController extends Controller
                 if ($pl) {
                     $lineSum = (float) \Illuminate\Support\Facades\DB::table('gr_receipts')
                         ->where('po_no', $po)
-                        ->whereRaw("CAST(regexp_replace(CAST(line_no as text), '[^0-9]', '', 'g') AS INTEGER) = CAST(regexp_replace(?, '[^0-9]', '', 'g') AS INTEGER)", [$ln])
+                        ->whereRaw(DbExpression::lineNoInt('line_no').' = '.DbExpression::lineNoInt('?'), [$ln])
                         ->sum('qty');
                     \Illuminate\Support\Facades\DB::table('po_lines')->where('id',$pl->id)->update([
                         'qty_received' => $lineSum,

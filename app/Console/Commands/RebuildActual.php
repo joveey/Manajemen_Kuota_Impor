@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use App\Support\DbExpression;
 
 class RebuildActual extends Command
 {
@@ -34,7 +35,7 @@ class RebuildActual extends Command
             ->join('po_headers as ph','gr.po_no','=','ph.po_number')
             ->join('po_lines as pl', function($j){
                 $j->on('pl.po_header_id','=','ph.id');
-                $j->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','','g') AS int) = CAST(regexp_replace(CAST(gr.line_no AS text),'[^0-9]','','g') AS int)");
+                $j->whereRaw(DbExpression::lineNoInt('pl.line_no').' = '.DbExpression::lineNoInt('gr.line_no'));
             })
             ->whereBetween('gr.receive_date', [$startStr, $endStr])
             ->distinct()

@@ -9,6 +9,7 @@ use App\Models\PoHeader;
 use App\Models\PoLine;
 use App\Models\Quota;
 use App\Support\PkCategoryParser;
+use App\Support\DbExpression;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -276,6 +277,7 @@ class FinalReportController extends Controller
         [$start, $end] = $this->resolveRange($request);
         $startString = $start->toDateString();
         $endString = $end->toDateString();
+        $driver = DB::connection()->getDriverName();
 
         $poHeaders = PoHeader::query()
             ->with(['lines' => function ($query) {
@@ -305,7 +307,11 @@ class FinalReportController extends Controller
                     'po_no',
                     DB::raw('SUM(qty) as total_qty'),
                     DB::raw('MAX(receive_date) as last_receipt_date'),
-                    DB::raw("COUNT(DISTINCT COALESCE(gr_unique, po_no || '|' || line_no || '|' || receive_date::text)) as document_count"),
+                    DB::raw(
+                        $driver === 'sqlsrv'
+                            ? "COUNT(DISTINCT COALESCE(gr_unique, CONCAT(po_no,'|',line_no,'|', CONVERT(varchar(50), receive_date, 126)))) as document_count"
+                            : "COUNT(DISTINCT COALESCE(gr_unique, po_no || '|' || line_no || '|' || receive_date::text)) as document_count"
+                    ),
                 ])
                 ->groupBy('po_no')
                 ->get()
@@ -443,7 +449,7 @@ class FinalReportController extends Controller
                 $bounds = PkCategoryParser::parse($cat);
 
                 $grn = DB::table('gr_receipts')
-                    ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','', 'g') AS INTEGER) AS ln")
+                    ->selectRaw("po_no, ".DbExpression::lineNoInt('line_no')." AS ln")
                     ->selectRaw('SUM(qty) as qty')
                     ->groupBy('po_no','ln');
 
@@ -452,7 +458,7 @@ class FinalReportController extends Controller
                     ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
                     ->leftJoinSub($grn, 'grn', function($j){
                         $j->on('grn.po_no','=','ph.po_number')
-                          ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','', 'g') AS INTEGER)");
+                          ->whereRaw("grn.ln = ".DbExpression::lineNoInt('pl.line_no'));
                     })
                     ->whereNotNull('pl.hs_code_id');
 
@@ -542,13 +548,17 @@ class FinalReportController extends Controller
                 ->join('po_headers as ph', 'ph.po_number', '=', 'gr.po_no')
                 ->join('po_lines as pl', function($j){
                     $j->on('pl.po_header_id', '=', 'ph.id')
-                      ->whereRaw("regexp_replace(pl.line_no::text, '^0+', '') = regexp_replace(gr.line_no::text, '^0+', '')");
+                      ->whereRaw(DbExpression::lineNoTrimmed('pl.line_no').' = '.DbExpression::lineNoTrimmed('gr.line_no'));
                 })
                 ->join('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
                 ->whereBetween('gr.receive_date', [$yearStart, $yearEnd])
                 ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'");
             $grDocs = (int) (clone $grBase)
-                ->selectRaw("COUNT(DISTINCT (gr.po_no || '|' || regexp_replace(gr.line_no::text, '^0+', '') || '|' || gr.receive_date::text)) as c")
+                ->selectRaw(
+                    $driver === 'sqlsrv'
+                        ? "COUNT(DISTINCT CONCAT(gr.po_no,'|',".DbExpression::lineNoTrimmed('gr.line_no').",'|', CONVERT(varchar(50), gr.receive_date, 126))) as c"
+                        : "COUNT(DISTINCT (gr.po_no || '|' || regexp_replace(gr.line_no::text, '^0+', '') || '|' || gr.receive_date::text)) as c"
+                )
                 ->value('c');
 
             // Allocation/Remaining displayed in the summary
@@ -656,7 +666,7 @@ class FinalReportController extends Controller
     {
         $receipts = GrReceipt::query()
             ->whereBetween('receive_date', [$startDate, $endDate])
-            ->selectRaw("DATE_TRUNC('month', receive_date) as period")
+            ->selectRaw(DbExpression::monthBucket('receive_date').' as period')
             ->selectRaw('SUM(qty) as total')
             ->groupBy('period')
             ->orderBy('period')

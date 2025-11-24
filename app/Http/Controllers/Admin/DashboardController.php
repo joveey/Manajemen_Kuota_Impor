@@ -13,11 +13,14 @@ use App\Models\PoLine;
 use App\Models\GrReceipt;
 use App\Models\User;
 use Carbon\Carbon;
+use App\Support\DbExpression;
 
 class DashboardController extends Controller
 {
     public function index()
     {
+        $driver = DB::connection()->getDriverName();
+
         // Pipeline & KPI calculations (lightweight, no mapping changes)
         $metrics = [];
         try {
@@ -55,7 +58,7 @@ class DashboardController extends Controller
         try {
             // Compute total GR (normalized by PO+line) with the same HS filters
             $grn = DB::table('gr_receipts')
-                ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','', 'g') AS INTEGER) AS ln")
+                ->selectRaw("po_no, ".DbExpression::lineNoInt('line_no')." AS ln")
                 ->selectRaw('SUM(qty) as qty')
                 ->groupBy('po_no','ln');
             $totalGr = (float) DB::table('po_lines as pl')
@@ -63,7 +66,7 @@ class DashboardController extends Controller
                 ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
                 ->leftJoinSub($grn, 'grn', function($j){
                     $j->on('grn.po_no','=','ph.po_number')
-                      ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','', 'g') AS INTEGER)");
+                      ->whereRaw("grn.ln = ".DbExpression::lineNoInt('pl.line_no'));
                 })
                 ->whereNotNull('pl.hs_code_id')
                 ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")
@@ -127,7 +130,7 @@ class DashboardController extends Controller
                 } else {
                     // 2) Aggregate GR per PO+line
                     $grn = DB::table('gr_receipts')
-                        ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','', 'g') AS INTEGER) AS ln")
+                        ->selectRaw("po_no, ".DbExpression::lineNoInt('line_no')." AS ln")
                         ->selectRaw('SUM(qty) as qty')
                         ->groupBy('po_no','ln');
 
@@ -137,7 +140,7 @@ class DashboardController extends Controller
                         ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
                         ->leftJoinSub($grn, 'grn', function($j){
                             $j->on('grn.po_no','=','ph.po_number')
-                              ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','', 'g') AS INTEGER)");
+                              ->whereRaw("grn.ln = ".DbExpression::lineNoInt('pl.line_no'));
                         })
                         ->whereIn('ph.po_number', $poList->all())
                         ->whereNotNull('pl.hs_code_id')
@@ -199,7 +202,7 @@ class DashboardController extends Controller
 
                 // Aggregate GR per PO+line
                 $grn = DB::table('gr_receipts')
-                    ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','', 'g') AS INTEGER) AS ln")
+                    ->selectRaw("po_no, ".DbExpression::lineNoInt('line_no')." AS ln")
                     ->selectRaw('SUM(qty) as qty')
                     ->groupBy('po_no','ln');
 
@@ -209,7 +212,7 @@ class DashboardController extends Controller
                     ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
                     ->leftJoinSub($grn, 'grn', function($j){
                         $j->on('grn.po_no','=','ph.po_number')
-                          ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','', 'g') AS INTEGER)");
+                          ->whereRaw("grn.ln = ".DbExpression::lineNoInt('pl.line_no'));
                     })
                     ->whereNotNull('pl.hs_code_id');
 
@@ -397,7 +400,7 @@ class DashboardController extends Controller
             ->join('po_headers as ph','ph.po_number','=','gr.po_no')
             ->join('po_lines as pl', function($j){
                 $j->on('pl.po_header_id','=','ph.id')
-                  ->whereRaw("regexp_replace(pl.line_no::text, '^0+', '') = regexp_replace(gr.line_no::text, '^0+', '')");
+                  ->whereRaw(DbExpression::lineNoTrimmed('pl.line_no').' = '.DbExpression::lineNoTrimmed('gr.line_no'));
             })
             ->join('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
             ->join('purchase_orders as po','po.po_number','=','ph.po_number')
@@ -477,7 +480,11 @@ class DashboardController extends Controller
             'po_outstanding_total' => max($orderedTotal - $receivedTotal, 0),
             'gr_total_qty' => (float) DB::table('gr_receipts')->sum('qty'),
             'gr_document_total' => (int) DB::table('gr_receipts')
-                ->selectRaw("COUNT(DISTINCT COALESCE(gr_unique, po_no || '|' || line_no || '|' || receive_date::text)) as total")
+                ->selectRaw(
+                    $driver === 'sqlsrv'
+                        ? "COUNT(DISTINCT COALESCE(gr_unique, CONCAT(po_no,'|',line_no,'|', CONVERT(varchar(50), receive_date, 126)))) as total"
+                        : "COUNT(DISTINCT COALESCE(gr_unique, po_no || '|' || line_no || '|' || receive_date::text)) as total"
+                )
                 ->value('total'),
             'quota_total_allocation' => (float) Quota::sum('total_allocation'),
             'quota_total_remaining' => (float) Quota::sum('actual_remaining'),
@@ -536,7 +543,3 @@ class DashboardController extends Controller
         ));
     }
 }
-
-
-
-
