@@ -60,7 +60,7 @@ class DashboardController extends Controller
             $grn = DB::table('gr_receipts')
                 ->selectRaw("po_no, ".DbExpression::lineNoInt('line_no')." AS ln")
                 ->selectRaw('SUM(qty) as qty')
-                ->groupBy('po_no','ln');
+                ->groupBy('po_no', DB::raw(DbExpression::lineNoInt('line_no')));
             $totalGr = (float) DB::table('po_lines as pl')
                 ->join('po_headers as ph','pl.po_header_id','=','ph.id')
                 ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
@@ -132,9 +132,9 @@ class DashboardController extends Controller
                     $grn = DB::table('gr_receipts')
                         ->selectRaw("po_no, ".DbExpression::lineNoInt('line_no')." AS ln")
                         ->selectRaw('SUM(qty) as qty')
-                        ->groupBy('po_no','ln');
+                        ->groupBy('po_no', DB::raw(DbExpression::lineNoInt('line_no')));
 
-                    // 3) Sum outstanding per mapped non‑ACC line within bucket and period, for those POs only
+                    // 3) Sum outstanding per mapped non-ACC line within bucket and period, for those POs only
                     $lines = DB::table('po_lines as pl')
                         ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
                         ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
@@ -160,7 +160,7 @@ class DashboardController extends Controller
                     }
 
                     $qOutstanding = (float) $lines
-                        ->selectRaw('SUM(GREATEST(COALESCE(pl.qty_ordered,0) - COALESCE(grn.qty,0), 0)) as s')
+                        ->selectRaw("SUM(CASE WHEN COALESCE(pl.qty_ordered,0) - COALESCE(grn.qty,0) > 0 THEN COALESCE(pl.qty_ordered,0) - COALESCE(grn.qty,0) ELSE 0 END) as s")
                         ->value('s');
                 }
                 // Override In-Transit using pivot-based forecast minus actual GR
@@ -204,7 +204,7 @@ class DashboardController extends Controller
                 $grn = DB::table('gr_receipts')
                     ->selectRaw("po_no, ".DbExpression::lineNoInt('line_no')." AS ln")
                     ->selectRaw('SUM(qty) as qty')
-                    ->groupBy('po_no','ln');
+                    ->groupBy('po_no', DB::raw(DbExpression::lineNoInt('line_no')));
 
                 // Base builder (ALL HS)
                 $baseAll = DB::table('po_lines as pl')
