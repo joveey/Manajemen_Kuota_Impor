@@ -13,6 +13,7 @@ use App\Models\Quota;
 use App\Models\PurchaseOrder;
 use App\Models\PoLineVoyageSplit;
 use App\Models\QuotaHistory;
+use Illuminate\Support\Facades\Log;
 
 class PurchaseOrderVoyageController extends Controller
 {
@@ -355,6 +356,15 @@ class PurchaseOrderVoyageController extends Controller
                                         $occ = $poDate ? new \DateTimeImmutable((string)$poDate) : null;
                                         $userId = Auth::id();
 
+                                        Log::info('voyage_delete_split', [
+                                            'po_number' => $po,
+                                            'split_id' => $splitModel->id,
+                                            'net_hist' => $hist->map(fn($r) => [
+                                                'quota_id' => $r->quota_id,
+                                                'net_qty' => (int) $r->net_qty,
+                                            ])->all(),
+                                        ]);
+
                                         foreach ($hist as $row) {
                                             $quotaId = (int) $row->quota_id;
                                             $net = (int) $row->net_qty;
@@ -544,6 +554,7 @@ class PurchaseOrderVoyageController extends Controller
         }
         if ($currentQuotaId === null) {
             $candidate = (int) $data['source_quota_id'];
+            // Fallback to the original quota (typically the line's PO quota) when net history is zeroed out (A->B->A or never moved)
             if ($poModel) {
                 $inPivot = DB::table('purchase_order_quota')
                     ->where('purchase_order_id', $poModel->id)
@@ -552,6 +563,10 @@ class PurchaseOrderVoyageController extends Controller
                 if ($inPivot) {
                     $currentQuotaId = $candidate;
                 }
+            }
+            // Even if pivot row was removed after an A->B->A sequence, allow using the provided source quota as the current reference
+            if ($currentQuotaId === null) {
+                $currentQuotaId = $candidate;
             }
         }
 
@@ -572,7 +587,7 @@ class PurchaseOrderVoyageController extends Controller
         $sourceQuota = null;
         $targetQuota = null;
 
-        DB::transaction(function () use ($poModel, $currentQuotaId, $targetQuotaId, $qty, $occurredOn, $userId, $splitModel, &$sourceQuota, &$targetQuota) {
+        DB::transaction(function () use ($poModel, $currentQuotaId, $targetQuotaId, $qty, $occurredOn, $userId, $splitModel, &$sourceQuota, &$targetQuota, $po) {
             // Lock quotas in deterministic order to reduce deadlock risk
             $ids = [$currentQuotaId, $targetQuotaId];
             sort($ids);
@@ -623,8 +638,18 @@ class PurchaseOrderVoyageController extends Controller
                     'updated_at' => now(),
                 ]);
             }
+
+            Log::info('voyage_move_split', [
+                'po_number' => $po,
+                'split_id' => $splitModel->id,
+                'qty' => (int) $qty,
+                'source_quota_id' => $sourceQuota->id,
+                'target_quota_id' => $targetQuota->id,
+            ]);
         });
 
         return back()->with('status', sprintf('Moved %s units (forecast) from quota %s to %s for split #%d.', number_format($qty), $sourceQuota->quota_number, $targetQuota->quota_number, (int)$splitModel->id));
     }
+
+    // Manual sanity test: start with PO 7971085247 all in 2025 quota. Split a line into 20/10, move 10 from 2025->2026, move back 2026->2025, then delete the split. Expected: purchase_order_quota remains only 2025; quota_histories net per split is 0; KPIs unchanged.
 }
