@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Quota;
 use Illuminate\Support\Facades\DB;
 use App\Support\PkCategoryParser;
+use App\Support\DbExpression;
 
 class QuotaConsumptionService
 {
@@ -50,11 +51,11 @@ class QuotaConsumptionService
             ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
             ->leftJoinSub($inv, 'inv', function($j){
                 $j->on('ph.po_number','=','inv.po_no')
-                  ->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''), '[^0-9]', '', 'g') AS INTEGER) = CAST(regexp_replace(CAST(inv.line_no as text), '[^0-9]', '', 'g') AS INTEGER)");
+                  ->whereRaw(DbExpression::lineNoInt('pl.line_no').' = '.DbExpression::lineNoInt('inv.line_no'));
             })
             ->leftJoinSub($gr, 'gr', function($j){
                 $j->on('ph.po_number','=','gr.po_no')
-                  ->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''), '[^0-9]', '', 'g') AS INTEGER) = CAST(regexp_replace(CAST(gr.line_no as text), '[^0-9]', '', 'g') AS INTEGER)");
+                  ->whereRaw(DbExpression::lineNoInt('pl.line_no').' = '.DbExpression::lineNoInt('gr.line_no'));
             })
             ->get([
                 'ph.po_number as po_no',

@@ -2,13 +2,14 @@
 @php
     $q = $quota;
     $alloc = max((float) ($q->total_allocation ?? 0), 0);
-    $actual = max((float) ($q->actual_consumed ?? 0), 0);
-    $forecast = max((float) ($q->forecast_consumed ?? 0), 0);
+    // Derive consumption directly from remaining so it always reflects GR-linked state
+    $foreRemain = max((float) ($q->forecast_remaining ?? $alloc), 0);
+    $actRemain = max((float) ($q->actual_remaining ?? $alloc), 0);
+    $forecast = max($alloc - min($foreRemain, $alloc), 0);
+    $actual = max($alloc - min($actRemain, $alloc), 0);
     // In-Transit per spec: prefer precomputed outstanding (PO - GR) from controller,
     // fallback to (forecast - actual) if not provided
     $inTransit = isset($q->in_transit) ? max((float) $q->in_transit, 0) : max($forecast - $actual, 0);
-    $actRemain = max($alloc - $actual, 0);
-    $foreRemain = max($alloc - $forecast, 0);
     $pctRaw = $alloc > 0 ? ($actual / $alloc) * 100 : 0;
     $pctDisplay = max(0, min(100, (int) round($pctRaw)));
     $progressClass = $pctDisplay >= 90 ? 'kpi-card__progress-fill--critical'

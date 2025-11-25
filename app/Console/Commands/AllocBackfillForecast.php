@@ -112,19 +112,20 @@ class AllocBackfillForecast extends Command
             });
 
         // Safety net: ensure pivot purchase_order_quota reflects forecast histories for the same period
+        // SQL Server does not allow GROUP BY on column aliases; group by reference_id directly.
         $hist = \Illuminate\Support\Facades\DB::table('quota_histories')
             ->where('change_type', \App\Models\QuotaHistory::TYPE_FORECAST_DECREASE)
             ->whereBetween('occurred_on', [$start->toDateString(), $end->toDateString()])
             ->where('reference_type', \App\Models\PurchaseOrder::class)
             ->whereNotNull('reference_id')
-            ->select('reference_id as purchase_order_id', 'quota_id', \Illuminate\Support\Facades\DB::raw('SUM(ABS(quantity_change)) as qty'))
-            ->groupBy('purchase_order_id', 'quota_id')
+            ->select('reference_id', 'quota_id', \Illuminate\Support\Facades\DB::raw('SUM(ABS(quantity_change)) as qty'))
+            ->groupBy('reference_id', 'quota_id')
             ->get();
 
         $rows = [];
         foreach ($hist as $h) {
             $rows[] = [
-                'purchase_order_id' => (int) $h->purchase_order_id,
+                'purchase_order_id' => (int) $h->reference_id,
                 'quota_id' => (int) $h->quota_id,
                 'allocated_qty' => (int) round((float) $h->qty),
                 'created_at' => now(),
@@ -140,4 +141,3 @@ class AllocBackfillForecast extends Command
         return Command::SUCCESS;
     }
 }
-

@@ -16,7 +16,8 @@ return new class extends Migration
                 $table->id();
                 $table->string('shipment_number')->unique();
                 $table->foreignId('purchase_order_id')->constrained()->cascadeOnDelete();
-                $table->foreignId('parent_shipment_id')->nullable()->constrained('shipments')->nullOnDelete();
+                $table->foreignId('parent_shipment_id')->nullable();
+                $table->foreign('parent_shipment_id')->references('id')->on('shipments');
                 $table->unsignedInteger('quantity_planned');
                 $table->unsignedInteger('quantity_received')->default(0);
                 $table->date('ship_date')->nullable();
@@ -31,7 +32,8 @@ return new class extends Migration
         } else {
             Schema::table('shipments', function (Blueprint $table) {
                 if (!Schema::hasColumn('shipments', 'parent_shipment_id')) {
-                    $table->foreignId('parent_shipment_id')->nullable()->constrained('shipments')->nullOnDelete();
+                    $table->foreignId('parent_shipment_id')->nullable();
+                    $table->foreign('parent_shipment_id')->references('id')->on('shipments');
                 }
                 if (!Schema::hasColumn('shipments', 'quantity_planned')) {
                     $table->unsignedInteger('quantity_planned')->default(0);
@@ -80,7 +82,11 @@ return new class extends Migration
     {
         if (Schema::hasTable('shipments')) {
             Schema::table('shipments', function (Blueprint $table) {
-                foreach (['parent_shipment_id','quantity_planned','quantity_received','ship_date','eta_date','receipt_date','detail','auto_generated'] as $col) {
+                if (Schema::hasColumn('shipments', 'parent_shipment_id')) {
+                    $table->dropForeign(['parent_shipment_id']);
+                    $table->dropColumn('parent_shipment_id');
+                }
+                foreach (['quantity_planned','quantity_received','ship_date','eta_date','receipt_date','detail','auto_generated'] as $col) {
                     if (Schema::hasColumn('shipments', $col)) {
                         $table->dropColumn($col);
                     }

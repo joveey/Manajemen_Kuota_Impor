@@ -7,6 +7,7 @@ use App\Models\Quota;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use App\Support\DbExpression;
 
 class AllocBackfillActual extends Command
 {
@@ -30,8 +31,8 @@ class AllocBackfillActual extends Command
             ->join('po_headers as ph','gr.po_no','=','ph.po_number')
             ->join('po_lines as pl', function($j){
                 $j->on('pl.po_header_id','=','ph.id');
-                // Normalize line numbers to avoid '030' vs 30 mismatches (PostgreSQL)
-                $j->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','','g') AS int) = CAST(regexp_replace(CAST(gr.line_no AS text),'[^0-9]','','g') AS int)");
+                // Normalize line numbers to avoid '030' vs 30 mismatches across drivers
+                $j->whereRaw(DbExpression::lineNoInt('pl.line_no').' = '.DbExpression::lineNoInt('gr.line_no'));
             })
             ->whereBetween('gr.receive_date', [$start->toDateString(), $end->toDateString()])
             ->select([
@@ -63,7 +64,7 @@ class AllocBackfillActual extends Command
                             ->leftJoin('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
                             ->join('po_headers as ph','pl.po_header_id','=','ph.id')
                             ->where('ph.po_number',$r->po_no)
-                            ->whereRaw("CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','','g') AS int) = CAST(regexp_replace(CAST(? AS text),'[^0-9]','','g') AS int)", [$r->line_no])
+                            ->whereRaw(DbExpression::lineNoInt('pl.line_no').' = '.DbExpression::lineNoInt('?'), [$r->line_no])
                             ->select('hs.hs_code','hs.pk_capacity')
                             ->first();
                         if ($hsRow) {

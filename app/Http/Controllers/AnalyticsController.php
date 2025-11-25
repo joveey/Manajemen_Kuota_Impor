@@ -10,6 +10,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Log;
+use App\Support\DbExpression;
 
 class AnalyticsController extends Controller
 {
@@ -319,152 +320,34 @@ class AnalyticsController extends Controller
         // Resolve quotas for the selected year + PK filter
         $quotaQuery = $this->queryQuotasByDateRange($yearStart, $yearEnd);
         if ($pkFilter !== '') { $quotaQuery->where('government_category', $pkFilter); }
-        $quotaSet = $quotaQuery->orderBy('quota_number')->get(['id','quota_number','government_category','total_allocation','period_start','period_end']);
+        // queryQuotasByDateRange already orders by quota_number; avoid double orderBy for SQL Server
+        $quotaSet = $quotaQuery->get(['id','quota_number','government_category','total_allocation','period_start','period_end']);
         $quotaIds = $quotaSet->pluck('id')->all();
         $totalAllocationSummary = (float) $quotaSet->sum('total_allocation');
 
+        // Build both KPI sets so totals/donuts stay aligned with dashboard logic
+        $forecastRows = $this->buildForecastRows($start, $end, $pkFilter)->values();
+        $actualRows = $this->buildActualRows($start, $end, $pkFilter)->values();
+
         if ($mode === 'forecast') {
-            $rows = $this->buildForecastRows($start, $end, $pkFilter);
+            $rows = $forecastRows;
             $primaryLabel = 'Forecast (Consumption)';
             $secondaryLabel = 'Remaining Forecast';
             $percentageLabel = 'Forecast Usage %';
         } else {
-            $rows = $this->buildActualRows($start, $end, $pkFilter);
+            $rows = $actualRows;
             $primaryLabel = 'Actual (Good Receipt)';
             $secondaryLabel = 'Remaining Quota';
             $percentageLabel = 'Actual Usage %';
         }
 
-        $rows = $rows->values();
-        // Compute totals using PO/GR + MOVE overlay; allocation from quotas only
+        // Totals derived from full sets to keep in-transit consistent after move/delete flows
+        $totalForecast = (float) $forecastRows->sum('primary_value');
+        $totalActual = (float) $actualRows->sum('primary_value');
+
+        // Allocation total from selected quotas
         $quotaIds = !empty($quotaIds) ? $quotaIds : $rows->pluck('quota_id')->all();
         $totalAllocation = $totalAllocationSummary;
-        $totalForecast = 0.0; $totalActual = 0.0;
-        if (!empty($quotaIds)) {
-            try {
-                // Load quota cards for pairing and bounds
-                $quotaCards = $quotaSet->isNotEmpty() ? $quotaSet : Quota::whereIn('id', $quotaIds)->get();
-
-                // A. Build base arrays per quota from PO/GR, excluding ACC via subtraction
-                $baseForecast = [];
-                $baseActual = [];
-                foreach ($quotaCards as $q) {
-                    $cat = (string) ($q->government_category ?? '');
-                    $bounds = PkCategoryParser::parse($cat);
-
-                    $grn = DB::table('gr_receipts')
-                        ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','', 'g') AS INTEGER) AS ln")
-                        ->selectRaw('SUM(qty) as qty')
-                        ->groupBy('po_no','ln');
-
-                    $baseAll = DB::table('po_lines as pl')
-                        ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
-                        ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
-                        ->leftJoinSub($grn, 'grn', function($j){
-                            $j->on('grn.po_no','=','ph.po_number')
-                              ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','', 'g') AS INTEGER)");
-                        })
-                        ->whereNotNull('pl.hs_code_id');
-
-                    if ($bounds['min_pk'] !== null) {
-                        $baseAll->where('hs.pk_capacity', $bounds['min_incl'] ? '>=' : '>', $bounds['min_pk']);
-                    }
-                    if ($bounds['max_pk'] !== null) {
-                        $baseAll->where('hs.pk_capacity', $bounds['max_incl'] ? '<=' : '<', $bounds['max_pk']);
-                    }
-                    if (!empty($q->period_start) && !empty($q->period_end)) {
-                        $baseAll->whereBetween('ph.po_date', [
-                            $q->period_start->toDateString(),
-                            $q->period_end->toDateString(),
-                        ]);
-                    }
-
-                    $baseAcc = (clone $baseAll)->whereRaw("COALESCE(UPPER(hs.hs_code),'') = 'ACC'");
-
-                    $forecast_all_po = (float) (clone $baseAll)->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
-                    $forecast_acc_po = (float) (clone $baseAcc)->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
-                    $actual_all_gr   = (float) (clone $baseAll)->selectRaw('SUM(COALESCE(grn.qty,0)) as s')->value('s');
-                    $actual_acc_gr   = (float) (clone $baseAcc)->selectRaw('SUM(COALESCE(grn.qty,0)) as s')->value('s');
-
-                    $baseForecast[$q->id] = max($forecast_all_po - $forecast_acc_po, 0.0);
-                    $baseActual[$q->id]   = max($actual_all_gr - $actual_acc_gr, 0.0);
-                }
-                // Recompute base forecast excluding any PO that has pivot, add pivot overlay, compute totals
-                // Base forecast (no pivot) per quota
-                $baseForecastNoPivot = [];
-                foreach ($quotaCards as $q) {
-                    $cat = (string) ($q->government_category ?? '');
-                    $bounds = PkCategoryParser::parse($cat);
-
-                    $grn = DB::table('gr_receipts')
-                        ->selectRaw("po_no, CAST(regexp_replace(CAST(line_no AS text),'[^0-9]','', 'g') AS INTEGER) AS ln")
-                        ->selectRaw('SUM(qty) as qty')
-                        ->groupBy('po_no','ln');
-
-                    $baseJoin = DB::table('po_lines as pl')
-                        ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
-                        ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
-                        ->leftJoinSub($grn, 'grn', function($j){
-                            $j->on('grn.po_no','=','ph.po_number')
-                              ->whereRaw("grn.ln = CAST(regexp_replace(COALESCE(pl.line_no,''),'[^0-9]','', 'g') AS INTEGER)");
-                        })
-                        ->whereNotNull('pl.hs_code_id');
-
-                    if ($bounds['min_pk'] !== null) {
-                        $baseJoin->where('hs.pk_capacity', $bounds['min_incl'] ? '>=' : '>', $bounds['min_pk']);
-                    }
-                    if ($bounds['max_pk'] !== null) {
-                        $baseJoin->where('hs.pk_capacity', $bounds['max_incl'] ? '<=' : '<', $bounds['max_pk']);
-                    }
-                    if (!empty($q->period_start) && !empty($q->period_end)) {
-                        $baseJoin->whereBetween('ph.po_date', [
-                            $q->period_start->toDateString(),
-                            $q->period_end->toDateString(),
-                        ]);
-                    }
-
-                    // Exclude any PO that has a pivot (any quota)
-                    $bf = (clone $baseJoin)
-                        ->join('purchase_orders as po','po.po_number','=','ph.po_number')
-                        ->whereNotExists(function($qq){
-                            $qq->select(DB::raw('1'))
-                               ->from('purchase_order_quota as pq')
-                               ->whereColumn('pq.purchase_order_id', 'po.id');
-                        });
-                    $bfAcc = (clone $bf)->whereRaw("COALESCE(UPPER(hs.hs_code),'') = 'ACC'");
-                    $forecast_all_po = (float) (clone $bf)->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
-                    $forecast_acc_po = (float) (clone $bfAcc)->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
-                    $baseForecastNoPivot[$q->id] = max($forecast_all_po - $forecast_acc_po, 0.0);
-                }
-
-                // Pivot overlay (moved POs)
-                $forecastFromPivot = DB::table('purchase_order_quota as pq')
-                    ->select('pq.quota_id', DB::raw('SUM(COALESCE(pq.allocated_qty,0)) as qty'))
-                    ->whereIn('pq.quota_id', $quotaIds)
-                    ->whereExists(function($q){
-                        $q->select(DB::raw('1'))
-                          ->from('purchase_orders as po')
-                          ->join('po_headers as ph','po.po_number','=','ph.po_number')
-                          ->join('po_lines as pl','pl.po_header_id','=','ph.id')
-                          ->join('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
-                          ->whereRaw('pq.purchase_order_id = po.id')
-                          ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'");
-                    })
-                    ->groupBy('pq.quota_id')
-                    ->pluck('qty','pq.quota_id');
-
-                $forecastFinal = [];
-                foreach ($quotaCards as $q) {
-                    $forecastFinal[$q->id] = (float) ($baseForecastNoPivot[$q->id] ?? 0.0) + (float) ($forecastFromPivot[$q->id] ?? 0.0);
-                }
-
-                $totalForecast = array_sum($forecastFinal);
-                $totalActual   = array_sum($baseActual);
-
-            } catch (\Throwable $e) {
-                $totalForecast = 0.0; $totalActual = 0.0;
-            }
-        }
 
         // Build HS/PK summary using the same quota set
         $hsSummary = $this->buildHsPkSummaryForQuotas($yearStart, $yearEnd, $quotaSet);
@@ -485,10 +368,11 @@ class AnalyticsController extends Controller
         $seriesQuota = $rows->pluck('initial_quota')->map(fn ($v) => (float) $v)->all();
         $seriesPrimary = $rows->pluck('primary_value')->map(fn ($v) => (float) $v)->all();
 
-        // Donut uses current mode values
-        $donutSeries = $mode === 'forecast'
-            ? [ (float) $totalForecast, max(0.0, (float) $totalAllocation - (float) $totalForecast) ]
-            : [ (float) $totalActual,   max(0.0, (float) $totalAllocation - (float) $totalActual) ];
+        // Donut and summary use mode-specific totals
+        $isForecastMode = $mode === 'forecast';
+        $primaryTotal = $isForecastMode ? (float) $totalForecast : (float) $totalActual;
+        $remainingTotal = max(0.0, (float) $totalAllocation - $primaryTotal);
+        $donutSeries = [$primaryTotal, $remainingTotal];
 
         return [
             'mode' => $mode,
@@ -513,8 +397,8 @@ class AnalyticsController extends Controller
             'table' => [ 'rows' => $rows->all() ],
             'summary' => [
                 'total_allocation' => (float) $totalAllocationSummary,
-                'total_usage' => (float) $totalForecast,
-                'total_remaining' => (float) max($totalAllocation - $totalForecast, 0.0),
+                'total_usage' => $primaryTotal,
+                'total_remaining' => $remainingTotal,
                 'total_forecast_consumed' => (float) $totalForecast,
                 'total_actual_consumed' => (float) $totalActual,
                 'total_in_transit' => (float) max($totalForecast - $totalActual, 0.0),
@@ -579,6 +463,8 @@ class AnalyticsController extends Controller
 
     /**
      * Build per-quota rows for Forecast mode using Quota fields.
+     * Forecast consumption = allocation - forecast_remaining, which already
+     * incorporates base PO allocation and any voyage move/delete adjustments.
      */
     private function buildForecastRows(Carbon $start, Carbon $end, string $selectedPk = ''): Collection
     {
@@ -606,7 +492,9 @@ class AnalyticsController extends Controller
     }
 
     /**
-     * Build per-quota rows for Actual mode using Quota fields.
+     * Build per-quota rows for Actual mode using GR data (not quota.remaining).
+     * Actual consumption = GR receipts within range, filtered by quota PK/period,
+     * so moves/delete rollbacks (forecast-only) do not affect actuals.
      */
     private function buildActualRows(Carbon $start, Carbon $end, string $selectedPk = ''): Collection
     {
@@ -616,10 +504,47 @@ class AnalyticsController extends Controller
         }
         $quotas = $q->get();
 
-        return collect($quotas)->map(function ($quota) {
+        return collect($quotas)->map(function ($quota) use ($start, $end) {
             $alloc = (float) ($quota->total_allocation ?? 0);
-            $remaining = (float) ($quota->actual_remaining ?? 0);
-            $consumed = max($alloc - $remaining, 0);
+            $bounds = PkCategoryParser::parse((string) ($quota->government_category ?? ''));
+            $quotaIsAcc = str_contains(strtoupper((string) ($quota->government_category ?? '')), 'ACC');
+
+            $minPk = $quota->min_pk ?? $bounds['min_pk'];
+            $maxPk = $quota->max_pk ?? $bounds['max_pk'];
+            $minIncl = ($quota->is_min_inclusive ?? $bounds['min_incl']) ?? true;
+            $maxIncl = ($quota->is_max_inclusive ?? $bounds['max_incl']) ?? true;
+
+            // Actual per quota: GR receipts within range filtered by quota PK/ACC/period
+            $actualQuery = DB::table('gr_receipts as gr')
+                ->join('po_headers as ph','ph.po_number','=','gr.po_no')
+                ->join('po_lines as pl', function($j){
+                    $j->on('pl.po_header_id','=','ph.id')
+                      ->whereRaw(DbExpression::lineNoTrimmed('pl.line_no').' = '.DbExpression::lineNoTrimmed('gr.line_no'));
+                })
+                ->join('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
+                ->whereNotNull('pl.hs_code_id')
+                ->whereBetween('gr.receive_date', [$start->toDateString(), $end->toDateString()]);
+
+            if ($quotaIsAcc) {
+                $actualQuery->whereRaw("COALESCE(UPPER(hs.hs_code),'') = 'ACC'");
+            } else {
+                $actualQuery->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'");
+            }
+
+            if ($minPk !== null) {
+                $actualQuery->where('hs.pk_capacity', $minIncl ? '>=' : '>', $minPk);
+            }
+            if ($maxPk !== null) {
+                $actualQuery->where('hs.pk_capacity', $maxIncl ? '<=' : '<', $maxPk);
+            }
+            if (!empty($quota->period_start) && !empty($quota->period_end)) {
+                $actualQuery->whereBetween('gr.receive_date', [
+                    $quota->period_start->toDateString(),
+                    $quota->period_end->toDateString(),
+                ]);
+            }
+
+            $consumed = (float) $actualQuery->sum('gr.qty');
             $pct = $alloc > 0 ? ($consumed / $alloc * 100) : 0.0;
             return [
                 'quota_id' => (int) $quota->id,
@@ -627,7 +552,7 @@ class AnalyticsController extends Controller
                 'range_pk' => (string) ($quota->government_category ?? ''),
                 'initial_quota' => $alloc,
                 'primary_value' => $consumed,
-                'secondary_value' => max($remaining, 0),
+                'secondary_value' => max($alloc - $consumed, 0),
                 'percentage' => $pct,
             ];
         });
@@ -691,6 +616,7 @@ class AnalyticsController extends Controller
                 'min_incl' => (bool)($p['min_incl'] ?? true),
                 'max_incl' => (bool)($p['max_incl'] ?? true),
                 'allocation' => (float) ($q->total_allocation ?? 0),
+                'label' => (string) ($q->government_category ?? ''),
             ];
             if (!empty($q->government_category)) {
                 $selectedCategories[(string)$q->government_category] = true;
@@ -725,7 +651,7 @@ class AnalyticsController extends Controller
             ->join('po_headers as ph', 'ph.po_number', '=', 'gr.po_no')
             ->join('po_lines as pl', function ($join) {
                 $join->on('pl.po_header_id', '=', 'ph.id')
-                    ->whereRaw("regexp_replace(pl.line_no::text, '^0+', '') = regexp_replace(gr.line_no::text, '^0+', '')");
+                    ->whereRaw(DbExpression::lineNoTrimmed('pl.line_no').' = '.DbExpression::lineNoTrimmed('gr.line_no'));
             })
             ->join('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
             ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")
@@ -782,22 +708,29 @@ class AnalyticsController extends Controller
             $pk = isset($r->pk_capacity) ? (float) $r->pk_capacity : null;
             if ($pk === null) { continue; }
             $approved = 0.0;
+            $matchedLabel = null;
             foreach ($quotaRanges as $qr) {
                 $min = $qr['min_pk']; $max = $qr['max_pk'];
                 $minI = $qr['min_incl']; $maxI = $qr['max_incl'];
                 $match = ($min === null || ($minI ? $pk >= $min : $pk > $min))
                       && ($max === null || ($maxI ? $pk <= $max : $pk < $max));
-                if ($match) { $approved += (float) ($qr['allocation'] ?? 0); }
+                if ($match) {
+                    $approved += (float) ($qr['allocation'] ?? 0);
+                    if ($matchedLabel === null && !empty($qr['label'])) {
+                        $matchedLabel = (string) $qr['label'];
+                    }
+                }
             }
             $consumed = (float) ($grByHs[$r->id] ?? 0);
             if ($approved > 0 && $consumed > $approved) { $consumed = $approved; }
             $balance = max($approved - $consumed, 0.0);
 
             $consumedNextJan = (float) ($nextYearByHs[$r->id] ?? 0);
+            $bucketLabel = $matchedLabel ?: (string) $r->pk_capacity;
 
             $rows[] = [
                 'hs_code' => (string) $r->hs_code,
-                'capacity_label' => $this->formatCapacityDisplay($this->normalizeBucketKey((string) $r->pk_capacity)),
+                'capacity_label' => $this->formatCapacityDisplay($this->normalizeBucketKey($bucketLabel)),
                 'approved' => round($approved, 2),
                 'consumed_until_dec' => round($consumed, 2),
                 'consumed_pct' => $approved > 0 ? round(($consumed / $approved) * 100, 2) : 0.0,
