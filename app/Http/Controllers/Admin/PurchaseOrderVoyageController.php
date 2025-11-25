@@ -329,9 +329,7 @@ class PurchaseOrderVoyageController extends Controller
                     }
 
                     if ($sid > 0 && $delete) {
-                        // Delete split and, if it has been moved between quotas in the past,
-                        // roll back the net forecast & pivot changes for this split only
-                        // using quota_histories entries whose reference is the split.
+                        // Delete split and roll back any net forecast/pivot effects derived from DB history.
                         $splitRow = DB::table('po_line_voyage_splits')
                             ->where('id', $sid)
                             ->where('po_line_id', $parentLineId)
@@ -368,31 +366,36 @@ class PurchaseOrderVoyageController extends Controller
                                                 continue;
                                             }
 
-                                            // Invert the net change: if this split net-increased a quota,
-                                            // apply a matching decrease, and vice versa.
                                             if ($net > 0) {
                                                 $quota->decrementForecast($net, 'Voyage split delete (rollback)', $splitModel, $occ, $userId);
                                             } else {
                                                 $quota->incrementForecast(-$net, 'Voyage split delete (rollback)', $splitModel, $occ, $userId);
                                             }
 
-                                            // Adjust pivot for this quota by +net so that the total
-                                            // allocated_qty for this PO/quota pair is restored to
-                                            // its state before this split was ever moved.
+                                            // Restore pivot allocation for this PO/quota pair by adding the net.
                                             $pivotRow = DB::table('purchase_order_quota')
                                                 ->where('purchase_order_id', $poModel->id)
                                                 ->where('quota_id', $quotaId)
+                                                ->lockForUpdate()
                                                 ->first();
-                                            if ($pivotRow) {
-                                                $newAlloc = (int) $pivotRow->allocated_qty + $net;
-                                                if ($newAlloc > 0) {
+                                            $newAlloc = ($pivotRow ? (int) $pivotRow->allocated_qty : 0) + $net;
+                                            if ($newAlloc > 0) {
+                                                if ($pivotRow) {
                                                     DB::table('purchase_order_quota')->where('id', $pivotRow->id)->update([
                                                         'allocated_qty' => $newAlloc,
                                                         'updated_at' => now(),
                                                     ]);
                                                 } else {
-                                                    DB::table('purchase_order_quota')->where('id', $pivotRow->id)->delete();
+                                                    DB::table('purchase_order_quota')->insert([
+                                                        'purchase_order_id' => $poModel->id,
+                                                        'quota_id' => $quotaId,
+                                                        'allocated_qty' => $newAlloc,
+                                                        'created_at' => now(),
+                                                        'updated_at' => now(),
+                                                    ]);
                                                 }
+                                            } elseif ($pivotRow) {
+                                                DB::table('purchase_order_quota')->where('id', $pivotRow->id)->delete();
                                             }
                                         }
                                     }
@@ -472,7 +475,7 @@ class PurchaseOrderVoyageController extends Controller
             'source_quota_id' => ['required','integer','exists:quotas,id'],
             // target_quota_id must exist; no-op check is done manually against the
             // split's CURRENT quota derived from DB, so moving back to the original
-            // quota (A→B→A) is allowed.
+            // quota (A->B->A) is allowed.
             'target_quota_id' => ['required','integer','exists:quotas,id'],
             'move_qty' => ['nullable','numeric','min:1'],
             'eta_date' => ['nullable','date'],
@@ -487,14 +490,8 @@ class PurchaseOrderVoyageController extends Controller
         abort_unless($splitRow, 404);
 
         $splitModel = PoLineVoyageSplit::findOrFail((int) $splitRow->id);
-        // Backwards-compat: some legacy lines below still reference $split and a
-        // session key. These variables are defined here so static analysis tools
-        // see them as valid, but the authoritative source of truth for current
-        // quota comes from quota_histories and purchase_order_quota lookups.
-        $split = $splitRow;
-        $sessionKeyBase = '';
 
-        $poModel = \App\Models\PurchaseOrder::where('po_number', $po)->first();
+        $poModel = PurchaseOrder::where('po_number', $po)->first();
         if (!$poModel) {
             // Create a minimal PO record to satisfy references if needed
             $prod = \App\Models\Product::query()->firstOrCreate(['code' => (string)($line->model_code ?? 'UNKNOWN')], [
@@ -502,13 +499,13 @@ class PurchaseOrderVoyageController extends Controller
                 'sap_model' => (string)($line->model_code ?? 'UNKNOWN'),
                 'is_active' => true,
             ]);
-            $poModel = \App\Models\PurchaseOrder::create([
+            $poModel = PurchaseOrder::create([
                 'po_number' => (string) $po,
                 'product_id' => $prod->id,
                 'quantity' => (int) max((int)($line->qty_ordered ?? 0), 0),
                 'order_date' => $poHeader->po_date ?? now()->toDateString(),
                 'vendor_name' => (string) ($poHeader->supplier ?? ''),
-                'status' => \App\Models\PurchaseOrder::STATUS_ORDERED,
+                'status' => PurchaseOrder::STATUS_ORDERED,
                 'plant_name' => 'Voyage',
                 'plant_detail' => 'Voyage Move Quota',
             ]);
@@ -519,16 +516,16 @@ class PurchaseOrderVoyageController extends Controller
         $occurredOn = $eta ? new \DateTimeImmutable((string)$eta) : null;
         $userId = Auth::id();
 
-        // Qty default to split qty
+        // Qty defaults to split qty when not provided
         $qty = (float) ($data['move_qty'] ?? $splitRow->qty ?? 0);
         $qty = max(0, (float)$qty);
         if ($qty <= 0) { return back()->withErrors(['move_qty' => 'Quantity to move must be > 0']); }
 
-        // Determine CURRENT quota for this split based purely on persisted state:
-        // aggregate quota_histories entries for this split and pick the quota with
-        // the most negative net quantity_change (i.e., where this split has been
-        // reserved). If all nets are zero / no history, fall back to the provided
-        // source_quota_id, after basic sanity checks.
+        // Resolve CURRENT quota purely from persisted history:
+        // - Sum quantity_change per quota for forecast inc/dec rows of this split
+        // - If any net is negative, pick the most negative as CURRENT
+        // - If all nets are zero, fall back to source_quota_id only when that
+        //   quota exists in purchase_order_quota for this purchase order
         $hist = DB::table('quota_histories')
             ->select('quota_id', DB::raw('SUM(quantity_change) as net_qty'))
             ->whereIn('change_type', [QuotaHistory::TYPE_FORECAST_DECREASE, QuotaHistory::TYPE_FORECAST_INCREASE])
@@ -539,15 +536,13 @@ class PurchaseOrderVoyageController extends Controller
 
         $currentQuotaId = null;
         if ($hist->isNotEmpty()) {
-            $neg = $hist->filter(fn($row) => (int) $row->net_qty < 0);
+            $neg = $hist->filter(fn($row) => (float) $row->net_qty < 0);
             if ($neg->isNotEmpty()) {
-                $row = $neg->sortBy('net_qty')->first(); // most negative
+                $row = $neg->sortBy('net_qty')->first(); // most negative net qty
                 $currentQuotaId = (int) $row->quota_id;
             }
         }
         if ($currentQuotaId === null) {
-            // No net negative owner; treat supplied source_quota_id as current
-            // but require that it is actually present in the pivot for this PO.
             $candidate = (int) $data['source_quota_id'];
             if ($poModel) {
                 $inPivot = DB::table('purchase_order_quota')
@@ -567,45 +562,62 @@ class PurchaseOrderVoyageController extends Controller
         }
 
         // Block only true no-op: when target equals CURRENT quota. Moving back to
-        // the original quota (A→B→A) is allowed because histories will sum to zero.
+        // the original quota (A->B->A) is allowed because histories will sum to zero.
         if ($targetQuotaId === $currentQuotaId) {
             return back()->withErrors([
                 'target_quota_id' => 'Target quota must be different from the current quota.',
             ]);
         }
 
-        $source = \App\Models\Quota::lockForUpdate()->findOrFail($currentQuotaId);
-        $target = \App\Models\Quota::lockForUpdate()->findOrFail($targetQuotaId);
+        $sourceQuota = null;
+        $targetQuota = null;
 
-        DB::transaction(function () use ($poModel, $source, $target, $qty, $occurredOn, $userId, $splitModel) {
-            // Refund forecast on source
-            $source->incrementForecast((int)$qty, 'Voyage split reallocation (refund)', $splitModel, $occurredOn, $userId);
-            // Reserve on target
-            $target->decrementForecast((int)$qty, 'Voyage split reallocation (reserve)', $splitModel, $occurredOn, $userId);
+        DB::transaction(function () use ($poModel, $currentQuotaId, $targetQuotaId, $qty, $occurredOn, $userId, $splitModel, &$sourceQuota, &$targetQuota) {
+            // Lock quotas in deterministic order to reduce deadlock risk
+            $ids = [$currentQuotaId, $targetQuotaId];
+            sort($ids);
+            $locked = Quota::whereIn('id', $ids)->lockForUpdate()->get()->keyBy('id');
 
-            // Pivot update
+            $sourceQuota = $locked->get($currentQuotaId);
+            $targetQuota = $locked->get($targetQuotaId);
+
+            if (!$sourceQuota || !$targetQuota) {
+                throw new \RuntimeException('Unable to lock quotas for split move.');
+            }
+
+            $sourceQuota->incrementForecast((int)$qty, 'Voyage split reallocation (refund)', $splitModel, $occurredOn, $userId);
+            $targetQuota->decrementForecast((int)$qty, 'Voyage split reallocation (reserve)', $splitModel, $occurredOn, $userId);
+
+            // Pivot update scoped to this purchase order
             $pivotSrc = DB::table('purchase_order_quota')
                 ->where('purchase_order_id', $poModel->id)
-                ->where('quota_id', $source->id)
+                ->where('quota_id', $sourceQuota->id)
                 ->first();
             if ($pivotSrc) {
                 $newAlloc = max(0, (int)$pivotSrc->allocated_qty - (int)$qty);
                 if ($newAlloc > 0) {
-                    DB::table('purchase_order_quota')->where('id', $pivotSrc->id)->update(['allocated_qty' => $newAlloc, 'updated_at' => now()]);
+                    DB::table('purchase_order_quota')->where('id', $pivotSrc->id)->update([
+                        'allocated_qty' => $newAlloc,
+                        'updated_at' => now(),
+                    ]);
                 } else {
                     DB::table('purchase_order_quota')->where('id', $pivotSrc->id)->delete();
                 }
             }
+
             $pivotTgt = DB::table('purchase_order_quota')
                 ->where('purchase_order_id', $poModel->id)
-                ->where('quota_id', $target->id)
+                ->where('quota_id', $targetQuota->id)
                 ->first();
             if ($pivotTgt) {
-                DB::table('purchase_order_quota')->where('id', $pivotTgt->id)->update(['allocated_qty' => (int)$pivotTgt->allocated_qty + (int)$qty, 'updated_at' => now()]);
+                DB::table('purchase_order_quota')->where('id', $pivotTgt->id)->update([
+                    'allocated_qty' => (int)$pivotTgt->allocated_qty + (int)$qty,
+                    'updated_at' => now(),
+                ]);
             } else {
                 DB::table('purchase_order_quota')->insert([
                     'purchase_order_id' => $poModel->id,
-                    'quota_id' => $target->id,
+                    'quota_id' => $targetQuota->id,
                     'allocated_qty' => (int) $qty,
                     'created_at' => now(),
                     'updated_at' => now(),
@@ -613,10 +625,6 @@ class PurchaseOrderVoyageController extends Controller
             }
         });
 
-        // After a successful move, update CURRENT quota for this split so the
-        // next move treats the new quota as the source (supports A→B→C→B→A).
-        $request->session()->put("$sessionKeyBase.current", $targetQuotaId);
-
-        return back()->with('status', sprintf('Moved %s units (forecast) from quota %s to %s for split #%d.', number_format($qty), $source->quota_number, $target->quota_number, (int)$split->id));
+        return back()->with('status', sprintf('Moved %s units (forecast) from quota %s to %s for split #%d.', number_format($qty), $sourceQuota->quota_number, $targetQuota->quota_number, (int)$splitModel->id));
     }
 }

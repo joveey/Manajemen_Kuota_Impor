@@ -325,28 +325,25 @@ class AnalyticsController extends Controller
         $quotaIds = $quotaSet->pluck('id')->all();
         $totalAllocationSummary = (float) $quotaSet->sum('total_allocation');
 
+        // Build both KPI sets so totals/donuts stay aligned with dashboard logic
+        $forecastRows = $this->buildForecastRows($start, $end, $pkFilter)->values();
+        $actualRows = $this->buildActualRows($start, $end, $pkFilter)->values();
+
         if ($mode === 'forecast') {
-            $rows = $this->buildForecastRows($start, $end, $pkFilter);
+            $rows = $forecastRows;
             $primaryLabel = 'Forecast (Consumption)';
             $secondaryLabel = 'Remaining Forecast';
             $percentageLabel = 'Forecast Usage %';
         } else {
-            $rows = $this->buildActualRows($start, $end, $pkFilter);
+            $rows = $actualRows;
             $primaryLabel = 'Actual (Good Receipt)';
             $secondaryLabel = 'Remaining Quota';
             $percentageLabel = 'Actual Usage %';
         }
 
-        $rows = $rows->values();
-
-        // Normalize totals from visible rows to avoid driver quirks
-        if ($mode === 'forecast') {
-            $totalForecast = (float) $rows->sum('primary_value');
-            $totalActual = 0.0;
-        } else {
-            $totalActual = (float) $rows->sum('primary_value');
-            $totalForecast = 0.0;
-        }
+        // Totals derived from full sets to keep in-transit consistent after move/delete flows
+        $totalForecast = (float) $forecastRows->sum('primary_value');
+        $totalActual = (float) $actualRows->sum('primary_value');
 
         // Allocation total from selected quotas
         $quotaIds = !empty($quotaIds) ? $quotaIds : $rows->pluck('quota_id')->all();
@@ -466,6 +463,8 @@ class AnalyticsController extends Controller
 
     /**
      * Build per-quota rows for Forecast mode using Quota fields.
+     * Forecast consumption = allocation - forecast_remaining, which already
+     * incorporates base PO allocation and any voyage move/delete adjustments.
      */
     private function buildForecastRows(Carbon $start, Carbon $end, string $selectedPk = ''): Collection
     {
@@ -493,7 +492,9 @@ class AnalyticsController extends Controller
     }
 
     /**
-     * Build per-quota rows for Actual mode using Quota fields.
+     * Build per-quota rows for Actual mode using GR data (not quota.remaining).
+     * Actual consumption = GR receipts within range, filtered by quota PK/period,
+     * so moves/delete rollbacks (forecast-only) do not affect actuals.
      */
     private function buildActualRows(Carbon $start, Carbon $end, string $selectedPk = ''): Collection
     {
@@ -503,10 +504,47 @@ class AnalyticsController extends Controller
         }
         $quotas = $q->get();
 
-        return collect($quotas)->map(function ($quota) {
+        return collect($quotas)->map(function ($quota) use ($start, $end) {
             $alloc = (float) ($quota->total_allocation ?? 0);
-            $remaining = (float) ($quota->actual_remaining ?? 0);
-            $consumed = max($alloc - $remaining, 0);
+            $bounds = PkCategoryParser::parse((string) ($quota->government_category ?? ''));
+            $quotaIsAcc = str_contains(strtoupper((string) ($quota->government_category ?? '')), 'ACC');
+
+            $minPk = $quota->min_pk ?? $bounds['min_pk'];
+            $maxPk = $quota->max_pk ?? $bounds['max_pk'];
+            $minIncl = ($quota->is_min_inclusive ?? $bounds['min_incl']) ?? true;
+            $maxIncl = ($quota->is_max_inclusive ?? $bounds['max_incl']) ?? true;
+
+            // Actual per quota: GR receipts within range filtered by quota PK/ACC/period
+            $actualQuery = DB::table('gr_receipts as gr')
+                ->join('po_headers as ph','ph.po_number','=','gr.po_no')
+                ->join('po_lines as pl', function($j){
+                    $j->on('pl.po_header_id','=','ph.id')
+                      ->whereRaw(DbExpression::lineNoTrimmed('pl.line_no').' = '.DbExpression::lineNoTrimmed('gr.line_no'));
+                })
+                ->join('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
+                ->whereNotNull('pl.hs_code_id')
+                ->whereBetween('gr.receive_date', [$start->toDateString(), $end->toDateString()]);
+
+            if ($quotaIsAcc) {
+                $actualQuery->whereRaw("COALESCE(UPPER(hs.hs_code),'') = 'ACC'");
+            } else {
+                $actualQuery->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'");
+            }
+
+            if ($minPk !== null) {
+                $actualQuery->where('hs.pk_capacity', $minIncl ? '>=' : '>', $minPk);
+            }
+            if ($maxPk !== null) {
+                $actualQuery->where('hs.pk_capacity', $maxIncl ? '<=' : '<', $maxPk);
+            }
+            if (!empty($quota->period_start) && !empty($quota->period_end)) {
+                $actualQuery->whereBetween('gr.receive_date', [
+                    $quota->period_start->toDateString(),
+                    $quota->period_end->toDateString(),
+                ]);
+            }
+
+            $consumed = (float) $actualQuery->sum('gr.qty');
             $pct = $alloc > 0 ? ($consumed / $alloc * 100) : 0.0;
             return [
                 'quota_id' => (int) $quota->id,
@@ -514,7 +552,7 @@ class AnalyticsController extends Controller
                 'range_pk' => (string) ($quota->government_category ?? ''),
                 'initial_quota' => $alloc,
                 'primary_value' => $consumed,
-                'secondary_value' => max($remaining, 0),
+                'secondary_value' => max($alloc - $consumed, 0),
                 'percentage' => $pct,
             ];
         });
