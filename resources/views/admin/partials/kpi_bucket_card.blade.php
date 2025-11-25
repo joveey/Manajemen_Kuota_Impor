@@ -33,9 +33,6 @@
         <div>
             <div class="kpi-card__title">{{ $displayCategory }}</div>
             <div class="kpi-card__period">Period: {{ $periodStart }} - {{ $periodEnd }}</div>
-            <div style="font-size:11px;color:#64748b;">
-                Debug: alloc={{ $alloc }}, actual_rem={{ $actRemain }}
-            </div>
         </div>
     </div>
     <div class="kpi-card__progress" aria-hidden="true">
