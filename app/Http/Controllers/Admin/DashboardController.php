@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 use App\Models\Permission;
 use App\Models\Quota;
@@ -301,19 +302,25 @@ class DashboardController extends Controller
         $poAggregate = PoLine::selectRaw('SUM(qty_ordered) as ordered_total, SUM(qty_received) as received_total')->first();
         $orderedTotal = (float) ($poAggregate->ordered_total ?? 0);
         $receivedTotal = (float) ($poAggregate->received_total ?? 0);
+        $hasGrUnique = Schema::hasColumn('gr_receipts', 'gr_unique');
+        $grDocExpr = $driver === 'sqlsrv'
+            ? (
+                $hasGrUnique
+                    ? "COUNT(DISTINCT COALESCE(gr_unique, CONCAT(po_no,'|',".DbExpression::lineNoTrimmed('line_no').",'|', CONVERT(varchar(50), receive_date, 126)))) as total"
+                    : "COUNT(DISTINCT CONCAT(po_no,'|',".DbExpression::lineNoTrimmed('line_no').",'|', CONVERT(varchar(50), receive_date, 126))) as total"
+            )
+            : (
+                $hasGrUnique
+                    ? "COUNT(DISTINCT COALESCE(gr_unique, po_no || '|' || ".DbExpression::lineNoTrimmed('line_no')." || '|' || receive_date::text)) as total"
+                    : "COUNT(DISTINCT (po_no || '|' || ".DbExpression::lineNoTrimmed('line_no')." || '|' || receive_date::text)) as total"
+            );
         $summary = [
             'po_total' => PoHeader::count(),
             'po_ordered_total' => $orderedTotal,
             'po_outstanding_total' => max($orderedTotal - $receivedTotal, 0),
             'gr_total_qty' => (float) DB::table('gr_receipts')->sum('qty'),
-            'gr_document_total' => (int) DB::table('gr_receipts')
-                ->selectRaw(
-                    // Count distinct GR docs using normalized line_no per driver
-                    $driver === 'sqlsrv'
-                        ? "COUNT(DISTINCT COALESCE(gr_unique, CONCAT(po_no,'|',".DbExpression::lineNoTrimmed('line_no').",'|', CONVERT(varchar(50), receive_date, 126)))) as total"
-                        : "COUNT(DISTINCT COALESCE(gr_unique, po_no || '|' || ".DbExpression::lineNoTrimmed('line_no')." || '|' || receive_date::text)) as total"
-                )
-                ->value('total'),
+            // Count distinct GR docs using normalized line_no per driver; tolerate DBs/views without gr_unique
+            'gr_document_total' => (int) DB::table('gr_receipts')->selectRaw($grDocExpr)->value('total'),
             'quota_total_allocation' => (float) Quota::sum('total_allocation'),
             'quota_total_remaining' => max($totalAlloc - $totalActualConsumed, 0),
         ];

@@ -14,6 +14,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Response;
 use Illuminate\View\View;
 
@@ -278,6 +279,18 @@ class FinalReportController extends Controller
         $startString = $start->toDateString();
         $endString = $end->toDateString();
         $driver = DB::connection()->getDriverName();
+        $hasGrUnique = Schema::hasColumn('gr_receipts', 'gr_unique');
+        $grDocExpr = $driver === 'sqlsrv'
+            ? (
+                $hasGrUnique
+                    ? "COUNT(DISTINCT COALESCE(gr_unique, CONCAT(po_no,'|',".DbExpression::lineNoTrimmed('line_no').",'|', CONVERT(varchar(50), receive_date, 126))))"
+                    : "COUNT(DISTINCT CONCAT(po_no,'|',".DbExpression::lineNoTrimmed('line_no').",'|', CONVERT(varchar(50), receive_date, 126)))"
+            )
+            : (
+                $hasGrUnique
+                    ? "COUNT(DISTINCT COALESCE(gr_unique, po_no || '|' || ".DbExpression::lineNoTrimmed('line_no')." || '|' || receive_date::text))"
+                    : "COUNT(DISTINCT (po_no || '|' || ".DbExpression::lineNoTrimmed('line_no')." || '|' || receive_date::text))"
+            );
 
         $poHeaders = PoHeader::query()
             ->with(['lines' => function ($query) {
@@ -307,11 +320,7 @@ class FinalReportController extends Controller
                     'po_no',
                     DB::raw('SUM(qty) as total_qty'),
                     DB::raw('MAX(receive_date) as last_receipt_date'),
-                    DB::raw(
-                        $driver === 'sqlsrv'
-                            ? "COUNT(DISTINCT COALESCE(gr_unique, CONCAT(po_no,'|',".DbExpression::lineNoTrimmed('line_no').",'|', CONVERT(varchar(50), receive_date, 126)))) as document_count"
-                            : "COUNT(DISTINCT COALESCE(gr_unique, po_no || '|' || ".DbExpression::lineNoTrimmed('line_no')." || '|' || receive_date::text)) as document_count"
-                    ),
+                    DB::raw($grDocExpr.' as document_count'),
                 ])
                 ->groupBy('po_no')
                 ->get()
@@ -517,8 +526,16 @@ class FinalReportController extends Controller
             $grDocs = (int) (clone $grBase)
                 ->selectRaw(
                     $driver === 'sqlsrv'
-                        ? "COUNT(DISTINCT CONCAT(gr.po_no,'|',".DbExpression::lineNoTrimmed('gr.line_no').",'|', CONVERT(varchar(50), gr.receive_date, 126))) as c"
-                        : "COUNT(DISTINCT (gr.po_no || '|' || ".DbExpression::lineNoTrimmed('gr.line_no')." || '|' || gr.receive_date::text)) as c"
+                        ? (
+                            $hasGrUnique
+                                ? "COUNT(DISTINCT COALESCE(gr.gr_unique, CONCAT(gr.po_no,'|',".DbExpression::lineNoTrimmed('gr.line_no').",'|', CONVERT(varchar(50), gr.receive_date, 126)))) as c"
+                                : "COUNT(DISTINCT CONCAT(gr.po_no,'|',".DbExpression::lineNoTrimmed('gr.line_no').",'|', CONVERT(varchar(50), gr.receive_date, 126))) as c"
+                        )
+                        : (
+                            $hasGrUnique
+                                ? "COUNT(DISTINCT COALESCE(gr.gr_unique, gr.po_no || '|' || ".DbExpression::lineNoTrimmed('gr.line_no')." || '|' || gr.receive_date::text)) as c"
+                                : "COUNT(DISTINCT (gr.po_no || '|' || ".DbExpression::lineNoTrimmed('gr.line_no')." || '|' || gr.receive_date::text)) as c"
+                        )
                 )
                 ->value('c');
 
