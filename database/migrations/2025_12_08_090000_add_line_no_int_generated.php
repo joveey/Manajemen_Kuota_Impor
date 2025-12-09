@@ -113,11 +113,43 @@ return new class extends Migration
 
     public function down(): void
     {
+        $driver = DB::connection()->getDriverName();
+
         if (Schema::hasTable('po_lines') && Schema::hasColumn('po_lines', 'line_no_int')) {
+
+            if ($driver === 'sqlsrv') {
+                DB::statement("
+                    IF EXISTS (
+                        SELECT 1
+                        FROM sys.indexes
+                        WHERE name = 'po_lines_po_header_id_line_no_int_idx'
+                          AND object_id = OBJECT_ID('po_lines')
+                    )
+                    DROP INDEX po_lines_po_header_id_line_no_int_idx ON po_lines
+                ");
+            } else {
+                DB::statement("DROP INDEX IF EXISTS po_lines_po_header_id_line_no_int_idx");
+            }
+
             DB::statement("ALTER TABLE po_lines DROP COLUMN line_no_int");
         }
 
         if (Schema::hasTable('gr_receipts') && Schema::hasColumn('gr_receipts', 'line_no_int')) {
+
+            if ($driver === 'sqlsrv') {
+                DB::statement("
+                    IF EXISTS (
+                        SELECT 1
+                        FROM sys.indexes
+                        WHERE name = 'gr_receipts_po_no_line_no_int_idx'
+                          AND object_id = OBJECT_ID('gr_receipts')
+                    )
+                    DROP INDEX gr_receipts_po_no_line_no_int_idx ON gr_receipts
+                ");
+            } else {
+                DB::statement("DROP INDEX IF EXISTS gr_receipts_po_no_line_no_int_idx");
+            }
+
             DB::statement("ALTER TABLE gr_receipts DROP COLUMN line_no_int");
         }
     }
