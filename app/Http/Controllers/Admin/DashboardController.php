@@ -23,43 +23,73 @@ class DashboardController extends Controller
         $driver = DB::connection()->getDriverName();
         $hasImportCreatedAt = Schema::hasColumn('imports', 'created_at');
         $hasPoCreatedAt = Schema::hasColumn('po_headers', 'created_at');
-        $hasGrId = Schema::hasColumn('gr_receipts', 'id');
-        $hasPurchaseOrders = Schema::hasTable('purchase_orders');
-        $purchaseOrderDocCol = null;
-        if ($hasPurchaseOrders) {
-            if (Schema::hasColumn('purchase_orders', 'po_doc')) {
-                $purchaseOrderDocCol = 'po_doc';
-            } elseif (Schema::hasColumn('purchase_orders', 'po_number')) {
-                $purchaseOrderDocCol = 'po_number';
+        $resolveTableName = function (string $table) {
+            if (Schema::hasTable($table)) {
+                return $table;
             }
-        }
-        $hasPurchaseOrderDoc = $purchaseOrderDocCol !== null;
-        $purchaseOrderQtyCol = null;
-        if ($hasPurchaseOrders) {
-            if (Schema::hasColumn('purchase_orders', 'qty')) {
-                $purchaseOrderQtyCol = 'qty';
-            } elseif (Schema::hasColumn('purchase_orders', 'quantity')) {
-                $purchaseOrderQtyCol = 'quantity';
+            try {
+                $row = DB::selectOne("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE LOWER(TABLE_NAME) = LOWER(?)", [$table]);
+                if ($row) {
+                    return $row->TABLE_NAME ?? $row->table_name ?? $table;
+                }
+            } catch (\Throwable $e) {}
+            return null;
+        };
+        $purchaseOrdersTable = $resolveTableName('purchase_orders');
+        $grReceiptsTable = $resolveTableName('gr_receipts');
+        $quote = function (string $name) use ($driver) {
+            return $driver === 'sqlsrv' ? '['.$name.']' : '"'.$name.'"';
+        };
+        $columnMap = function (?string $table) use ($quote) {
+            if (!$table) { return []; }
+            try {
+                $cols = Schema::getColumnListing($table);
+            } catch (\Throwable $e) {
+                $cols = [];
             }
-        }
-        $purchaseOrderDateCol = null;
-        if ($hasPurchaseOrders) {
-            if (Schema::hasColumn('purchase_orders', 'created_date')) {
-                $purchaseOrderDateCol = 'created_date';
-            } elseif (Schema::hasColumn('purchase_orders', 'order_date')) {
-                $purchaseOrderDateCol = 'order_date';
-            } elseif (Schema::hasColumn('purchase_orders', 'created_at')) {
-                $purchaseOrderDateCol = 'created_at';
+            $map = [];
+            foreach ($cols as $col) {
+                $map[strtolower($col)] = $col;
             }
-        }
-        $hasPurchaseOrderQtyReceived = $hasPurchaseOrders && Schema::hasColumn('purchase_orders', 'quantity_received');
-        $hasPurchaseOrderSapStatus = $hasPurchaseOrders && Schema::hasColumn('purchase_orders', 'sap_order_status');
+            return $map;
+        };
+        $poCols = $columnMap($purchaseOrdersTable);
+        $grCols = $columnMap($grReceiptsTable);
+
+        $purchaseOrderDocCol = $poCols['po_doc'] ?? ($poCols['po_number'] ?? null);
+        $purchaseOrderQtyCol = $poCols['qty'] ?? ($poCols['quantity'] ?? null);
+        $purchaseOrderDateCol = $poCols['created_date'] ?? ($poCols['order_date'] ?? ($poCols['created_at'] ?? null));
+        $purchaseOrderQtyReceivedCol = $poCols['quantity_received'] ?? null;
+        $purchaseOrderVendorCol = $poCols['vendor_name'] ?? null;
+        $purchaseOrderSapStatusCol = $poCols['sap_order_status'] ?? null;
+        $purchaseOrderLineCol = $poCols['line_no'] ?? null;
+        $hasPurchaseOrderDoc = $purchaseOrderDocCol !== null && $purchaseOrdersTable !== null;
+
+        $grIdCol = $grCols['id'] ?? null;
+        $grPoCol = $grCols['po_no'] ?? null;
+        $grLineCol = $grCols['line_no'] ?? null;
+        $grReceiveCol = $grCols['receive_date'] ?? null;
+        $grQtyCol = $grCols['qty'] ?? null;
+        $grItemCol = $grCols['item_name'] ?? null;
+        $grCatDescCol = $grCols['cat_desc'] ?? null;
+        $grCatPoDescCol = $grCols['cat_po_desc'] ?? null;
+        $grCatPoCol = $grCols['cat_po'] ?? null;
+        $grMatDocCol = $grCols['mat_doc'] ?? null;
+        $grVendorCol = $grCols['vendor_name'] ?? null;
+        $grWhNameCol = $grCols['wh_name'] ?? null;
+        $hasGrId = $grIdCol !== null;
 
         $poHeaderCount = 0;
         $poLineCount = 0;
         try { $poHeaderCount = PoHeader::count(); } catch (\Throwable $e) {}
         try { $poLineCount = PoLine::count(); } catch (\Throwable $e) {}
-        $usePurchaseOrders = $hasPurchaseOrderDoc && ($poHeaderCount === 0 || $poLineCount === 0);
+        $purchaseOrdersHasRows = false;
+        if ($purchaseOrdersTable) {
+            try {
+                $purchaseOrdersHasRows = (bool) DB::table($purchaseOrdersTable)->limit(1)->exists();
+            } catch (\Throwable $e) {}
+        }
+        $usePurchaseOrders = $hasPurchaseOrderDoc && $purchaseOrdersHasRows;
 
         // Pipeline & KPI calculations (lightweight, no mapping changes)
         $metrics = [];
@@ -299,29 +329,29 @@ class DashboardController extends Controller
         if ($usePurchaseOrders) {
             $dateCol = $purchaseOrderDateCol;
             $qtyCol = $purchaseOrderQtyCol;
-            $receivedCol = $hasPurchaseOrderQtyReceived ? 'quantity_received' : null;
+            $receivedCol = $purchaseOrderQtyReceivedCol;
 
             $poStats = [
-                'this_month' => $dateCol
-                    ? (int) DB::table('purchase_orders')
+                'this_month' => ($dateCol && $purchaseOrdersTable)
+                    ? (int) DB::table($purchaseOrdersTable)
                         ->whereBetween($dateCol, [$currentPeriodStart->toDateString(), $currentPeriodEnd->toDateString()])
                         ->distinct()
                         ->count($purchaseOrderDocCol)
-                    : (int) DB::table('purchase_orders')->distinct()->count($purchaseOrderDocCol),
+                    : ($purchaseOrdersTable ? (int) DB::table($purchaseOrdersTable)->distinct()->count($purchaseOrderDocCol) : 0),
                 'need_shipment' => ($qtyCol && $receivedCol)
-                    ? (int) DB::table('purchase_orders')
+                    ? (int) DB::table($purchaseOrdersTable)
                         ->where($qtyCol, '>', 0)
                         ->whereColumn($receivedCol, '<', $qtyCol)
                         ->count()
                     : 0,
                 'in_transit' => ($qtyCol && $receivedCol)
-                    ? (int) DB::table('purchase_orders')
+                    ? (int) DB::table($purchaseOrdersTable)
                         ->where($receivedCol, '>', 0)
                         ->whereColumn($receivedCol, '<', $qtyCol)
                         ->count()
                     : 0,
                 'completed' => ($qtyCol && $receivedCol)
-                    ? (int) DB::table('purchase_orders')
+                    ? (int) DB::table($purchaseOrdersTable)
                         ->where($qtyCol, '>', 0)
                         ->whereColumn($receivedCol, '>=', $qtyCol)
                         ->count()
@@ -329,15 +359,15 @@ class DashboardController extends Controller
             ];
 
             $orderCol = $dateCol ?? $purchaseOrderDocCol;
-            $poRowsQuery = DB::table('purchase_orders')
+            $poRowsQuery = DB::table($purchaseOrdersTable)
                 ->select(array_filter([
-                    DB::raw($purchaseOrderDocCol.' as po_doc'),
-                    $dateCol ? DB::raw($dateCol.' as po_date') : null,
-                    'vendor_name',
-                    $qtyCol ? DB::raw("COALESCE($qtyCol,0) as qty") : DB::raw('0 as qty'),
-                    $receivedCol ? DB::raw("COALESCE($receivedCol,0) as received_qty") : DB::raw('0 as received_qty'),
-                    $hasPurchaseOrderSapStatus ? 'sap_order_status' : null,
-                    'line_no',
+                    $purchaseOrderDocCol ? DB::raw($quote($purchaseOrderDocCol).' as po_doc') : null,
+                    $dateCol ? DB::raw($quote($dateCol).' as po_date') : null,
+                    $purchaseOrderVendorCol ? DB::raw($quote($purchaseOrderVendorCol).' as vendor_name') : null,
+                    $qtyCol ? DB::raw('COALESCE('.$quote($qtyCol).",0) as qty") : DB::raw('0 as qty'),
+                    $receivedCol ? DB::raw('COALESCE('.$quote($receivedCol).",0) as received_qty") : DB::raw('0 as received_qty'),
+                    $purchaseOrderSapStatusCol ? DB::raw($quote($purchaseOrderSapStatusCol).' as sap_order_status') : null,
+                    $purchaseOrderLineCol ? DB::raw($quote($purchaseOrderLineCol).' as line_no') : null,
                 ]))
                 ->orderByDesc($orderCol)
                 ->limit(100);
@@ -430,9 +460,9 @@ class DashboardController extends Controller
         // Consolidated summary tiles
         if ($usePurchaseOrders) {
             $qtyCol = $purchaseOrderQtyCol;
-            $receivedCol = $hasPurchaseOrderQtyReceived ? 'quantity_received' : null;
-            $orderedTotal = $qtyCol ? (float) DB::table('purchase_orders')->sum($qtyCol) : 0.0;
-            $receivedTotal = $receivedCol ? (float) DB::table('purchase_orders')->sum($receivedCol) : 0.0;
+            $receivedCol = $purchaseOrderQtyReceivedCol;
+            $orderedTotal = ($qtyCol && $purchaseOrdersTable) ? (float) DB::table($purchaseOrdersTable)->sum($qtyCol) : 0.0;
+            $receivedTotal = ($receivedCol && $purchaseOrdersTable) ? (float) DB::table($purchaseOrdersTable)->sum($receivedCol) : 0.0;
         } else {
             $poAggregate = PoLine::selectRaw('SUM(qty_ordered) as ordered_total, SUM(qty_received) as received_total')->first();
             $orderedTotal = (float) ($poAggregate->ordered_total ?? 0);
@@ -452,7 +482,7 @@ class DashboardController extends Controller
             );
         $summary = [
             'po_total' => $usePurchaseOrders
-                ? (int) DB::table('purchase_orders')->distinct()->count($purchaseOrderDocCol)
+                ? (int) DB::table($purchaseOrdersTable)->distinct()->count($purchaseOrderDocCol)
                 : $poHeaderCount,
             'po_ordered_total' => $orderedTotal,
             'po_outstanding_total' => max($orderedTotal - $receivedTotal, 0),
@@ -464,36 +494,48 @@ class DashboardController extends Controller
         ];
 
         // Order by receive_date and only use id when the column exists
-        $recentShipmentsQuery = GrReceipt::orderByDesc('receive_date');
-        if ($hasGrId) {
-            $recentShipmentsQuery->orderByDesc('id');
-        } else {
-            $recentShipmentsQuery->orderByDesc('po_no')->orderByDesc('line_no');
+        $recentShipments = collect();
+        if ($grReceiptsTable && $grPoCol && $grLineCol && $grReceiveCol) {
+            $itemExprParts = [];
+            foreach ([$grItemCol, $grCatDescCol, $grCatPoDescCol, $grCatPoCol, $grMatDocCol] as $col) {
+                if ($col) { $itemExprParts[] = 'NULLIF('.$quote($col).", '')"; }
+            }
+            $itemExpr = !empty($itemExprParts) ? 'COALESCE('.implode(',', $itemExprParts).')' : 'NULL';
+            $recentShipmentsQuery = DB::table($grReceiptsTable)
+                ->select(array_filter([
+                    DB::raw($quote($grPoCol).' as po_no'),
+                    DB::raw($quote($grLineCol).' as line_no'),
+                    DB::raw($quote($grReceiveCol).' as receive_date'),
+                    DB::raw($itemExpr.' as item_name'),
+                    $grVendorCol ? DB::raw($quote($grVendorCol).' as vendor_name') : null,
+                    $grWhNameCol ? DB::raw($quote($grWhNameCol).' as wh_name') : null,
+                    $grCatPoCol ? DB::raw($quote($grCatPoCol).' as cat_po') : null,
+                    $grQtyCol ? DB::raw($quote($grQtyCol).' as qty') : null,
+                ]))
+                ->orderByDesc($grReceiveCol);
+
+            if ($hasGrId && $grIdCol) {
+                $recentShipmentsQuery->orderByDesc($grIdCol);
+            } else {
+                $recentShipmentsQuery->orderByDesc($grPoCol)->orderByDesc($grLineCol);
+            }
+
+            $recentShipments = $recentShipmentsQuery
+                ->take(5)
+                ->get()
+                ->map(function ($receipt) {
+                    return (object) [
+                        'po_number'      => $receipt->po_no ?? null,
+                        'line_no'        => $receipt->line_no ?? null,
+                        'receive_date'   => $receipt->receive_date ?? null,
+                        'item_name'      => $receipt->item_name ?? null,
+                        'vendor_name'    => $receipt->vendor_name ?? null,
+                        'warehouse_name' => $receipt->wh_name ?? null,
+                        'sap_status'     => $receipt->cat_po ?? null,
+                        'quantity'       => (float) ($receipt->qty ?? 0),
+                    ];
+                });
         }
-        $recentShipments = $recentShipmentsQuery
-            ->take(5)
-            ->get()
-            ->map(function (GrReceipt $receipt) {
-                $itemName = $receipt->item_name ?? null;
-                if ($itemName === null || $itemName === '') {
-                    $itemName = $receipt->cat_desc
-                        ?? $receipt->cat_po_desc
-                        ?? $receipt->cat_po
-                        ?? $receipt->mat_doc
-                        ?? null;
-                }
-                // Shape data to match admin.dashboard view expectations
-                return (object) [
-                    'po_number'      => $receipt->po_no,
-                    'line_no'        => $receipt->line_no,
-                    'receive_date'   => $receipt->receive_date,
-                    'item_name'      => $itemName,
-                    'vendor_name'    => $receipt->vendor_name,
-                    'warehouse_name' => $receipt->wh_name,
-                    'sap_status'     => $receipt->cat_po, // fallback handled in view
-                    'quantity'       => (float) $receipt->qty,
-                ];
-            });
 
         // Optional no-cache response (diagnostic only). Uncomment to disable browser caching while styling.
         // return response()->view('admin.dashboard', compact(
