@@ -27,6 +27,266 @@ class PurchaseOrderController extends Controller
 
     public function index(Request $request): View
     {
+        $purchaseOrdersTable = $this->resolveTableName('purchase_orders');
+        $poCols = $this->columnMap($purchaseOrdersTable);
+        $poDocCol = $poCols['po_doc'] ?? ($poCols['po_number'] ?? null);
+        $usePurchaseOrders = $purchaseOrdersTable && $poDocCol;
+        if ($usePurchaseOrders) {
+            try {
+                $usePurchaseOrders = (bool) DB::table($purchaseOrdersTable)->limit(1)->exists();
+            } catch (\Throwable $e) {
+                $usePurchaseOrders = false;
+            }
+        }
+
+        if ($usePurchaseOrders) {
+            $quote = fn (string $name) => $this->quoteIdentifier($name);
+            $poDateCol = $poCols['created_date'] ?? ($poCols['order_date'] ?? ($poCols['created_at'] ?? null));
+            $poLineCol = $poCols['line_no'] ?? null;
+            $poVendorNoCol = $poCols['vendor_no'] ?? ($poCols['vendor_number'] ?? null);
+            $poVendorNameCol = $poCols['vendor_name'] ?? null;
+            $poItemCodeCol = $poCols['item_code'] ?? ($poCols['model_code'] ?? null);
+            $poItemDescCol = $poCols['item_desc'] ?? null;
+            $poQtyCol = $poCols['qty'] ?? ($poCols['quantity'] ?? ($poCols['qty_ordered'] ?? null));
+            $poQtyToInvoiceCol = $poCols['qty_to_invoice'] ?? null;
+            $poQtyToDeliverCol = $poCols['qty_to_deliver'] ?? null;
+            $poAmountCol = $poCols['amount'] ?? null;
+            $poStorageCol = $poCols['storage_location'] ?? ($poCols['subinv_code'] ?? ($poCols['sloc_code'] ?? null));
+            $poStorageNameCol = $poCols['subinv_name'] ?? ($poCols['sloc_name'] ?? null);
+            $poSapStatusCol = $poCols['sap_order_status'] ?? null;
+            $poEtaCol = $poCols['eta_date'] ?? ($poCols['delivery_date'] ?? null);
+
+            $storageExpr = null;
+            if ($poStorageCol && $poStorageNameCol) {
+                $storageExpr = 'COALESCE(NULLIF('.$quote($poStorageCol).", ''), ".$quote($poStorageNameCol).') as storage_location';
+            } elseif ($poStorageCol) {
+                $storageExpr = $quote($poStorageCol).' as storage_location';
+            } elseif ($poStorageNameCol) {
+                $storageExpr = $quote($poStorageNameCol).' as storage_location';
+            }
+
+            $baseQuery = DB::table($purchaseOrdersTable)
+                ->select(array_filter([
+                    DB::raw($quote($poDocCol).' as po_doc'),
+                    $poDateCol ? DB::raw($quote($poDateCol).' as po_date') : DB::raw('NULL as po_date'),
+                    $poVendorNoCol ? DB::raw($quote($poVendorNoCol).' as vendor_number') : DB::raw('NULL as vendor_number'),
+                    $poVendorNameCol ? DB::raw($quote($poVendorNameCol).' as vendor_name') : DB::raw('NULL as vendor_name'),
+                    $poLineCol ? DB::raw($quote($poLineCol).' as line_no') : DB::raw('NULL as line_no'),
+                    $poQtyCol ? DB::raw('COALESCE('.$quote($poQtyCol).',0) as qty_ordered') : DB::raw('0 as qty_ordered'),
+                    $poQtyToInvoiceCol ? DB::raw('COALESCE('.$quote($poQtyToInvoiceCol).',0) as qty_to_invoice') : DB::raw('NULL as qty_to_invoice'),
+                    $poQtyToDeliverCol ? DB::raw('COALESCE('.$quote($poQtyToDeliverCol).',0) as qty_to_deliver') : DB::raw('NULL as qty_to_deliver'),
+                    $poAmountCol ? DB::raw('COALESCE('.$quote($poAmountCol).',0) as amount') : DB::raw('NULL as amount'),
+                    $storageExpr ? DB::raw($storageExpr) : DB::raw('NULL as storage_location'),
+                    $poSapStatusCol ? DB::raw($quote($poSapStatusCol).' as sap_order_status') : DB::raw('NULL as sap_order_status'),
+                    $poEtaCol ? DB::raw($quote($poEtaCol).' as eta_date') : DB::raw('NULL as eta_date'),
+                ]));
+
+            if ($request->filled('period') && $poDateCol) {
+                $period = (string) $request->string('period');
+                if (preg_match('/^\d{4}-\d{2}$/', $period)) {
+                    $start = Carbon::createFromFormat('Y-m', $period)->startOfMonth();
+                    $end   = Carbon::createFromFormat('Y-m', $period)->endOfMonth();
+                    $baseQuery->whereBetween($poDateCol, [$start->toDateString(), $end->toDateString()]);
+                } elseif (preg_match('/^\d{4}$/', $period)) {
+                    $start = Carbon::createFromDate((int) $period, 1, 1)->startOfYear();
+                    $end   = Carbon::createFromDate((int) $period, 12, 31)->endOfYear();
+                    $baseQuery->whereBetween($poDateCol, [$start->toDateString(), $end->toDateString()]);
+                }
+            }
+
+            if ($request->filled('search')) {
+                $term = '%'.$request->string('search').'%';
+                $baseQuery->where(function ($w) use ($term, $poDocCol, $poVendorNameCol, $poVendorNoCol, $poItemCodeCol, $poItemDescCol) {
+                    $hasCondition = false;
+                    if ($poDocCol) {
+                        $w->orWhere($poDocCol, 'like', $term);
+                        $hasCondition = true;
+                    }
+                    if ($poVendorNameCol) {
+                        $w->orWhere($poVendorNameCol, 'like', $term);
+                        $hasCondition = true;
+                    }
+                    if ($poVendorNoCol) {
+                        $w->orWhere($poVendorNoCol, 'like', $term);
+                        $hasCondition = true;
+                    }
+                    if ($poItemCodeCol) {
+                        $w->orWhere($poItemCodeCol, 'like', $term);
+                        $hasCondition = true;
+                    }
+                    if ($poItemDescCol) {
+                        $w->orWhere($poItemDescCol, 'like', $term);
+                        $hasCondition = true;
+                    }
+                    if (!$hasCondition) {
+                        $w->whereRaw('1 = 0');
+                    }
+                });
+            }
+
+            $orderCol = $poDateCol ?: $poDocCol;
+            $rows = $baseQuery
+                ->orderByDesc($orderCol)
+                ->orderBy($poDocCol)
+                ->get();
+
+            if ($rows->isEmpty()) {
+                $purchaseOrders = new LengthAwarePaginator([], 0, 20, 1, [
+                    'path'  => $request->url(),
+                    'query' => $request->query(),
+                ]);
+
+                $stats = [
+                    'total_po'   => 0,
+                    'ordered'    => 0,
+                    'in_transit' => 0,
+                    'completed'  => 0,
+                ];
+
+                return view('admin.purchase_order.index', compact('purchaseOrders', 'stats'));
+            }
+
+            $grTable = $this->resolveTableName('gr_receipts');
+            $grCols = $this->columnMap($grTable);
+            $grPoCol = $grCols['po_no'] ?? null;
+            $grQtyCol = $grCols['qty'] ?? null;
+
+            $poNumbers = $rows->pluck('po_doc')->filter()->unique()->values();
+            $grSums = collect();
+            if ($grTable && $grPoCol && $grQtyCol && $poNumbers->isNotEmpty()) {
+                $grSums = DB::table($grTable)
+                    ->select([
+                        DB::raw($quote($grPoCol).' as po_no'),
+                        DB::raw('SUM('.$quote($grQtyCol).') as qty'),
+                    ])
+                    ->whereIn($grPoCol, $poNumbers)
+                    ->groupBy(DB::raw($quote($grPoCol)))
+                    ->pluck('qty', 'po_no');
+            }
+
+            $hasQtyToInvoice = $poQtyToInvoiceCol !== null;
+            $hasQtyToDeliver = $poQtyToDeliverCol !== null;
+            $hasAmount = $poAmountCol !== null;
+            $hasStorage = $storageExpr !== null;
+            $hasSapStatus = $poSapStatusCol !== null;
+            $hasLineNo = $poLineCol !== null;
+
+            $grouped = $rows->groupBy('po_doc')->map(function ($group) use ($grSums, $hasAmount, $hasQtyToInvoice, $hasQtyToDeliver, $hasStorage, $hasSapStatus, $hasLineNo) {
+                $poNumber = (string) $group->first()->po_doc;
+
+                $firstOrderDate  = $group->min('po_date');
+                $latestOrderDate = $group->max('po_date');
+                $firstDelivDate  = $group->min('eta_date');
+                $latestDelivDate = $group->max('eta_date');
+
+                $vendorNames = $group->pluck('vendor_name')->filter()->unique()->values();
+                $vendorNumbers = $group->pluck('vendor_number')->filter()->unique()->values();
+
+                $totalQtyOrdered = $group->sum(fn ($row) => (float) ($row->qty_ordered ?? 0));
+                $totalQtyReceived = (float) ($grSums[$poNumber] ?? 0.0);
+                $totalQtyOutstanding = max($totalQtyOrdered - $totalQtyReceived, 0.0);
+
+                $totalQtyToInvoice = $hasQtyToInvoice
+                    ? $group->sum(fn ($row) => (float) ($row->qty_to_invoice ?? 0))
+                    : null;
+                $totalQtyToDeliver = $hasQtyToDeliver
+                    ? $group->sum(fn ($row) => (float) ($row->qty_to_deliver ?? 0))
+                    : null;
+
+                $storageLocations = $hasStorage
+                    ? $group->pluck('storage_location')->filter(fn ($value) => $value !== null && $value !== '')->unique()->implode(', ')
+                    : null;
+
+                $sapStatuses = $hasSapStatus
+                    ? $group->pluck('sap_order_status')->filter()->unique()->implode(', ')
+                    : null;
+
+                $totalAmount = $hasAmount
+                    ? $group->sum(fn ($row) => (float) ($row->amount ?? 0))
+                    : null;
+
+                $lineCount = $hasLineNo
+                    ? $group->pluck('line_no')->filter(fn ($value) => $value !== null && $value !== '')->unique()->count()
+                    : $group->count();
+
+                $statusKey = PurchaseOrder::STATUS_ORDERED;
+                if ($totalQtyOrdered > 0) {
+                    if ($totalQtyReceived >= $totalQtyOrdered) {
+                        $statusKey = PurchaseOrder::STATUS_COMPLETED;
+                    } elseif ($totalQtyReceived > 0) {
+                        $statusKey = PurchaseOrder::STATUS_PARTIAL;
+                    }
+                }
+
+                return (object) [
+                    'po_number'            => $poNumber,
+                    'first_order_date'     => $firstOrderDate,
+                    'latest_order_date'    => $latestOrderDate,
+                    'first_deliv_date'     => $firstDelivDate,
+                    'latest_deliv_date'    => $latestDelivDate,
+                    'vendor_number'        => $vendorNumbers->implode(', '),
+                    'vendor_name'          => $vendorNames->implode(', '),
+                    'vendor_factories'     => null,
+                    'header_count'         => 1,
+                    'total_lines'          => $lineCount,
+                    'total_qty_ordered'    => $totalQtyOrdered,
+                    'total_qty_received'   => $totalQtyReceived,
+                    'total_qty_outstanding'=> $totalQtyOutstanding,
+                    'total_qty_to_invoice' => $totalQtyToInvoice,
+                    'total_qty_to_deliver' => $totalQtyToDeliver,
+                    'storage_locations'    => $storageLocations,
+                    'total_amount'         => $totalAmount,
+                    'sap_statuses'         => $sapStatuses,
+                    'status_key'           => $statusKey,
+                ];
+            });
+
+            if ($request->filled('status')) {
+                $statusFilter = (string) $request->string('status');
+                if ($statusFilter === PurchaseOrder::STATUS_IN_TRANSIT) {
+                    $statusFilter = PurchaseOrder::STATUS_PARTIAL;
+                }
+
+                if (in_array($statusFilter, [
+                    PurchaseOrder::STATUS_ORDERED,
+                    PurchaseOrder::STATUS_PARTIAL,
+                    PurchaseOrder::STATUS_COMPLETED,
+                ], true)) {
+                    $grouped = $grouped->filter(fn ($row) => $row->status_key === $statusFilter);
+                }
+            }
+
+            $sorted = $grouped->sortBy([
+                ['latest_order_date', 'desc'],
+                ['po_number', 'asc'],
+            ])->values();
+
+            $perPage     = 20;
+            $currentPage = LengthAwarePaginator::resolveCurrentPage();
+            $total       = $sorted->count();
+            $items       = $sorted->slice(($currentPage - 1) * $perPage, $perPage)->values();
+
+            $purchaseOrders = new LengthAwarePaginator(
+                $items,
+                $total,
+                $perPage,
+                $currentPage,
+                [
+                    'path'  => $request->url(),
+                    'query' => $request->query(),
+                ]
+            );
+
+            $stats = [
+                'total_po'   => $total,
+                'ordered'    => $sorted->where('status_key', PurchaseOrder::STATUS_ORDERED)->count(),
+                'in_transit' => $sorted->where('status_key', PurchaseOrder::STATUS_PARTIAL)->count(),
+                'completed'  => $sorted->where('status_key', PurchaseOrder::STATUS_COMPLETED)->count(),
+            ];
+
+            return view('admin.purchase_order.index', compact('purchaseOrders', 'stats'));
+        }
+
         $hasVendorNumber = Schema::hasColumn('po_headers', 'vendor_number');
         $hasAmount = Schema::hasColumn('po_lines', 'amount');
         $hasQtyOrdered = Schema::hasColumn('po_lines', 'qty_ordered');
@@ -244,15 +504,6 @@ class PurchaseOrderController extends Controller
             abort(404);
         }
 
-        $hasHeaderVendorNumber = Schema::hasColumn('po_headers', 'vendor_number');
-
-        $headerSelect = [
-            'id', 'po_number', 'po_date', 'supplier',
-        ];
-        if ($hasHeaderVendorNumber) {
-            $headerSelect[] = 'vendor_number';
-        }
-
         $resolveVendorNumber = static function (?string $explicit, ?string $supplier): ?string {
             $explicit = is_string($explicit) ? trim($explicit) : '';
             if ($explicit !== '') {
@@ -277,6 +528,146 @@ class PurchaseOrderController extends Controller
             }
             return null;
         };
+
+        $purchaseOrdersTable = $this->resolveTableName('purchase_orders');
+        $poCols = $this->columnMap($purchaseOrdersTable);
+        $poDocCol = $poCols['po_doc'] ?? ($poCols['po_number'] ?? null);
+        $usePurchaseOrders = $purchaseOrdersTable && $poDocCol;
+        if ($usePurchaseOrders) {
+            try {
+                $usePurchaseOrders = (bool) DB::table($purchaseOrdersTable)
+                    ->where($poDocCol, $poNumber)
+                    ->limit(1)
+                    ->exists();
+            } catch (\Throwable $e) {
+                $usePurchaseOrders = false;
+            }
+        }
+
+        if ($usePurchaseOrders) {
+            $quote = fn (string $name) => $this->quoteIdentifier($name);
+            $poDateCol = $poCols['created_date'] ?? ($poCols['order_date'] ?? ($poCols['created_at'] ?? null));
+            $poLineCol = $poCols['line_no'] ?? null;
+            $poVendorNoCol = $poCols['vendor_no'] ?? ($poCols['vendor_number'] ?? null);
+            $poVendorNameCol = $poCols['vendor_name'] ?? null;
+            $poItemCodeCol = $poCols['item_code'] ?? ($poCols['model_code'] ?? null);
+            $poItemDescCol = $poCols['item_desc'] ?? null;
+            $poQtyCol = $poCols['qty'] ?? ($poCols['quantity'] ?? ($poCols['qty_ordered'] ?? null));
+            $poQtyToInvoiceCol = $poCols['qty_to_invoice'] ?? null;
+            $poQtyToDeliverCol = $poCols['qty_to_deliver'] ?? null;
+            $poAmountCol = $poCols['amount'] ?? null;
+            $poStorageCol = $poCols['storage_location'] ?? ($poCols['subinv_code'] ?? ($poCols['sloc_code'] ?? null));
+            $poStorageNameCol = $poCols['subinv_name'] ?? ($poCols['sloc_name'] ?? null);
+            $poEtaCol = $poCols['eta_date'] ?? ($poCols['delivery_date'] ?? null);
+
+            $storageExpr = null;
+            if ($poStorageCol && $poStorageNameCol) {
+                $storageExpr = 'COALESCE(NULLIF('.$quote($poStorageCol).", ''), ".$quote($poStorageNameCol).') as storage_location';
+            } elseif ($poStorageCol) {
+                $storageExpr = $quote($poStorageCol).' as storage_location';
+            } elseif ($poStorageNameCol) {
+                $storageExpr = $quote($poStorageNameCol).' as storage_location';
+            }
+
+            $orderCol = $poDateCol ?: $poDocCol;
+            $rows = DB::table($purchaseOrdersTable)
+                ->select(array_filter([
+                    DB::raw($quote($poDocCol).' as po_number'),
+                    $poDateCol ? DB::raw($quote($poDateCol).' as order_date') : DB::raw('NULL as order_date'),
+                    $poEtaCol ? DB::raw($quote($poEtaCol).' as deliv_date') : DB::raw('NULL as deliv_date'),
+                    $poVendorNoCol ? DB::raw($quote($poVendorNoCol).' as vendor_number') : DB::raw('NULL as vendor_number'),
+                    $poVendorNameCol ? DB::raw($quote($poVendorNameCol).' as vendor_name') : DB::raw('NULL as vendor_name'),
+                    $poLineCol ? DB::raw($quote($poLineCol).' as line_number') : DB::raw('NULL as line_number'),
+                    $poItemCodeCol ? DB::raw($quote($poItemCodeCol).' as item_code') : DB::raw('NULL as item_code'),
+                    $poItemDescCol ? DB::raw($quote($poItemDescCol).' as item_description') : DB::raw('NULL as item_description'),
+                    $storageExpr ? DB::raw($storageExpr) : DB::raw('NULL as storage_location'),
+                    $poQtyCol ? DB::raw('COALESCE('.$quote($poQtyCol).',0) as quantity') : DB::raw('0 as quantity'),
+                    $poQtyToInvoiceCol ? DB::raw('COALESCE('.$quote($poQtyToInvoiceCol).',0) as qty_to_invoice') : DB::raw('NULL as qty_to_invoice'),
+                    $poQtyToDeliverCol ? DB::raw('COALESCE('.$quote($poQtyToDeliverCol).',0) as qty_to_deliver') : DB::raw('NULL as qty_to_deliver'),
+                    $poAmountCol ? DB::raw('COALESCE('.$quote($poAmountCol).',0) as amount') : DB::raw('NULL as amount'),
+                ]))
+                ->where($poDocCol, $poNumber)
+                ->orderByDesc($orderCol)
+                ->when($poLineCol, fn ($q) => $q->orderBy($poLineCol))
+                ->get();
+
+            if ($rows->isEmpty()) {
+                abort(404);
+            }
+
+            $lines = $rows->map(function ($line) use ($resolveVendorNumber) {
+                try {
+                    $line->display_order_date = !empty($line->order_date) ? Carbon::parse($line->order_date) : null;
+                } catch (\Throwable $th) {
+                    $line->display_order_date = null;
+                }
+                $line->vendor_number = $resolveVendorNumber($line->vendor_number ?? null, $line->vendor_name ?? null);
+                return $line;
+            });
+
+            $headers = collect([
+                (object) [
+                    'po_number' => $poNumber,
+                    'po_date' => $rows->max('order_date'),
+                    'supplier' => $rows->pluck('vendor_name')->filter()->unique()->implode(', '),
+                    'vendor_number' => $rows->pluck('vendor_number')->filter()->unique()->implode(', '),
+                ],
+            ])->map(function ($header) use ($resolveVendorNumber) {
+                try {
+                    $displayDate = !empty($header->po_date) ? Carbon::parse($header->po_date) : null;
+                } catch (\Throwable $th) {
+                    $displayDate = null;
+                }
+
+                $header->display_vendor_number = $resolveVendorNumber($header->vendor_number ?? null, $header->supplier ?? null);
+                $header->display_date = $displayDate;
+                return $header;
+            });
+
+            $totals = [
+                'quantity' => (float) $lines->sum(fn ($line) => (float) ($line->quantity ?? 0)),
+                'amount' => $poAmountCol ? (float) $lines->sum(fn ($line) => (float) ($line->amount ?? 0)) : null,
+                'count' => $lines->count(),
+            ];
+
+            $dateRange = null;
+            $dates = $lines->pluck('display_order_date')->filter();
+            if ($dates->isNotEmpty()) {
+                /** @var \Illuminate\Support\Carbon|null $first */
+                $first = $dates->min();
+                /** @var \Illuminate\Support\Carbon|null $last */
+                $last = $dates->max();
+                if ($first && $last) {
+                    $dateRange = $first->equalTo($last)
+                        ? $first->format('d M Y')
+                        : $first->format('d M Y').' - '.$last->format('d M Y');
+                }
+            }
+
+            $primaryVendorName = $lines->pluck('vendor_name')->filter()->unique()->implode(', ');
+            $primaryVendorNumber = $lines->pluck('vendor_number')->filter()->unique()->implode(', ');
+            $internalPO = PurchaseOrder::with(['product'])->where('po_doc', $poNumber)->first();
+
+            return view('admin.purchase_order.document', [
+                'poNumber' => $poNumber,
+                'headers' => $headers,
+                'lines' => $lines,
+                'totals' => $totals,
+                'dateRange' => $dateRange,
+                'primaryVendorName' => $primaryVendorName,
+                'primaryVendorNumber' => $primaryVendorNumber,
+                'internalPO' => $internalPO,
+            ]);
+        }
+
+        $hasHeaderVendorNumber = Schema::hasColumn('po_headers', 'vendor_number');
+
+        $headerSelect = [
+            'id', 'po_number', 'po_date', 'supplier',
+        ];
+        if ($hasHeaderVendorNumber) {
+            $headerSelect[] = 'vendor_number';
+        }
 
         $headers = DB::table('po_headers')
             ->select($headerSelect)
@@ -412,6 +803,149 @@ class PurchaseOrderController extends Controller
 
     public function export(Request $request)
     {
+        $purchaseOrdersTable = $this->resolveTableName('purchase_orders');
+        $poCols = $this->columnMap($purchaseOrdersTable);
+        $poDocCol = $poCols['po_doc'] ?? ($poCols['po_number'] ?? null);
+        $usePurchaseOrders = $purchaseOrdersTable && $poDocCol;
+        if ($usePurchaseOrders) {
+            try {
+                $usePurchaseOrders = (bool) DB::table($purchaseOrdersTable)->limit(1)->exists();
+            } catch (\Throwable $e) {
+                $usePurchaseOrders = false;
+            }
+        }
+
+        if ($usePurchaseOrders) {
+            $quote = fn (string $name) => $this->quoteIdentifier($name);
+            $poDateCol = $poCols['created_date'] ?? ($poCols['order_date'] ?? ($poCols['created_at'] ?? null));
+            $poVendorNoCol = $poCols['vendor_no'] ?? ($poCols['vendor_number'] ?? null);
+            $poVendorNameCol = $poCols['vendor_name'] ?? null;
+            $poLineCol = $poCols['line_no'] ?? null;
+            $poItemCodeCol = $poCols['item_code'] ?? ($poCols['model_code'] ?? null);
+            $poItemDescCol = $poCols['item_desc'] ?? null;
+            $poWhCodeCol = $poCols['wh_code'] ?? ($poCols['warehouse_code'] ?? null);
+            $poWhNameCol = $poCols['wh_name'] ?? ($poCols['warehouse_name'] ?? null);
+            $poWhSourceCol = $poCols['wh_source'] ?? ($poCols['warehouse_source'] ?? null);
+            $poSubinvCodeCol = $poCols['subinv_code'] ?? ($poCols['subinventory_code'] ?? null);
+            $poSubinvNameCol = $poCols['subinv_name'] ?? ($poCols['subinventory_name'] ?? null);
+            $poSubinvSourceCol = $poCols['subinv_source'] ?? ($poCols['subinventory_source'] ?? null);
+            $poQtyCol = $poCols['qty'] ?? ($poCols['quantity'] ?? ($poCols['qty_ordered'] ?? null));
+            $poAmountCol = $poCols['amount'] ?? null;
+            $poCatCodeCol = $poCols['cat_po'] ?? ($poCols['category_code'] ?? null);
+            $poCatDescCol = $poCols['cat_desc'] ?? ($poCols['category'] ?? null);
+            $poMatGrpCol = $poCols['mat_grp'] ?? ($poCols['material_group'] ?? null);
+            $poSapStatusCol = $poCols['sap_order_status'] ?? null;
+
+            $query = DB::table($purchaseOrdersTable)
+                ->select(array_filter([
+                    DB::raw($quote($poDocCol).' as po_number'),
+                    $poDateCol ? DB::raw($quote($poDateCol).' as order_date') : DB::raw('NULL as order_date'),
+                    $poVendorNoCol ? DB::raw($quote($poVendorNoCol).' as vendor_number') : DB::raw('NULL as vendor_number'),
+                    $poVendorNameCol ? DB::raw($quote($poVendorNameCol).' as vendor_name') : DB::raw('NULL as vendor_name'),
+                    $poLineCol ? DB::raw($quote($poLineCol).' as line_number') : DB::raw('NULL as line_number'),
+                    $poItemCodeCol ? DB::raw($quote($poItemCodeCol).' as item_code') : DB::raw('NULL as item_code'),
+                    $poItemDescCol ? DB::raw($quote($poItemDescCol).' as item_description') : DB::raw('NULL as item_description'),
+                    $poWhCodeCol ? DB::raw($quote($poWhCodeCol).' as warehouse_code') : DB::raw('NULL as warehouse_code'),
+                    $poWhNameCol ? DB::raw($quote($poWhNameCol).' as warehouse_name') : DB::raw('NULL as warehouse_name'),
+                    $poWhSourceCol ? DB::raw($quote($poWhSourceCol).' as warehouse_source') : DB::raw('NULL as warehouse_source'),
+                    $poSubinvCodeCol ? DB::raw($quote($poSubinvCodeCol).' as subinventory_code') : DB::raw('NULL as subinventory_code'),
+                    $poSubinvNameCol ? DB::raw($quote($poSubinvNameCol).' as subinventory_name') : DB::raw('NULL as subinventory_name'),
+                    $poSubinvSourceCol ? DB::raw($quote($poSubinvSourceCol).' as subinventory_source') : DB::raw('NULL as subinventory_source'),
+                    $poQtyCol ? DB::raw('COALESCE('.$quote($poQtyCol).',0) as quantity') : DB::raw('0 as quantity'),
+                    $poAmountCol ? DB::raw('COALESCE('.$quote($poAmountCol).',0) as amount') : DB::raw('NULL as amount'),
+                    $poCatCodeCol ? DB::raw($quote($poCatCodeCol).' as category_code') : DB::raw('NULL as category_code'),
+                    $poCatDescCol ? DB::raw($quote($poCatDescCol).' as category') : DB::raw('NULL as category'),
+                    $poMatGrpCol ? DB::raw($quote($poMatGrpCol).' as material_group') : DB::raw('NULL as material_group'),
+                    $poSapStatusCol ? DB::raw($quote($poSapStatusCol).' as sap_order_status') : DB::raw('NULL as sap_order_status'),
+                ]));
+
+            if ($request->filled('period') && $poDateCol) {
+                $period = (string) $request->string('period');
+                if (preg_match('/^\d{4}-\d{2}$/', $period)) {
+                    $start = Carbon::createFromFormat('Y-m', $period)->startOfMonth();
+                    $end   = Carbon::createFromFormat('Y-m', $period)->endOfMonth();
+                    $query->whereBetween($poDateCol, [$start->toDateString(), $end->toDateString()]);
+                } elseif (preg_match('/^\d{4}$/', $period)) {
+                    $start = Carbon::createFromDate((int) $period, 1, 1)->startOfYear();
+                    $end   = Carbon::createFromDate((int) $period, 12, 31)->endOfYear();
+                    $query->whereBetween($poDateCol, [$start->toDateString(), $end->toDateString()]);
+                }
+            }
+
+            if ($request->filled('search')) {
+                $term = '%'.$request->string('search').'%';
+                $query->where(function ($w) use ($term, $poDocCol, $poVendorNameCol, $poVendorNoCol, $poItemCodeCol, $poItemDescCol) {
+                    $hasCondition = false;
+                    if ($poDocCol) {
+                        $w->orWhere($poDocCol, 'like', $term);
+                        $hasCondition = true;
+                    }
+                    if ($poVendorNameCol) {
+                        $w->orWhere($poVendorNameCol, 'like', $term);
+                        $hasCondition = true;
+                    }
+                    if ($poVendorNoCol) {
+                        $w->orWhere($poVendorNoCol, 'like', $term);
+                        $hasCondition = true;
+                    }
+                    if ($poItemCodeCol) {
+                        $w->orWhere($poItemCodeCol, 'like', $term);
+                        $hasCondition = true;
+                    }
+                    if ($poItemDescCol) {
+                        $w->orWhere($poItemDescCol, 'like', $term);
+                        $hasCondition = true;
+                    }
+                    if (!$hasCondition) {
+                        $w->whereRaw('1 = 0');
+                    }
+                });
+            }
+
+            $filename = 'purchase_orders_'.now()->format('Ymd_His').'.csv';
+            return response()->streamDownload(function () use ($query) {
+                $out = fopen('php://output', 'w');
+                fputcsv($out, [
+                    'PO_DOC','CREATED_DATE','VENDOR_NO','VENDOR_NAME','LINE_NO','ITEM_CODE','ITEM_DESC',
+                    'WH_CODE','WH_NAME','WH_SOURCE','SUBINV_CODE','SUBINV_NAME','SUBINV_SOURCE','QTY','AMOUNT','CAT_PO','CAT_DESC','MAT_GRP','SAP_STATUS'
+                ]);
+                $query->chunk(500, function ($rows) use ($out) {
+                    foreach ($rows as $po) {
+                        $dateValue = null;
+                        if (!empty($po->order_date)) {
+                            try {
+                                $dateValue = Carbon::parse($po->order_date)->format('Y-m-d');
+                            } catch (\Throwable $e) {
+                                $dateValue = (string) $po->order_date;
+                            }
+                        }
+                        fputcsv($out, [
+                            $po->po_number,
+                            $dateValue,
+                            $po->vendor_number,
+                            $po->vendor_name,
+                            $po->line_number,
+                            $po->item_code,
+                            $po->item_description,
+                            $po->warehouse_code,
+                            $po->warehouse_name,
+                            $po->warehouse_source,
+                            $po->subinventory_code,
+                            $po->subinventory_name,
+                            $po->subinventory_source,
+                            $po->quantity,
+                            $po->amount,
+                            $po->category_code,
+                            $po->category,
+                            $po->material_group,
+                            $po->sap_order_status,
+                        ]);
+                    }
+                });
+                fclose($out);
+            }, $filename, ['Content-Type' => 'text/csv']);
+        }
+
         $hasVendorNumber = Schema::hasColumn('po_headers', 'vendor_number');
         $hasWhCode = Schema::hasColumn('po_lines', 'warehouse_code');
         $hasWhName = Schema::hasColumn('po_lines', 'warehouse_name');
@@ -735,5 +1269,47 @@ class PurchaseOrderController extends Controller
 
         return $redir;
     }
-}
 
+    private function resolveTableName(string $table): ?string
+    {
+        if (Schema::hasTable($table)) {
+            return $table;
+        }
+
+        try {
+            $row = DB::selectOne("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE LOWER(TABLE_NAME) = LOWER(?)", [$table]);
+            if ($row) {
+                return $row->TABLE_NAME ?? $row->table_name ?? $table;
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return null;
+    }
+
+    private function columnMap(?string $table): array
+    {
+        if (!$table) {
+            return [];
+        }
+
+        try {
+            $cols = Schema::getColumnListing($table);
+        } catch (\Throwable $e) {
+            $cols = [];
+        }
+
+        $map = [];
+        foreach ($cols as $col) {
+            $map[strtolower($col)] = $col;
+        }
+        return $map;
+    }
+
+    private function quoteIdentifier(string $name): string
+    {
+        return DB::connection()->getDriverName() === 'sqlsrv'
+            ? '['.$name.']'
+            : '"'.$name.'"';
+    }
+}
