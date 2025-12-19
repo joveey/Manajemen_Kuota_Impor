@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\HsPkImportPageController;
 use App\Http\Controllers\Admin\QuotaImportPageController;
 use App\Http\Controllers\Admin\MappingPageController;
 use App\Http\Controllers\Admin\OpenPoImportController;
+use App\Http\Controllers\Admin\SchemaCheckController;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Admin\ProductQuickController;
 use App\Http\Controllers\Admin\HsPkManualController;
@@ -117,6 +118,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::resource('admins', AdminController::class);
         Route::post('admins/{admin}/convert-to-user', [AdminController::class, 'convertToUser'])
             ->name('admins.convert');
+        Route::get('db-schema-check', [SchemaCheckController::class, 'index'])->name('db.schema_check');
     });
     
     // ============================================

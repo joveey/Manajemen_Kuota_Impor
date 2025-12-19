@@ -24,6 +24,19 @@ class DashboardController extends Controller
         $hasImportCreatedAt = Schema::hasColumn('imports', 'created_at');
         $hasPoCreatedAt = Schema::hasColumn('po_headers', 'created_at');
         $hasGrId = Schema::hasColumn('gr_receipts', 'id');
+        $hasPurchaseOrders = Schema::hasTable('purchase_orders');
+        $hasPurchaseOrderDoc = $hasPurchaseOrders && Schema::hasColumn('purchase_orders', 'po_doc');
+        $hasPurchaseOrderQty = $hasPurchaseOrders && Schema::hasColumn('purchase_orders', 'qty');
+        $hasPurchaseOrderQtyReceived = $hasPurchaseOrders && Schema::hasColumn('purchase_orders', 'quantity_received');
+        $hasPurchaseOrderCreatedDate = $hasPurchaseOrders && Schema::hasColumn('purchase_orders', 'created_date');
+        $hasPurchaseOrderCreatedAt = $hasPurchaseOrders && Schema::hasColumn('purchase_orders', 'created_at');
+        $hasPurchaseOrderSapStatus = $hasPurchaseOrders && Schema::hasColumn('purchase_orders', 'sap_order_status');
+
+        $poHeaderCount = 0;
+        $poLineCount = 0;
+        try { $poHeaderCount = PoHeader::count(); } catch (\Throwable $e) {}
+        try { $poLineCount = PoLine::count(); } catch (\Throwable $e) {}
+        $usePurchaseOrders = $hasPurchaseOrderDoc && $poHeaderCount === 0 && $poLineCount === 0;
 
         // Pipeline & KPI calculations (lightweight, no mapping changes)
         $metrics = [];
@@ -260,49 +273,128 @@ class DashboardController extends Controller
         $currentPeriodStart = Carbon::now()->startOfMonth();
         $currentPeriodEnd = Carbon::now()->endOfMonth();
 
-        $poStats = [
-            'this_month' => PoHeader::whereBetween('po_date', [$currentPeriodStart, $currentPeriodEnd])->count(),
-            'need_shipment' => PoLine::whereColumn('qty_received', '<', 'qty_ordered')->count(),
-            'in_transit' => PoLine::where('qty_received', '>', 0)->whereColumn('qty_received', '<', 'qty_ordered')->count(),
-            'completed' => PoLine::where('qty_ordered', '>', 0)->whereColumn('qty_received', '>=', 'qty_ordered')->count(),
-        ];
+        if ($usePurchaseOrders) {
+            $dateCol = $hasPurchaseOrderCreatedDate ? 'created_date' : ($hasPurchaseOrderCreatedAt ? 'created_at' : null);
+            $qtyCol = $hasPurchaseOrderQty ? 'qty' : (Schema::hasColumn('purchase_orders', 'quantity') ? 'quantity' : null);
+            $receivedCol = $hasPurchaseOrderQtyReceived ? 'quantity_received' : null;
 
-        $recentPurchaseOrdersQuery = PoHeader::with(['lines' => function ($query) {
-                $query->orderBy('line_no');
-            }])
-            ->orderByDesc('po_date');
+            $poStats = [
+                'this_month' => $dateCol
+                    ? (int) DB::table('purchase_orders')
+                        ->whereBetween($dateCol, [$currentPeriodStart->toDateString(), $currentPeriodEnd->toDateString()])
+                        ->distinct()
+                        ->count('po_doc')
+                    : (int) DB::table('purchase_orders')->distinct()->count('po_doc'),
+                'need_shipment' => ($qtyCol && $receivedCol)
+                    ? (int) DB::table('purchase_orders')
+                        ->where($qtyCol, '>', 0)
+                        ->whereColumn($receivedCol, '<', $qtyCol)
+                        ->count()
+                    : 0,
+                'in_transit' => ($qtyCol && $receivedCol)
+                    ? (int) DB::table('purchase_orders')
+                        ->where($receivedCol, '>', 0)
+                        ->whereColumn($receivedCol, '<', $qtyCol)
+                        ->count()
+                    : 0,
+                'completed' => ($qtyCol && $receivedCol)
+                    ? (int) DB::table('purchase_orders')
+                        ->where($qtyCol, '>', 0)
+                        ->whereColumn($receivedCol, '>=', $qtyCol)
+                        ->count()
+                    : 0,
+            ];
 
-        if ($hasPoCreatedAt) {
-            $recentPurchaseOrdersQuery->orderByDesc('created_at');
-        }
+            $poRowsQuery = DB::table('purchase_orders')
+                ->select(array_filter([
+                    'po_doc',
+                    $dateCol ? $dateCol.' as po_date' : null,
+                    'vendor_name',
+                    $qtyCol ? DB::raw("COALESCE($qtyCol,0) as qty") : DB::raw('0 as qty'),
+                    $receivedCol ? DB::raw("COALESCE($receivedCol,0) as received_qty") : DB::raw('0 as received_qty'),
+                    $hasPurchaseOrderSapStatus ? 'sap_order_status' : null,
+                    'line_no',
+                ]))
+                ->orderByDesc($dateCol ?? 'po_doc')
+                ->limit(100);
 
-        $recentPurchaseOrders = $recentPurchaseOrdersQuery->take(5)->get()
-            ->map(function (PoHeader $header) {
-                $totalQty = (float) $header->lines->sum('qty_ordered');
-                $receivedQty = (float) $header->lines->sum('qty_received');
+            $recentPurchaseOrders = $poRowsQuery->get()
+                ->filter(fn ($row) => !empty($row->po_doc))
+                ->groupBy('po_doc')
+                ->map(function ($group) {
+                    $totalQty = (float) $group->sum('qty');
+                    $receivedQty = (float) $group->sum('received_qty');
 
-                $statusKey = 'draft';
-                if ($totalQty <= 0) {
                     $statusKey = 'draft';
-                } elseif ($receivedQty >= $totalQty) {
-                    $statusKey = 'completed';
-                } elseif ($receivedQty > 0) {
-                    $statusKey = 'partial';
-                } else {
-                    $statusKey = 'ordered';
-                }
+                    if ($totalQty <= 0) {
+                        $statusKey = 'draft';
+                    } elseif ($receivedQty >= $totalQty) {
+                        $statusKey = 'completed';
+                    } elseif ($receivedQty > 0) {
+                        $statusKey = 'partial';
+                    } else {
+                        $statusKey = 'ordered';
+                    }
 
-                return (object) [
-                    'po_number' => $header->po_number,
-                    'po_date' => $header->po_date,
-                    'supplier' => $header->supplier,
-                    'line_count' => $header->lines->count(),
-                    'total_qty' => $totalQty,
-                    'received_qty' => $receivedQty,
-                    'status_key' => $statusKey,
-                    'sap_statuses' => $header->lines->pluck('sap_order_status')->filter()->unique()->values()->all(),
-                ];
-            });
+                    return (object) [
+                        'po_number' => (string) $group->first()->po_doc,
+                        'po_date' => $group->max('po_date'),
+                        'supplier' => $group->first()->vendor_name,
+                        'line_count' => $group->count(),
+                        'total_qty' => $totalQty,
+                        'received_qty' => $receivedQty,
+                        'status_key' => $statusKey,
+                        'sap_statuses' => $group->pluck('sap_order_status')->filter()->unique()->values()->all(),
+                    ];
+                })
+                ->sortByDesc(fn ($row) => $row->po_date ?? '')
+                ->take(5)
+                ->values();
+        } else {
+            $poStats = [
+                'this_month' => PoHeader::whereBetween('po_date', [$currentPeriodStart, $currentPeriodEnd])->count(),
+                'need_shipment' => PoLine::whereColumn('qty_received', '<', 'qty_ordered')->count(),
+                'in_transit' => PoLine::where('qty_received', '>', 0)->whereColumn('qty_received', '<', 'qty_ordered')->count(),
+                'completed' => PoLine::where('qty_ordered', '>', 0)->whereColumn('qty_received', '>=', 'qty_ordered')->count(),
+            ];
+
+            $recentPurchaseOrdersQuery = PoHeader::with(['lines' => function ($query) {
+                    $query->orderBy('line_no');
+                }])
+                ->orderByDesc('po_date');
+
+            if ($hasPoCreatedAt) {
+                $recentPurchaseOrdersQuery->orderByDesc('created_at');
+            }
+
+            $recentPurchaseOrders = $recentPurchaseOrdersQuery->take(5)->get()
+                ->map(function (PoHeader $header) {
+                    $totalQty = (float) $header->lines->sum('qty_ordered');
+                    $receivedQty = (float) $header->lines->sum('qty_received');
+
+                    $statusKey = 'draft';
+                    if ($totalQty <= 0) {
+                        $statusKey = 'draft';
+                    } elseif ($receivedQty >= $totalQty) {
+                        $statusKey = 'completed';
+                    } elseif ($receivedQty > 0) {
+                        $statusKey = 'partial';
+                    } else {
+                        $statusKey = 'ordered';
+                    }
+
+                    return (object) [
+                        'po_number' => $header->po_number,
+                        'po_date' => $header->po_date,
+                        'supplier' => $header->supplier,
+                        'line_count' => $header->lines->count(),
+                        'total_qty' => $totalQty,
+                        'received_qty' => $receivedQty,
+                        'status_key' => $statusKey,
+                        'sap_statuses' => $header->lines->pluck('sap_order_status')->filter()->unique()->values()->all(),
+                    ];
+                });
+        }
 
         // Shipment insights (derived from PO lines & GR receipts)
         $shipmentStats = [
@@ -312,9 +404,16 @@ class DashboardController extends Controller
         ];
 
         // Consolidated summary tiles
-        $poAggregate = PoLine::selectRaw('SUM(qty_ordered) as ordered_total, SUM(qty_received) as received_total')->first();
-        $orderedTotal = (float) ($poAggregate->ordered_total ?? 0);
-        $receivedTotal = (float) ($poAggregate->received_total ?? 0);
+        if ($usePurchaseOrders) {
+            $qtyCol = $hasPurchaseOrderQty ? 'qty' : (Schema::hasColumn('purchase_orders', 'quantity') ? 'quantity' : null);
+            $receivedCol = $hasPurchaseOrderQtyReceived ? 'quantity_received' : null;
+            $orderedTotal = $qtyCol ? (float) DB::table('purchase_orders')->sum($qtyCol) : 0.0;
+            $receivedTotal = $receivedCol ? (float) DB::table('purchase_orders')->sum($receivedCol) : 0.0;
+        } else {
+            $poAggregate = PoLine::selectRaw('SUM(qty_ordered) as ordered_total, SUM(qty_received) as received_total')->first();
+            $orderedTotal = (float) ($poAggregate->ordered_total ?? 0);
+            $receivedTotal = (float) ($poAggregate->received_total ?? 0);
+        }
         $hasGrUnique = Schema::hasColumn('gr_receipts', 'gr_unique');
         $grDocExpr = $driver === 'sqlsrv'
             ? (
@@ -328,7 +427,9 @@ class DashboardController extends Controller
                     : "COUNT(DISTINCT (po_no || '|' || ".DbExpression::lineNoTrimmed('line_no')." || '|' || receive_date::text)) as total"
             );
         $summary = [
-            'po_total' => PoHeader::count(),
+            'po_total' => $usePurchaseOrders
+                ? (int) DB::table('purchase_orders')->distinct()->count('po_doc')
+                : $poHeaderCount,
             'po_ordered_total' => $orderedTotal,
             'po_outstanding_total' => max($orderedTotal - $receivedTotal, 0),
             'gr_total_qty' => (float) DB::table('gr_receipts')->sum('qty'),

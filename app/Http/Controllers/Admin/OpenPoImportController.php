@@ -387,10 +387,10 @@ class OpenPoImportController extends Controller
                             ]);
                         }
 
-                        // PurchaseOrder keyed only by po_number (table has unique on po_number)
+                        // PurchaseOrder keyed only by po_doc (table has unique on po_doc)
                         $po = PurchaseOrder::updateOrCreate(
                             [
-                                'po_number' => (string) $poNumber,
+                                'po_doc' => (string) $poNumber,
                             ],
                             [
                                 'product_id' => $product->id,

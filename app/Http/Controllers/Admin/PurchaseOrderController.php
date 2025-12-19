@@ -388,7 +388,7 @@ class PurchaseOrderController extends Controller
 
         $primaryVendorName = $headers->pluck('supplier')->filter()->unique()->implode(', ');
         $primaryVendorNumber = $headers->pluck('display_vendor_number')->filter()->unique()->implode(', ');
-        $internalPO = PurchaseOrder::with(['product'])->where('po_number', $poNumber)->first();
+        $internalPO = PurchaseOrder::with(['product'])->where('po_doc', $poNumber)->first();
 
         return view('admin.purchase_order.document', [
             'poNumber' => $poNumber,
@@ -736,5 +736,4 @@ class PurchaseOrderController extends Controller
         return $redir;
     }
 }
-
 
