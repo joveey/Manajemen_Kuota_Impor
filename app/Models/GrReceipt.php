@@ -12,8 +12,9 @@ class GrReceipt extends Model
     protected $table = 'gr_receipts';
 
     protected $fillable = [
-        'po_no','line_no','invoice_no','receive_date','qty','gr_unique','cat_po',
-        'item_name','vendor_code','vendor_name','wh_code','wh_name','sloc_code','sloc_name','currency','amount','deliv_amount'
+        'po_no','line_no','invoice_no','receive_date','qty','gr_unique','cat_po','cat_po_desc',
+        'item_name','vendor_code','vendor_name','wh_code','wh_name','sloc_code','sloc_name','currency','amount','deliv_amount',
+        'mat_doc','cat','cat_desc'
     ];
 
     protected $casts = [

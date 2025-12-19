@@ -57,7 +57,7 @@ class ShipmentController extends Controller
                 PurchaseOrder::STATUS_IN_TRANSIT,
                 PurchaseOrder::STATUS_PARTIAL,
             ])
-            ->orderBy('order_date', 'desc')
+            ->orderBy('created_date', 'desc')
             ->get();
 
         return view('admin.shipments.create', compact('purchaseOrders'));

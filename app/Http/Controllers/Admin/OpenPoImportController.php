@@ -394,7 +394,7 @@ class OpenPoImportController extends Controller
                             ],
                             [
                                 'product_id' => $product->id,
-                                'quantity' => (int) max((int)($line['qty_ordered'] ?? 0), (int) (\App\Models\PurchaseOrder::where('po_number',(string)$poNumber)->value('quantity') ?? 0)),
+                                'quantity' => (int) max((int)($line['qty_ordered'] ?? 0), (int) (\App\Models\PurchaseOrder::where('po_doc',(string)$poNumber)->value('quantity') ?? 0)),
                                 'amount' => isset($line['amount']) ? (float)$line['amount'] : null,
                                 'order_date' => $payload['po_date'] ?? now()->toDateString(),
                                 'vendor_number' => $payload['vendor_number'] ?? null,
@@ -632,7 +632,7 @@ class OpenPoImportController extends Controller
      */
     private function rollbackPoForReplace(string $poNumber, ?PoHeader $header): void
     {
-        $poModel = PurchaseOrder::where('po_number', $poNumber)->first();
+        $poModel = PurchaseOrder::where('po_doc', $poNumber)->first();
         $poDate = $header?->po_date ?? $poModel?->order_date;
         $occurredOn = $poDate ? new \DateTimeImmutable((string) $poDate) : null;
         $userId = Auth::id();

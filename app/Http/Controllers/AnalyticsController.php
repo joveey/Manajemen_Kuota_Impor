@@ -678,7 +678,7 @@ class AnalyticsController extends Controller
             if (!empty($nextYearQuotaIds)) {
                 // Unique map Purchase Order → HS (exclude ACC) to avoid line-multiplication
                 $poHsMap = DB::table('purchase_orders as po')
-                    ->join('po_headers as ph', 'ph.po_number', '=', 'po.po_number')
+                    ->join('po_headers as ph', 'ph.po_number', '=', 'po.po_doc')
                     ->join('po_lines as pl', 'pl.po_header_id', '=', 'ph.id')
                     ->join('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
                     ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")

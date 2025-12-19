@@ -21,6 +21,8 @@ class DashboardController extends Controller
     public function index()
     {
         $driver = DB::connection()->getDriverName();
+        $hasImportCreatedAt = Schema::hasColumn('imports', 'created_at');
+        $hasPoCreatedAt = Schema::hasColumn('po_headers', 'created_at');
 
         // Pipeline & KPI calculations (lightweight, no mapping changes)
         $metrics = [];
@@ -174,13 +176,20 @@ class DashboardController extends Controller
         // Activity feed (last 7 days)
         $activities = [];
         try {
-            $recentImports = \App\Models\Import::where('created_at','>=', now()->subDays(7))
-                ->orderByDesc('created_at')->limit(10)->get();
+            $recentImportsQuery = \App\Models\Import::query();
+            if ($hasImportCreatedAt) {
+                $recentImportsQuery
+                    ->where('created_at','>=', now()->subDays(7))
+                    ->orderByDesc('created_at');
+            } else {
+                $recentImportsQuery->orderByDesc('id');
+            }
+            $recentImports = $recentImportsQuery->limit(10)->get();
             foreach ($recentImports as $im){
                 $activities[] = [
                     'type' => $im->type,
                     'title' => sprintf('%s: %s (valid %d / error %d)', strtoupper($im->type), $im->source_filename, (int)($im->valid_rows ?? 0), (int)($im->error_rows ?? 0)),
-                    'time' => $im->created_at->diffForHumans(),
+                    'time' => ($hasImportCreatedAt && $im->created_at) ? $im->created_at->diffForHumans() : 'recent',
                 ];
             }
         } catch (\Throwable $e) {}
@@ -257,13 +266,16 @@ class DashboardController extends Controller
             'completed' => PoLine::where('qty_ordered', '>', 0)->whereColumn('qty_received', '>=', 'qty_ordered')->count(),
         ];
 
-        $recentPurchaseOrders = PoHeader::with(['lines' => function ($query) {
+        $recentPurchaseOrdersQuery = PoHeader::with(['lines' => function ($query) {
                 $query->orderBy('line_no');
             }])
-            ->orderByDesc('po_date')
-            ->orderByDesc('created_at')
-            ->take(5)
-            ->get()
+            ->orderByDesc('po_date');
+
+        if ($hasPoCreatedAt) {
+            $recentPurchaseOrdersQuery->orderByDesc('created_at');
+        }
+
+        $recentPurchaseOrders = $recentPurchaseOrdersQuery->take(5)->get()
             ->map(function (PoHeader $header) {
                 $totalQty = (float) $header->lines->sum('qty_ordered');
                 $receivedQty = (float) $header->lines->sum('qty_received');
@@ -325,8 +337,9 @@ class DashboardController extends Controller
             'quota_total_remaining' => max($totalAlloc - $totalActualConsumed, 0),
         ];
 
+        // Order by receive_date then id to stay stable without relying on created_at (legacy tables may omit it)
         $recentShipments = GrReceipt::orderByDesc('receive_date')
-            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->take(5)
             ->get()
             ->map(function (GrReceipt $receipt) {

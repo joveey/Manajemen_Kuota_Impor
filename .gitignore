@@ -21,3 +21,4 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+database/migrations/2025_12_19_010500_align_po_and_gr_columns.php
