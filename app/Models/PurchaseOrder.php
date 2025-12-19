@@ -6,13 +6,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use App\Models\User;
 use Carbon\Carbon;
 
 class PurchaseOrder extends Model
 {
     use HasFactory;
-    use SoftDeletes;
+    use SoftDeletes {
+        bootSoftDeletes as protected traitBootSoftDeletes;
+        performDeleteOnModel as protected traitPerformDeleteOnModel;
+    }
 
     public const STATUS_ORDERED = 'ordered';
     public const STATUS_IN_TRANSIT = 'in_transit';
@@ -88,6 +92,41 @@ class PurchaseOrder extends Model
         'amount' => 'decimal:2',
         'qty' => 'decimal:2',
     ];
+
+    protected static function bootSoftDeletes()
+    {
+        try {
+            $instance = new static();
+            if (!Schema::hasTable($instance->getTable())
+                || !Schema::hasColumn($instance->getTable(), $instance->getDeletedAtColumn())) {
+                return;
+            }
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        static::traitBootSoftDeletes();
+    }
+
+    protected function performDeleteOnModel()
+    {
+        if (!$this->hasDeletedAtColumn()) {
+            parent::performDeleteOnModel();
+            return;
+        }
+
+        $this->traitPerformDeleteOnModel();
+    }
+
+    protected function hasDeletedAtColumn(): bool
+    {
+        try {
+            return Schema::hasTable($this->getTable())
+                && Schema::hasColumn($this->getTable(), $this->getDeletedAtColumn());
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
 
     public function product()
     {

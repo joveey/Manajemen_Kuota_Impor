@@ -90,6 +90,19 @@ class DashboardController extends Controller
             } catch (\Throwable $e) {}
         }
         $usePurchaseOrders = $hasPurchaseOrderDoc && $purchaseOrdersHasRows;
+        $quotaUseTrashed = false;
+        $quotaTotal = 0;
+        try { $quotaTotal = Quota::count(); } catch (\Throwable $e) {}
+        if ($quotaTotal === 0) {
+            try {
+                $withTrashedTotal = Quota::withTrashed()->count();
+                if ($withTrashedTotal > 0) {
+                    $quotaUseTrashed = true;
+                    $quotaTotal = $withTrashedTotal;
+                }
+            } catch (\Throwable $e) {}
+        }
+        $quotaQuery = fn () => $quotaUseTrashed ? Quota::withTrashed() : Quota::query();
 
         // Pipeline & KPI calculations (lightweight, no mapping changes)
         $metrics = [];
@@ -114,35 +127,57 @@ class DashboardController extends Controller
 
         // Global aggregates for Quota Pipeline (mapped HS only, exclude ACC)
         $totalPo = 0.0; $totalGr = 0.0; $totalAlloc = 0.0;
+        $usePoLinesForQuota = false;
         try {
-            // Base: PO lines joined with headers and HS mapping
-            $totalPo = (float) DB::table('po_lines as pl')
-                ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
-                ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
-                ->whereNotNull('pl.hs_code_id')
-                ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")
-                ->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
-            $metrics['open_po_qty'] = $totalPo; // as per new rule: show total PO
-        } catch (\Throwable $e) { $metrics['open_po_qty'] = 0; }
+            $usePoLinesForQuota = Schema::hasTable('po_lines')
+                && Schema::hasTable('po_headers')
+                && Schema::hasTable('hs_code_pk_mappings')
+                && (bool) DB::table('po_lines')->limit(1)->exists();
+        } catch (\Throwable $e) {}
 
-        try {
-            // Compute total GR (normalized by PO+line) with the same HS filters
-            $grn = DB::table('gr_receipts')
-                ->selectRaw("po_no, ".DbExpression::lineNoInt('line_no')." AS ln")
-                ->selectRaw('SUM(qty) as qty')
-                ->groupBy('po_no', DB::raw(DbExpression::lineNoInt('line_no')));
-            $totalGr = (float) DB::table('po_lines as pl')
-                ->join('po_headers as ph','pl.po_header_id','=','ph.id')
-                ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
-                ->leftJoinSub($grn, 'grn', function($j){
-                    $j->on('grn.po_no','=','ph.po_number')
-                      ->whereRaw("grn.ln = ".DbExpression::lineNoInt('pl.line_no'));
-                })
-                ->whereNotNull('pl.hs_code_id')
-                ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")
-                ->selectRaw('SUM(COALESCE(grn.qty,0)) as s')->value('s');
-            $metrics['gr_qty'] = $totalGr; // total GR all time under same filters
-        } catch (\Throwable $e) { $metrics['gr_qty'] = 0; }
+        if ($usePoLinesForQuota) {
+            try {
+                // Base: PO lines joined with headers and HS mapping
+                $totalPo = (float) DB::table('po_lines as pl')
+                    ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
+                    ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
+                    ->whereNotNull('pl.hs_code_id')
+                    ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")
+                    ->selectRaw('SUM(COALESCE(pl.qty_ordered,0)) as s')->value('s');
+                $metrics['open_po_qty'] = $totalPo; // as per new rule: show total PO
+            } catch (\Throwable $e) { $metrics['open_po_qty'] = 0; }
+
+            try {
+                // Compute total GR (normalized by PO+line) with the same HS filters
+                $grn = DB::table('gr_receipts')
+                    ->selectRaw("po_no, ".DbExpression::lineNoInt('line_no')." AS ln")
+                    ->selectRaw('SUM(qty) as qty')
+                    ->groupBy('po_no', DB::raw(DbExpression::lineNoInt('line_no')));
+                $totalGr = (float) DB::table('po_lines as pl')
+                    ->join('po_headers as ph','pl.po_header_id','=','ph.id')
+                    ->leftJoin('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
+                    ->leftJoinSub($grn, 'grn', function($j){
+                        $j->on('grn.po_no','=','ph.po_number')
+                          ->whereRaw("grn.ln = ".DbExpression::lineNoInt('pl.line_no'));
+                    })
+                    ->whereNotNull('pl.hs_code_id')
+                    ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")
+                    ->selectRaw('SUM(COALESCE(grn.qty,0)) as s')->value('s');
+                $metrics['gr_qty'] = $totalGr; // total GR all time under same filters
+            } catch (\Throwable $e) { $metrics['gr_qty'] = 0; }
+        } else {
+            try {
+                $metrics['open_po_qty'] = ($usePurchaseOrders && $purchaseOrdersTable && $purchaseOrderQtyCol)
+                    ? (float) DB::table($purchaseOrdersTable)->sum($purchaseOrderQtyCol)
+                    : 0;
+            } catch (\Throwable $e) { $metrics['open_po_qty'] = 0; }
+
+            try {
+                $metrics['gr_qty'] = ($grReceiptsTable && $grQtyCol)
+                    ? (float) DB::table($grReceiptsTable)->sum($grQtyCol)
+                    : 0;
+            } catch (\Throwable $e) { $metrics['gr_qty'] = 0; }
+        }
 
         // In-Transit = total_po - total_gr (clamped >= 0)
         $metrics['in_transit_qty'] = max(($metrics['open_po_qty'] ?? 0) - ($metrics['gr_qty'] ?? 0), 0);
@@ -150,70 +185,61 @@ class DashboardController extends Controller
         try {
             // GR qty (last 30 days)
             $since = now()->subDays(30)->toDateString();
-            $metrics['gr_qty'] = (float) DB::table('gr_receipts')->where('receive_date','>=',$since)->sum('qty');
+            if ($grReceiptsTable && $grReceiveCol && $grQtyCol) {
+                $metrics['gr_qty'] = (float) DB::table($grReceiptsTable)
+                    ->where($grReceiveCol, '>=', $since)
+                    ->sum($grQtyCol);
+            } else {
+                $metrics['gr_qty'] = 0;
+            }
         } catch (\Throwable $e) { $metrics['gr_qty'] = 0; }
 
         // Derived per-quota KPI (quota_id-based, clamped to allocation)
         $quotaCards = collect();
+        $quotaBatches = [];
         $totalForecastConsumed = 0.0;
         $totalActualConsumed = 0.0;
         try {
             // Show all quotas (not limited by current period/year)
-            $quotas = \App\Models\Quota::query()
+            $quotas = $quotaQuery()
                 ->orderBy('quota_number')
                 ->get();
 
-            $quotaBatches = [];
+            $ids = $quotas->pluck('id')->filter()->values()->all();
+            $forecastByQuota = collect();
+            $actualByQuota = collect();
+
+            if (!empty($ids) && Schema::hasTable('purchase_order_quota')) {
+                $forecastByQuota = DB::table('purchase_order_quota')
+                    ->select('quota_id', DB::raw('SUM(allocated_qty) as qty'))
+                    ->whereIn('quota_id', $ids)
+                    ->groupBy('quota_id')
+                    ->pluck('qty', 'quota_id');
+            }
+            if (!empty($ids) && Schema::hasTable('quota_histories')) {
+                $actualByQuota = DB::table('quota_histories')
+                    ->select('quota_id', DB::raw('SUM(ABS(quantity_change)) as qty'))
+                    ->where('change_type', \App\Models\QuotaHistory::TYPE_ACTUAL_DECREASE)
+                    ->whereIn('quota_id', $ids)
+                    ->groupBy('quota_id')
+                    ->pluck('qty', 'quota_id');
+            }
+
             foreach ($quotas as $q) {
                 $alloc = (float) ($q->total_allocation ?? 0);
 
                 // Forecast: allocation already reserved to this quota (base PO allocation + net moves)
-                // derived from quota.forecast_remaining which moveSplitQuota adjusts via forecast inc/dec histories.
-                $persistFr = (float) ($q->forecast_remaining ?? $alloc);
-                $forecastConsumed = max(0.0, $alloc - min($persistFr, $alloc));
-                $forecastConsumed = min($forecastConsumed, $alloc);
+                $forecastConsumed = $forecastByQuota->has($q->id)
+                    ? min($alloc, (float) $forecastByQuota[$q->id])
+                    : max(0.0, $alloc - min((float) ($q->forecast_remaining ?? $alloc), $alloc));
                 $q->setAttribute('forecast_consumed', $forecastConsumed);
 
-                // Actual: strictly GR-based; match GR -> PO line -> HS/PK bucket within quota period.
-                $bounds = \App\Support\PkCategoryParser::parse((string) ($q->government_category ?? ''));
-                $quotaIsAcc = str_contains(strtoupper((string) ($q->government_category ?? '')), 'ACC');
-
-                $minPk = $q->min_pk ?? $bounds['min_pk'];
-                $maxPk = $q->max_pk ?? $bounds['max_pk'];
-                $minIncl = ($q->is_min_inclusive ?? $bounds['min_incl']) ?? true;
-                $maxIncl = ($q->is_max_inclusive ?? $bounds['max_incl']) ?? true;
-
-                $actualQuery = DB::table('gr_receipts as gr')
-                    ->join('po_headers as ph','ph.po_number','=','gr.po_no')
-                    ->join('po_lines as pl', function($j){
-                        $j->on('pl.po_header_id','=','ph.id')
-                          ->whereRaw(DbExpression::lineNoTrimmed('pl.line_no').' = '.DbExpression::lineNoTrimmed('gr.line_no'));
-                    })
-                    ->join('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
-                    ->whereNotNull('pl.hs_code_id');
-
-                if ($quotaIsAcc) {
-                    $actualQuery->whereRaw("COALESCE(UPPER(hs.hs_code),'') = 'ACC'");
-                } else {
-                    $actualQuery->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'");
-                }
-
-                if ($minPk !== null) {
-                    $actualQuery->where('hs.pk_capacity', $minIncl ? '>=' : '>', $minPk);
-                }
-                if ($maxPk !== null) {
-                    $actualQuery->where('hs.pk_capacity', $maxIncl ? '<=' : '<', $maxPk);
-                }
-                if (!empty($q->period_start) && !empty($q->period_end)) {
-                    $actualQuery->whereBetween('gr.receive_date', [
-                        $q->period_start->toDateString(),
-                        $q->period_end->toDateString(),
-                    ]);
-                }
-
-                $actualConsumed = (float) $actualQuery->sum('gr.qty');
-                $actualConsumed = max(min($actualConsumed, $alloc), 0.0);
+                $actualConsumed = $actualByQuota->has($q->id)
+                    ? min($alloc, (float) $actualByQuota[$q->id])
+                    : max(0.0, $alloc - min((float) ($q->actual_remaining ?? $alloc), $alloc));
                 $q->setAttribute('actual_consumed', $actualConsumed);
+                $q->setAttribute('forecast_remaining', max($alloc - $forecastConsumed, 0));
+                $q->setAttribute('actual_remaining', max($alloc - $actualConsumed, 0));
 
                 // In-Transit = forecast reserved minus actual received (never negative)
                 $q->setAttribute('in_transit', max($forecastConsumed - $actualConsumed, 0));
@@ -221,7 +247,7 @@ class DashboardController extends Controller
                 $totalForecastConsumed += $forecastConsumed;
                 $totalActualConsumed += $actualConsumed;
 
-                $statusLabel = match ($q->status) {
+                $statusLabel = match (strtolower((string) ($q->status ?? ''))) {
                     \App\Models\Quota::STATUS_AVAILABLE => 'Available',
                     \App\Models\Quota::STATUS_LIMITED => 'Limited',
                     \App\Models\Quota::STATUS_DEPLETED => 'Depleted',
@@ -273,7 +299,9 @@ class DashboardController extends Controller
             }
         } catch (\Throwable $e) {}
         try {
-            $lowQuota = \App\Models\Quota::whereColumn('forecast_remaining','<=', DB::raw('total_allocation * 0.15'))->count();
+            $lowQuota = $quotaQuery()
+                ->whereColumn('forecast_remaining','<=', DB::raw('total_allocation * 0.15'))
+                ->count();
             if ($lowQuota > 0) {
                 $alerts[] = $lowQuota === 1
                     ? '1 PK bucket nearing depletion (<15%)'
@@ -306,18 +334,26 @@ class DashboardController extends Controller
         $totalPermissions = Permission::count();
 
         // Quota insights (large tile uses the new rule)
-        try { $totalAlloc = (float) Quota::sum('total_allocation'); } catch (\Throwable $e) { $totalAlloc = 0.0; }
+        try { $totalAlloc = (float) $quotaQuery()->sum('total_allocation'); } catch (\Throwable $e) { $totalAlloc = 0.0; }
 
         // Quota insights (exclude ACC)
         // Totals derived from per-quota rollups to stay consistent with moveSplitQuota updates and GR-based actuals
         $totalForecastConsumed = (float) $totalForecastConsumed;
         $totalActualConsumed = (float) $totalActualConsumed;
 
+        $quotaStatusCount = function (string $status) use ($quotaQuery) {
+            try {
+                return (int) $quotaQuery()->whereRaw('LOWER(status) = ?', [$status])->count();
+            } catch (\Throwable $e) {
+                return 0;
+            }
+        };
+
         $quotaStats = [
-            'total' => Quota::count(),
-            'available' => Quota::where('status', Quota::STATUS_AVAILABLE)->count(),
-            'limited' => Quota::where('status', Quota::STATUS_LIMITED)->count(),
-            'depleted' => Quota::where('status', Quota::STATUS_DEPLETED)->count(),
+            'total' => $quotaTotal,
+            'available' => $quotaStatusCount(Quota::STATUS_AVAILABLE),
+            'limited' => $quotaStatusCount(Quota::STATUS_LIMITED),
+            'depleted' => $quotaStatusCount(Quota::STATUS_DEPLETED),
             'forecast_remaining' => max($totalAlloc - $totalForecastConsumed, 0),
             'actual_remaining' => max($totalAlloc - $totalActualConsumed, 0),
         ];
@@ -489,7 +525,7 @@ class DashboardController extends Controller
             'gr_total_qty' => (float) DB::table('gr_receipts')->sum('qty'),
             // Count distinct GR docs using normalized line_no per driver; tolerate DBs/views without gr_unique
             'gr_document_total' => (int) DB::table('gr_receipts')->selectRaw($grDocExpr)->value('total'),
-            'quota_total_allocation' => (float) Quota::sum('total_allocation'),
+            'quota_total_allocation' => (float) $totalAlloc,
             'quota_total_remaining' => max($totalAlloc - $totalActualConsumed, 0),
         ];
 
