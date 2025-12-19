@@ -25,18 +25,41 @@ class DashboardController extends Controller
         $hasPoCreatedAt = Schema::hasColumn('po_headers', 'created_at');
         $hasGrId = Schema::hasColumn('gr_receipts', 'id');
         $hasPurchaseOrders = Schema::hasTable('purchase_orders');
-        $hasPurchaseOrderDoc = $hasPurchaseOrders && Schema::hasColumn('purchase_orders', 'po_doc');
-        $hasPurchaseOrderQty = $hasPurchaseOrders && Schema::hasColumn('purchase_orders', 'qty');
+        $purchaseOrderDocCol = null;
+        if ($hasPurchaseOrders) {
+            if (Schema::hasColumn('purchase_orders', 'po_doc')) {
+                $purchaseOrderDocCol = 'po_doc';
+            } elseif (Schema::hasColumn('purchase_orders', 'po_number')) {
+                $purchaseOrderDocCol = 'po_number';
+            }
+        }
+        $hasPurchaseOrderDoc = $purchaseOrderDocCol !== null;
+        $purchaseOrderQtyCol = null;
+        if ($hasPurchaseOrders) {
+            if (Schema::hasColumn('purchase_orders', 'qty')) {
+                $purchaseOrderQtyCol = 'qty';
+            } elseif (Schema::hasColumn('purchase_orders', 'quantity')) {
+                $purchaseOrderQtyCol = 'quantity';
+            }
+        }
+        $purchaseOrderDateCol = null;
+        if ($hasPurchaseOrders) {
+            if (Schema::hasColumn('purchase_orders', 'created_date')) {
+                $purchaseOrderDateCol = 'created_date';
+            } elseif (Schema::hasColumn('purchase_orders', 'order_date')) {
+                $purchaseOrderDateCol = 'order_date';
+            } elseif (Schema::hasColumn('purchase_orders', 'created_at')) {
+                $purchaseOrderDateCol = 'created_at';
+            }
+        }
         $hasPurchaseOrderQtyReceived = $hasPurchaseOrders && Schema::hasColumn('purchase_orders', 'quantity_received');
-        $hasPurchaseOrderCreatedDate = $hasPurchaseOrders && Schema::hasColumn('purchase_orders', 'created_date');
-        $hasPurchaseOrderCreatedAt = $hasPurchaseOrders && Schema::hasColumn('purchase_orders', 'created_at');
         $hasPurchaseOrderSapStatus = $hasPurchaseOrders && Schema::hasColumn('purchase_orders', 'sap_order_status');
 
         $poHeaderCount = 0;
         $poLineCount = 0;
         try { $poHeaderCount = PoHeader::count(); } catch (\Throwable $e) {}
         try { $poLineCount = PoLine::count(); } catch (\Throwable $e) {}
-        $usePurchaseOrders = $hasPurchaseOrderDoc && $poHeaderCount === 0 && $poLineCount === 0;
+        $usePurchaseOrders = $hasPurchaseOrderDoc && ($poHeaderCount === 0 || $poLineCount === 0);
 
         // Pipeline & KPI calculations (lightweight, no mapping changes)
         $metrics = [];
@@ -274,8 +297,8 @@ class DashboardController extends Controller
         $currentPeriodEnd = Carbon::now()->endOfMonth();
 
         if ($usePurchaseOrders) {
-            $dateCol = $hasPurchaseOrderCreatedDate ? 'created_date' : ($hasPurchaseOrderCreatedAt ? 'created_at' : null);
-            $qtyCol = $hasPurchaseOrderQty ? 'qty' : (Schema::hasColumn('purchase_orders', 'quantity') ? 'quantity' : null);
+            $dateCol = $purchaseOrderDateCol;
+            $qtyCol = $purchaseOrderQtyCol;
             $receivedCol = $hasPurchaseOrderQtyReceived ? 'quantity_received' : null;
 
             $poStats = [
@@ -283,8 +306,8 @@ class DashboardController extends Controller
                     ? (int) DB::table('purchase_orders')
                         ->whereBetween($dateCol, [$currentPeriodStart->toDateString(), $currentPeriodEnd->toDateString()])
                         ->distinct()
-                        ->count('po_doc')
-                    : (int) DB::table('purchase_orders')->distinct()->count('po_doc'),
+                        ->count($purchaseOrderDocCol)
+                    : (int) DB::table('purchase_orders')->distinct()->count($purchaseOrderDocCol),
                 'need_shipment' => ($qtyCol && $receivedCol)
                     ? (int) DB::table('purchase_orders')
                         ->where($qtyCol, '>', 0)
@@ -305,17 +328,18 @@ class DashboardController extends Controller
                     : 0,
             ];
 
+            $orderCol = $dateCol ?? $purchaseOrderDocCol;
             $poRowsQuery = DB::table('purchase_orders')
                 ->select(array_filter([
-                    'po_doc',
-                    $dateCol ? $dateCol.' as po_date' : null,
+                    DB::raw($purchaseOrderDocCol.' as po_doc'),
+                    $dateCol ? DB::raw($dateCol.' as po_date') : null,
                     'vendor_name',
                     $qtyCol ? DB::raw("COALESCE($qtyCol,0) as qty") : DB::raw('0 as qty'),
                     $receivedCol ? DB::raw("COALESCE($receivedCol,0) as received_qty") : DB::raw('0 as received_qty'),
                     $hasPurchaseOrderSapStatus ? 'sap_order_status' : null,
                     'line_no',
                 ]))
-                ->orderByDesc($dateCol ?? 'po_doc')
+                ->orderByDesc($orderCol)
                 ->limit(100);
 
             $recentPurchaseOrders = $poRowsQuery->get()
@@ -405,7 +429,7 @@ class DashboardController extends Controller
 
         // Consolidated summary tiles
         if ($usePurchaseOrders) {
-            $qtyCol = $hasPurchaseOrderQty ? 'qty' : (Schema::hasColumn('purchase_orders', 'quantity') ? 'quantity' : null);
+            $qtyCol = $purchaseOrderQtyCol;
             $receivedCol = $hasPurchaseOrderQtyReceived ? 'quantity_received' : null;
             $orderedTotal = $qtyCol ? (float) DB::table('purchase_orders')->sum($qtyCol) : 0.0;
             $receivedTotal = $receivedCol ? (float) DB::table('purchase_orders')->sum($receivedCol) : 0.0;
@@ -428,7 +452,7 @@ class DashboardController extends Controller
             );
         $summary = [
             'po_total' => $usePurchaseOrders
-                ? (int) DB::table('purchase_orders')->distinct()->count('po_doc')
+                ? (int) DB::table('purchase_orders')->distinct()->count($purchaseOrderDocCol)
                 : $poHeaderCount,
             'po_ordered_total' => $orderedTotal,
             'po_outstanding_total' => max($orderedTotal - $receivedTotal, 0),
@@ -450,12 +474,20 @@ class DashboardController extends Controller
             ->take(5)
             ->get()
             ->map(function (GrReceipt $receipt) {
+                $itemName = $receipt->item_name ?? null;
+                if ($itemName === null || $itemName === '') {
+                    $itemName = $receipt->cat_desc
+                        ?? $receipt->cat_po_desc
+                        ?? $receipt->cat_po
+                        ?? $receipt->mat_doc
+                        ?? null;
+                }
                 // Shape data to match admin.dashboard view expectations
                 return (object) [
                     'po_number'      => $receipt->po_no,
                     'line_no'        => $receipt->line_no,
                     'receive_date'   => $receipt->receive_date,
-                    'item_name'      => $receipt->item_name,
+                    'item_name'      => $itemName,
                     'vendor_name'    => $receipt->vendor_name,
                     'warehouse_name' => $receipt->wh_name,
                     'sap_status'     => $receipt->cat_po, // fallback handled in view
