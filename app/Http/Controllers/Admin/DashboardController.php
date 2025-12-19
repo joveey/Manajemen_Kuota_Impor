@@ -23,6 +23,7 @@ class DashboardController extends Controller
         $driver = DB::connection()->getDriverName();
         $hasImportCreatedAt = Schema::hasColumn('imports', 'created_at');
         $hasPoCreatedAt = Schema::hasColumn('po_headers', 'created_at');
+        $hasGrId = Schema::hasColumn('gr_receipts', 'id');
 
         // Pipeline & KPI calculations (lightweight, no mapping changes)
         $metrics = [];
@@ -337,9 +338,14 @@ class DashboardController extends Controller
             'quota_total_remaining' => max($totalAlloc - $totalActualConsumed, 0),
         ];
 
-        // Order by receive_date then id to stay stable without relying on created_at (legacy tables may omit it)
-        $recentShipments = GrReceipt::orderByDesc('receive_date')
-            ->orderByDesc('id')
+        // Order by receive_date and only use id when the column exists
+        $recentShipmentsQuery = GrReceipt::orderByDesc('receive_date');
+        if ($hasGrId) {
+            $recentShipmentsQuery->orderByDesc('id');
+        } else {
+            $recentShipmentsQuery->orderByDesc('po_no')->orderByDesc('line_no');
+        }
+        $recentShipments = $recentShipmentsQuery
             ->take(5)
             ->get()
             ->map(function (GrReceipt $receipt) {
