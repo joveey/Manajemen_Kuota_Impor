@@ -1,12 +1,12 @@
 {{-- resources/views/admin/imports/quotas/index.blade.php --}}
 @extends('layouts.admin')
 
-@section('title', 'Quota Import')
-@section('page-title', 'Quota Import')
+@section('title', 'Register Quota')
+@section('page-title', 'Register Quota')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-    <li class="breadcrumb-item active">Quota Import</li>
+    <li class="breadcrumb-item active">Register Quota</li>
 @endsection
 
 @section('content')
@@ -20,14 +20,6 @@
 @endphp
 
 <div class="iq-shell">
-    <div class="page-header">
-        <div>
-            <h1 class="page-header__title">Quota Input</h1>
-            <p class="page-header__subtitle">
-               Quotas based on HS codes will be published to the master quota list.
-            </p>
-        </div>
-    </div>
 
     <div class="container-fluid px-0">
         @if ($errors->any())
@@ -442,4 +434,3 @@
 </style>
 @endpush
     // (Export CSV tersedia via tombol di header)
-

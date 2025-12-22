@@ -834,7 +834,7 @@
                             </a>
                             <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-file-import"></i></span>
-                                <span>Import Quota</span>
+                                <span>Register Quota</span>
                             </a>
                         @endcan
 

@@ -12,10 +12,6 @@
 @section('content')
 <div class="page-shell">
     <div class="page-header">
-        <div>
-            <h1 class="page-header__title">Manual HS &amp; PK Input</h1>
-            <p class="page-header__subtitle"></p>
-        </div>
     </div>
 
     <div class="container-fluid px-0">

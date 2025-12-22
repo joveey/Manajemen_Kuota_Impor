@@ -61,7 +61,7 @@
                         <li class="nav-item">
                             <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ $isQuotas ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Import Quota</p>
+                                <p>Register Quota</p>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -137,7 +137,7 @@
                         <li class="nav-item">
                             <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Import Quota</p>
+                                <p>Register Quota</p>
                             </a>
                         </li>
                     </ul>
@@ -347,4 +347,3 @@
         </nav>
     </div>
 </aside>
-
