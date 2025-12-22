@@ -77,11 +77,14 @@ use App\Models\PoLineVoyageSplit;
                 $itemDescCol = $purchaseOrderColumns['item_desc'] ?? ($purchaseOrderColumns['item_description'] ?? null);
                 $qtyCol = $purchaseOrderColumns['qty'] ?? ($purchaseOrderColumns['quantity'] ?? ($purchaseOrderColumns['qty_ordered'] ?? null));
                 $deliveryCol = $purchaseOrderColumns['eta_date'] ?? ($purchaseOrderColumns['delivery_date'] ?? ($purchaseOrderColumns['order_date'] ?? null));
+                $idExpr = isset($purchaseOrderColumns['id'])
+                    ? DB::raw($purchaseOrderColumns['id'].' as id')
+                    : DB::raw('ROW_NUMBER() OVER (ORDER BY '.($lineNoCol ?? $poDocCol ?? '1').') as id');
 
                 $q = DB::table($purchaseOrdersTable)
                     ->where($poDocCol, $poNumber)
                     ->select(array_filter([
-                        DB::raw('id as id'),
+                        $idExpr,
                         $lineNoCol ? DB::raw("COALESCE($lineNoCol,'') as line_no") : null,
                         $materialCol ? DB::raw("$materialCol as material") : null,
                         $itemDescCol ? DB::raw("$itemDescCol as item_desc") : null,
