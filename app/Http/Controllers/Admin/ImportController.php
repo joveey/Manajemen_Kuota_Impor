@@ -482,7 +482,7 @@ class ImportController extends Controller
                 $pl = \Illuminate\Support\Facades\DB::table('po_lines as pl')
                     ->join('po_headers as ph','pl.po_header_id','=','ph.id')
                     ->where('ph.po_number',$po)
-                    ->whereRaw(DbExpression::lineNoInt('pl.line_no').' = '.DbExpression::lineNoInt('?'), [$ln])
+                    ->whereRaw(DbExpression::lineNoInt('pl.line_no').' = ?', [(int) $ln])
                     ->select('pl.id','pl.qty_received','pl.model_code','pl.hs_code_id')->lockForUpdate()->first();
                 // Allow unmatched: we still insert GR row; cache update will be skipped
 
@@ -514,7 +514,7 @@ class ImportController extends Controller
                 if ($pl) {
                     $lineSum = (float) \Illuminate\Support\Facades\DB::table('gr_receipts')
                         ->where('po_no', $po)
-                        ->whereRaw(DbExpression::lineNoInt('line_no').' = '.DbExpression::lineNoInt('?'), [$ln])
+                        ->whereRaw(DbExpression::lineNoInt('line_no').' = ?', [(int) $ln])
                         ->sum('qty');
                     \Illuminate\Support\Facades\DB::table('po_lines')->where('id',$pl->id)->update([
                         'qty_received' => $lineSum,
