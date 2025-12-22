@@ -37,6 +37,22 @@ class Quota extends Model
         'is_active' => 'bool',
     ];
 
+    protected function getAttributeFromArray($key)
+    {
+        if (array_key_exists($key, $this->attributes)) {
+            return $this->attributes[$key];
+        }
+        $upper = strtoupper($key);
+        if (array_key_exists($upper, $this->attributes)) {
+            return $this->attributes[$upper];
+        }
+        $lower = strtolower($key);
+        if (array_key_exists($lower, $this->attributes)) {
+            return $this->attributes[$lower];
+        }
+        return null;
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

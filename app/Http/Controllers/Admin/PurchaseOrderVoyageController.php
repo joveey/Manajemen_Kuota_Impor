@@ -161,7 +161,7 @@ class PurchaseOrderVoyageController extends Controller
 
         // Detect source quota per line using current PO -> purchase_order_quota pivot, filtered by HS/PK
         $sourceQuotaByLine = [];
-        $poRecord = DB::table('purchase_orders')->where('po_number', $poNumber)->first();
+        $poRecord = DB::table('purchase_orders')->where('po_doc', $poNumber)->first();
         if ($poRecord) {
             $pivots = DB::table('purchase_order_quota as pq')
                 ->join('quotas as q','pq.quota_id','=','q.id')
@@ -337,7 +337,7 @@ class PurchaseOrderVoyageController extends Controller
                             ->lockForUpdate()
                             ->first();
                         if ($splitRow) {
-                            $poModel = PurchaseOrder::where('po_number', $po)->first();
+                            $poModel = PurchaseOrder::where('po_doc', $po)->first();
 
                             if ($poModel) {
                                 $splitModel = PoLineVoyageSplit::find($splitRow->id);
@@ -501,7 +501,7 @@ class PurchaseOrderVoyageController extends Controller
 
         $splitModel = PoLineVoyageSplit::findOrFail((int) $splitRow->id);
 
-        $poModel = PurchaseOrder::where('po_number', $po)->first();
+        $poModel = PurchaseOrder::where('po_doc', $po)->first();
         if (!$poModel) {
             // Create a minimal PO record to satisfy references if needed
             $prod = \App\Models\Product::query()->firstOrCreate(['code' => (string)($line->model_code ?? 'UNKNOWN')], [

@@ -6,12 +6,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use App\Models\User;
+use Carbon\Carbon;
 
 class PurchaseOrder extends Model
 {
     use HasFactory;
-    use SoftDeletes;
+    use SoftDeletes {
+        bootSoftDeletes as protected traitBootSoftDeletes;
+        performDeleteOnModel as protected traitPerformDeleteOnModel;
+    }
 
     public const STATUS_ORDERED = 'ordered';
     public const STATUS_IN_TRANSIT = 'in_transit';
@@ -21,6 +26,25 @@ class PurchaseOrder extends Model
     public const STATUS_DRAFT = 'draft';
 
     protected $fillable = [
+        // New canonical columns
+        'po_doc',
+        'created_date',
+        'vendor_no',
+        'vendor_name',
+        'line_no',
+        'item_code',
+        'item_desc',
+        'wh_code',
+        'wh_name',
+        'subinv_code',
+        'subinv_name',
+        'wh_source',
+        'subinv_source',
+        'qty',
+        'cat_po',
+        'cat_desc',
+        'mat_grp',
+        // Legacy aliases (still accepted via mutators)
         'sequence_number',
         'period',
         'po_number',
@@ -63,10 +87,46 @@ class PurchaseOrder extends Model
     ];
 
     protected $casts = [
-        'order_date' => 'date',
+        'created_date' => 'date',
         'sequence_number' => 'integer',
         'amount' => 'decimal:2',
+        'qty' => 'decimal:2',
     ];
+
+    protected static function bootSoftDeletes()
+    {
+        try {
+            $instance = new static();
+            if (!Schema::hasTable($instance->getTable())
+                || !Schema::hasColumn($instance->getTable(), $instance->getDeletedAtColumn())) {
+                return;
+            }
+        } catch (\Throwable $e) {
+            return;
+        }
+
+        static::traitBootSoftDeletes();
+    }
+
+    protected function performDeleteOnModel()
+    {
+        if (!$this->hasDeletedAtColumn()) {
+            parent::performDeleteOnModel();
+            return;
+        }
+
+        $this->traitPerformDeleteOnModel();
+    }
+
+    protected function hasDeletedAtColumn(): bool
+    {
+        try {
+            return Schema::hasTable($this->getTable())
+                && Schema::hasColumn($this->getTable(), $this->getDeletedAtColumn());
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
 
     public function product()
     {
@@ -100,9 +160,162 @@ class PurchaseOrder extends Model
             ->withTimestamps();
     }
 
+    // -------- Accessors/Mutators to bridge legacy names --------
+    public function getPoNumberAttribute(): ?string
+    {
+        return $this->po_doc;
+    }
+
+    public function setPoNumberAttribute($value): void
+    {
+        $this->attributes['po_doc'] = $value;
+    }
+
+    public function getOrderDateAttribute(): ?Carbon
+    {
+        return $this->created_date instanceof Carbon
+            ? $this->created_date
+            : ($this->created_date ? Carbon::parse($this->created_date) : null);
+    }
+
+    public function setOrderDateAttribute($value): void
+    {
+        $this->attributes['created_date'] = $value;
+    }
+
+    public function getVendorNumberAttribute(): ?string
+    {
+        return $this->vendor_no;
+    }
+
+    public function setVendorNumberAttribute($value): void
+    {
+        $this->attributes['vendor_no'] = $value;
+    }
+
+    public function getLineNumberAttribute(): ?string
+    {
+        return $this->line_no;
+    }
+
+    public function setLineNumberAttribute($value): void
+    {
+        $this->attributes['line_no'] = $value;
+    }
+
+    public function getItemDescriptionAttribute(): ?string
+    {
+        return $this->item_desc;
+    }
+
+    public function setItemDescriptionAttribute($value): void
+    {
+        $this->attributes['item_desc'] = $value;
+    }
+
+    public function getWarehouseCodeAttribute(): ?string
+    {
+        return $this->wh_code;
+    }
+
+    public function setWarehouseCodeAttribute($value): void
+    {
+        $this->attributes['wh_code'] = $value;
+    }
+
+    public function getWarehouseNameAttribute(): ?string
+    {
+        return $this->wh_name;
+    }
+
+    public function setWarehouseNameAttribute($value): void
+    {
+        $this->attributes['wh_name'] = $value;
+    }
+
+    public function getWarehouseSourceAttribute(): ?string
+    {
+        return $this->wh_source;
+    }
+
+    public function setWarehouseSourceAttribute($value): void
+    {
+        $this->attributes['wh_source'] = $value;
+    }
+
+    public function getSubinventoryCodeAttribute(): ?string
+    {
+        return $this->subinv_code;
+    }
+
+    public function setSubinventoryCodeAttribute($value): void
+    {
+        $this->attributes['subinv_code'] = $value;
+    }
+
+    public function getSubinventoryNameAttribute(): ?string
+    {
+        return $this->subinv_name;
+    }
+
+    public function setSubinventoryNameAttribute($value): void
+    {
+        $this->attributes['subinv_name'] = $value;
+    }
+
+    public function getSubinventorySourceAttribute(): ?string
+    {
+        return $this->subinv_source;
+    }
+
+    public function setSubinventorySourceAttribute($value): void
+    {
+        $this->attributes['subinv_source'] = $value;
+    }
+
+    public function getQuantityAttribute(): ?float
+    {
+        return $this->qty !== null ? (float) $this->qty : null;
+    }
+
+    public function setQuantityAttribute($value): void
+    {
+        $this->attributes['qty'] = $value;
+    }
+
+    public function getCategoryAttribute(): ?string
+    {
+        return $this->cat_desc;
+    }
+
+    public function setCategoryAttribute($value): void
+    {
+        $this->attributes['cat_desc'] = $value;
+    }
+
+    public function getCategoryCodeAttribute(): ?string
+    {
+        return $this->cat_po;
+    }
+
+    public function setCategoryCodeAttribute($value): void
+    {
+        $this->attributes['cat_po'] = $value;
+    }
+
+    public function getMaterialGroupAttribute(): ?string
+    {
+        return $this->mat_grp;
+    }
+
+    public function setMaterialGroupAttribute($value): void
+    {
+        $this->attributes['mat_grp'] = $value;
+    }
+
     public function getRemainingQuantityAttribute(): int
     {
-        return max(0, $this->quantity - $this->quantity_received);
+        return max(0, (int) $this->quantity - (int) $this->quantity_received);
     }
 
     public function refreshAggregates(): void

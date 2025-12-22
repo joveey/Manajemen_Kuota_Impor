@@ -915,7 +915,7 @@
                         </div>
                         <div class="stat-label">GR (Actual)</div>
                         <div class="stat-number">{{ number_format($metrics['gr_qty'] ?? 0) }}</div>
-                        <p class="stat-meta">Received</p>
+                        <p class="stat-meta">Received (last 30 days)</p>
                     </div>
                 </div>
             </div>

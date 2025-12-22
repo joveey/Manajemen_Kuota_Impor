@@ -362,10 +362,6 @@
 @endphp
 <div class="page-shell">
     <div class="page-header">
-        <div>
-            <h1 class="page-header__title">Purchase Orders</h1>
-            <p class="page-header__subtitle">Track purchase order status, shipment progress, and customer details.</p>
-        </div>
         <div class="page-header__actions">
             <a href="{{ route('admin.purchase-orders.export', request()->query()) }}" class="page-header__button page-header__button--outline">
                 <i class="fas fa-file-export"></i>

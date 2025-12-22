@@ -46,7 +46,7 @@ class RebuildForecast extends Command
 
         // Identify purchase orders (document table)
         $poNumbers = PoHeader::whereIn('id', $headerIds)->pluck('po_number');
-        $poIds = DB::table('purchase_orders')->whereIn('po_number', $poNumbers)->pluck('id');
+        $poIds = DB::table('purchase_orders')->whereIn('po_doc', $poNumbers)->pluck('id');
         $pivotCount = (int) DB::table('purchase_order_quota')->whereIn('purchase_order_id', $poIds)->count();
 
         // Forecast histories in the period
@@ -108,4 +108,3 @@ class RebuildForecast extends Command
         return Command::SUCCESS;
     }
 }
-

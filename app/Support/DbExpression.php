@@ -14,10 +14,20 @@ class DbExpression
         $driver = DB::connection()->getDriverName();
 
         if ($driver === 'sqlsrv') {
-            return "TRY_CONVERT(int, NULLIF($qualifiedColumn, ''))";
+            $col = "LTRIM(RTRIM($qualifiedColumn))";
+            return "CASE
+            WHEN NULLIF($col, '') IS NULL THEN NULL
+            WHEN $col NOT LIKE '%[^0-9]%' THEN CAST($col AS int)
+            ELSE NULL
+        END";
         }
 
-        return "CAST(regexp_replace(COALESCE($qualifiedColumn,''), '[^0-9]', '', 'g') AS int)";
+        $col = "TRIM(COALESCE($qualifiedColumn, ''))";
+        return "CASE
+        WHEN NULLIF($col, '') IS NULL THEN NULL
+        WHEN $col ~ '^[0-9]+$' THEN CAST($col AS int)
+        ELSE NULL
+    END";
     }
 
     /**
@@ -28,10 +38,20 @@ class DbExpression
         $driver = DB::connection()->getDriverName();
 
         if ($driver === 'sqlsrv') {
-            return "CONVERT(varchar(50), TRY_CONVERT(int, NULLIF($qualifiedColumn, '')))";
+             $col = "LTRIM(RTRIM($qualifiedColumn))";
+             return "CASE
+            WHEN NULLIF($col, '') IS NULL THEN NULL
+            WHEN $col NOT LIKE '%[^0-9]%' THEN CONVERT(varchar(50), CAST($col AS int))
+            ELSE NULL
+        END";
         }
 
-        return "regexp_replace($qualifiedColumn::text, '^0+', '')";
+        $col = "TRIM(COALESCE($qualifiedColumn, ''))";
+        return "CASE
+        WHEN NULLIF($col, '') IS NULL THEN NULL
+        WHEN $col ~ '^[0-9]+$' THEN CAST($col AS int)::text
+        ELSE NULL
+    END";
     }
 
     /**
