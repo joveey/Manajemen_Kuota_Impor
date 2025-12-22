@@ -11,14 +11,9 @@
 @section('content')
 <div class="page-shell">
   <div class="page-header">
-    <div>
-      <h1 class="page-header__title">Unmapped Products</h1>
-      <p class="page-header__subtitle">List of products that do not have a quota relationship or reference data.</p>
-    </div>
   </div>
 
   <div class="um-card mb-3">
-    <div class="um-card__header"><div class="um-card__title">Unmapped Products</div></div>
     <div class="um-card__body">
       <form class="row g-3 align-items-end" id="filter-form">
         <div class="col-md-3">

@@ -15,11 +15,6 @@
 @endphp
 
 <div class="am-shell container-fluid px-0">
-    <div class="mb-4">
-        <h1 class="h4 mb-2">Manual Model &gt; HS Entry</h1>
-        <p class="text-muted mb-0">
-            Add or update model/SKU to HS Code mappings manually. Changes are saved directly to the product master.
-        </p>
     </div>
 
     @if (session('status'))
