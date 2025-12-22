@@ -12,20 +12,185 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Quota;
 use App\Models\PurchaseOrder;
 use App\Models\PoLineVoyageSplit;
-use App\Models\QuotaHistory;
-use Illuminate\Support\Facades\Log;
+    use App\Models\QuotaHistory;
+    use Illuminate\Support\Facades\Log;
 
-class PurchaseOrderVoyageController extends Controller
-{
-    public function index(Request $request, string $po): View
+    class PurchaseOrderVoyageController extends Controller
     {
-        $poNumber = trim($po);
+        public function index(Request $request, string $po): View
+        {
+            $poNumber = trim($po);
 
-        $hasVoyage = [
-            'bl' => Schema::hasColumn('po_lines', 'voyage_bl'),
-            'etd' => Schema::hasColumn('po_lines', 'voyage_etd'),
-            'eta' => Schema::hasColumn('po_lines', 'voyage_eta'),
-            'factory' => Schema::hasColumn('po_lines', 'voyage_factory'),
+            // Prefer purchase_orders as the primary source; fall back to po_headers/po_lines
+            $purchaseOrdersTable = $this->resolveTableName('purchase_orders');
+            $purchaseOrderColumns = $this->columnMap($purchaseOrdersTable);
+            $poDocCol = $purchaseOrderColumns['po_doc'] ?? ($purchaseOrderColumns['po_number'] ?? null);
+
+            $usingPurchaseOrders = false;
+            $poRows = collect();
+            if ($purchaseOrdersTable && $poDocCol) {
+                try {
+                    $poRows = DB::table($purchaseOrdersTable)
+                        ->where($poDocCol, $poNumber)
+                        ->get();
+                    $usingPurchaseOrders = $poRows->isNotEmpty();
+                } catch (\Throwable $e) {
+                    $poRows = collect();
+                    $usingPurchaseOrders = false;
+                }
+            }
+
+            if ($usingPurchaseOrders) {
+                $hasVoyage = [
+                    'bl' => isset($purchaseOrderColumns['voyage_bl']),
+                    'etd' => isset($purchaseOrderColumns['voyage_etd']),
+                    'eta' => isset($purchaseOrderColumns['voyage_eta']),
+                    'factory' => isset($purchaseOrderColumns['voyage_factory']),
+                    'status' => isset($purchaseOrderColumns['voyage_status']),
+                    'issue' => isset($purchaseOrderColumns['voyage_issue_date']),
+                    'expired' => isset($purchaseOrderColumns['voyage_expired_date']),
+                    'remark' => isset($purchaseOrderColumns['voyage_remark']),
+                ];
+
+                $poDateCol = $purchaseOrderColumns['created_date']
+                    ?? ($purchaseOrderColumns['order_date']
+                    ?? ($purchaseOrderColumns['po_date']
+                    ?? ($purchaseOrderColumns['created_at'] ?? null)));
+                $vendorNameCol = $purchaseOrderColumns['vendor_name'] ?? null;
+                $vendorNumberCol = $purchaseOrderColumns['vendor_no'] ?? ($purchaseOrderColumns['vendor_number'] ?? null);
+
+                $summary = [
+                    'po_number' => $poNumber,
+                    'vendor_name' => $vendorNameCol ? $poRows->pluck($vendorNameCol)->filter()->unique()->implode(', ') : '',
+                    'vendor_number' => $vendorNumberCol ? $poRows->pluck($vendorNumberCol)->filter()->unique()->implode(', ') : '',
+                    'date_first' => $poDateCol ? $poRows->min($poDateCol) : null,
+                    'date_last' => $poDateCol ? $poRows->max($poDateCol) : null,
+                ];
+
+                // Filters
+                $term = trim((string) $request->query('q', ''));
+                $statusFilter = trim((string) $request->query('status', ''));
+                $etaMonth = trim((string) $request->query('eta_month', ''));
+
+                $lineNoCol = $purchaseOrderColumns['line_no'] ?? ($purchaseOrderColumns['line_number'] ?? null);
+                $materialCol = $purchaseOrderColumns['item_code'] ?? ($purchaseOrderColumns['model_code'] ?? null);
+                $itemDescCol = $purchaseOrderColumns['item_desc'] ?? ($purchaseOrderColumns['item_description'] ?? null);
+                $qtyCol = $purchaseOrderColumns['qty'] ?? ($purchaseOrderColumns['quantity'] ?? ($purchaseOrderColumns['qty_ordered'] ?? null));
+                $deliveryCol = $purchaseOrderColumns['eta_date'] ?? ($purchaseOrderColumns['delivery_date'] ?? ($purchaseOrderColumns['order_date'] ?? null));
+
+                $q = DB::table($purchaseOrdersTable)
+                    ->where($poDocCol, $poNumber)
+                    ->select(array_filter([
+                        DB::raw('id as id'),
+                        $lineNoCol ? DB::raw("COALESCE($lineNoCol,'') as line_no") : null,
+                        $materialCol ? DB::raw("$materialCol as material") : null,
+                        $itemDescCol ? DB::raw("$itemDescCol as item_desc") : null,
+                        $qtyCol ? DB::raw("$qtyCol as qty_ordered") : DB::raw('0 as qty_ordered'),
+                        $deliveryCol ? DB::raw("$deliveryCol as delivery_date") : DB::raw('NULL as delivery_date'),
+                        $hasVoyage['bl'] ? DB::raw($purchaseOrderColumns['voyage_bl'].' as bl') : DB::raw('NULL as bl'),
+                        $hasVoyage['etd'] ? DB::raw($purchaseOrderColumns['voyage_etd'].' as etd') : DB::raw('NULL as etd'),
+                        $hasVoyage['eta'] ? DB::raw($purchaseOrderColumns['voyage_eta'].' as eta') : DB::raw('NULL as eta'),
+                        $hasVoyage['factory'] ? DB::raw($purchaseOrderColumns['voyage_factory'].' as factory') : DB::raw('NULL as factory'),
+                        $hasVoyage['status'] ? DB::raw($purchaseOrderColumns['voyage_status'].' as mstatus') : DB::raw('NULL as mstatus'),
+                        $hasVoyage['remark'] ? DB::raw($purchaseOrderColumns['voyage_remark'].' as remark') : DB::raw('NULL as remark'),
+                    ]));
+
+                if ($term !== '') {
+                    $like = '%'.$term.'%';
+                    $q->where(function ($w) use ($like, $materialCol, $itemDescCol, $lineNoCol) {
+                        if ($materialCol) { $w->orWhere($materialCol, 'like', $like); }
+                        if ($itemDescCol) { $w->orWhere($itemDescCol, 'like', $like); }
+                        if ($lineNoCol) { $w->orWhere($lineNoCol, 'like', $like); }
+                    });
+                }
+                if ($statusFilter !== '' && $hasVoyage['status']) {
+                    $q->where($purchaseOrderColumns['voyage_status'], $statusFilter);
+                }
+                if ($etaMonth !== '' && $hasVoyage['eta']) {
+                    $q->whereRaw("to_char(".$purchaseOrderColumns['voyage_eta'].", 'YYYY-MM') = ?", [$etaMonth]);
+                }
+
+                $lines = $q->orderBy($lineNoCol ?? 'id')->paginate((int) min(max((int) $request->query('per_page', 25), 5), 100))
+                    ->appends($request->query());
+
+                $splitsByLine = [];
+                $sumByLine = [];
+
+                $lines->setCollection(
+                    $lines->getCollection()->map(function ($ln) use ($sumByLine) {
+                        $ordered = (float) ($ln->qty_ordered ?? 0);
+                        $used = (float) ($sumByLine[$ln->id] ?? 0);
+                        $ln->qty_remaining = max($ordered - $used, 0);
+                        return $ln;
+                    })
+                );
+
+                $allQuotas = \App\Models\Quota::query()
+                    ->orderByDesc('period_start')
+                    ->get(['id','quota_number','government_category','period_start','period_end','total_allocation','forecast_remaining','min_pk','max_pk','is_min_inclusive','is_max_inclusive','status','is_active']);
+
+                $quotaOptionsByLine = [];
+                $lines->getCollection()->each(function ($ln) use (&$quotaOptionsByLine, $allQuotas) {
+                    $p = new \App\Models\Product();
+                    $p->hs_code = $ln->hs_code ?? null;
+                    $p->pk_capacity = $ln->pk_capacity ?? null;
+                    $opts = [];
+                    foreach ($allQuotas as $q) {
+                        if ($q->matchesProduct($p)) {
+                            $opts[] = [
+                                'id' => (int) $q->id,
+                                'quota_number' => (string) $q->quota_number,
+                                'desc' => (string) ($q->government_category ?? ''),
+                                'start' => $q->period_start ? $q->period_start->format('Y-m-d') : '-',
+                                'end' => $q->period_end ? $q->period_end->format('Y-m-d') : '-',
+                                'rem' => (int) ($q->forecast_remaining ?? 0),
+                            ];
+                        }
+                    }
+                    $quotaOptionsByLine[$ln->id] = $opts;
+                });
+
+                // Detect source quota per line using current PO -> purchase_order_quota pivot, filtered by HS/PK
+                $sourceQuotaByLine = [];
+                $poRecord = $poRows->first();
+                if ($poRecord && isset($poRecord->id)) {
+                    $pivots = DB::table('purchase_order_quota as pq')
+                        ->join('quotas as q','pq.quota_id','=','q.id')
+                        ->select('pq.purchase_order_id','pq.quota_id','pq.allocated_qty','q.quota_number','q.period_start','q.period_end')
+                        ->where('pq.purchase_order_id', $poRecord->id)
+                        ->get();
+                    $pivotQuotaIds = $pivots->pluck('quota_id')->unique()->all();
+                    $pivotQuotas = \App\Models\Quota::whereIn('id', $pivotQuotaIds)->get()->keyBy('id');
+                    $lines->getCollection()->each(function ($ln) use ($pivots, $pivotQuotas, &$sourceQuotaByLine) {
+                        $p = new \App\Models\Product();
+                        $p->hs_code = $ln->hs_code ?? null;
+                        $p->pk_capacity = $ln->pk_capacity ?? null;
+                        $candidates = [];
+                        foreach ($pivots as $pv) {
+                            $q = $pivotQuotas->get($pv->quota_id);
+                            if ($q && $q->matchesProduct($p)) {
+                                $candidates[] = $pv;
+                            }
+                        }
+                        if (!empty($candidates)) {
+                            usort($candidates, fn($a,$b)=>((int)$b->allocated_qty <=> (int)$a->allocated_qty));
+                            $top = $candidates[0];
+                            $label = $top->quota_number.' ('.($top->period_start ? \Illuminate\Support\Carbon::parse($top->period_start)->format('Y-m-d') : '-')
+                                .'..'.($top->period_end ? \Illuminate\Support\Carbon::parse($top->period_end)->format('Y-m-d') : '-').')';
+                            $sourceQuotaByLine[$ln->id] = ['id'=>(int)$top->quota_id,'label'=>$label];
+                        }
+                    });
+                }
+
+                return view('admin.purchase_orders.voyage', compact('summary', 'lines', 'poNumber', 'splitsByLine','quotaOptionsByLine','sourceQuotaByLine'))
+                    ->with('usingPurchaseOrders', true);
+            }
+
+            $hasVoyage = [
+                'bl' => Schema::hasColumn('po_lines', 'voyage_bl'),
+                'etd' => Schema::hasColumn('po_lines', 'voyage_etd'),
+                'eta' => Schema::hasColumn('po_lines', 'voyage_eta'),
+                'factory' => Schema::hasColumn('po_lines', 'voyage_factory'),
             'status' => Schema::hasColumn('po_lines', 'voyage_status'),
             'issue' => Schema::hasColumn('po_lines', 'voyage_issue_date'),
             'expired' => Schema::hasColumn('po_lines', 'voyage_expired_date'),
@@ -161,7 +326,14 @@ class PurchaseOrderVoyageController extends Controller
 
         // Detect source quota per line using current PO -> purchase_order_quota pivot, filtered by HS/PK
         $sourceQuotaByLine = [];
-        $poRecord = DB::table('purchase_orders')->where('po_doc', $poNumber)->first();
+        $poRecord = null;
+        if ($purchaseOrdersTable && $poDocCol) {
+            try {
+                $poRecord = DB::table($purchaseOrdersTable)->where($poDocCol, $poNumber)->first();
+            } catch (\Throwable $e) {
+                $poRecord = null;
+            }
+        }
         if ($poRecord) {
             $pivots = DB::table('purchase_order_quota as pq')
                 ->join('quotas as q','pq.quota_id','=','q.id')
@@ -191,24 +363,48 @@ class PurchaseOrderVoyageController extends Controller
             });
         }
 
-        return view('admin.purchase_orders.voyage', compact('summary', 'lines', 'poNumber', 'splitsByLine','quotaOptionsByLine','sourceQuotaByLine'));
+        return view('admin.purchase_orders.voyage', compact('summary', 'lines', 'poNumber', 'splitsByLine','quotaOptionsByLine','sourceQuotaByLine'))
+            ->with('usingPurchaseOrders', false);
     }
 
     public function bulkUpdate(Request $request, string $po): RedirectResponse
     {
+        $poNumber = trim($po);
+        $purchaseOrdersTable = $this->resolveTableName('purchase_orders');
+        $purchaseOrderColumns = $this->columnMap($purchaseOrdersTable);
+        $poDocCol = $purchaseOrderColumns['po_doc'] ?? ($purchaseOrderColumns['po_number'] ?? null);
+        $usingPurchaseOrders = false;
+        if ($purchaseOrdersTable && $poDocCol) {
+            try {
+                $usingPurchaseOrders = DB::table($purchaseOrdersTable)
+                    ->where($poDocCol, $poNumber)
+                    ->exists();
+            } catch (\Throwable $e) {
+                $usingPurchaseOrders = false;
+            }
+        }
+
+        $lineExistsRule = $usingPurchaseOrders
+            ? ['required','integer','exists:'.$purchaseOrdersTable.',id']
+            : ['required','integer','exists:po_lines,id'];
+
+        $splitLineRule = $usingPurchaseOrders
+            ? ['nullable','integer']
+            : ['required_without:splits.*.id','integer','exists:po_lines,id'];
+
         $payload = $request->validate([
             'rows' => ['sometimes','array'],
-            'rows.*.line_id' => ['required','integer','exists:po_lines,id'],
+            'rows.*.line_id' => $lineExistsRule,
             'rows.*.bl' => ['nullable','string','max:100'],
             'rows.*.factory' => ['nullable','string','max:100'],
             'rows.*.status' => ['nullable','string','max:50'],
             'rows.*.etd' => ['nullable','date'],
             'rows.*.eta' => ['nullable','date'],
             'rows.*.remark' => ['nullable','string','max:500'],
-            // optional split rows (insert/update/delete) — can be passed as JSON via splits_json
+            // optional split rows (insert/update/delete) can be passed as JSON via splits_json
             'splits' => ['sometimes','array'],
             'splits.*.id' => ['nullable','integer'],
-            'splits.*.line_id' => ['required_without:splits.*.id','integer','exists:po_lines,id'],
+            'splits.*.line_id' => $splitLineRule,
             'splits.*.qty' => ['nullable','numeric'],
             'splits.*.seq_no' => ['nullable','integer','min:1'],
             'splits.*.bl' => ['nullable','string','max:100'],
@@ -234,7 +430,58 @@ class PurchaseOrderVoyageController extends Controller
             try { $splits = json_decode((string) $payload['splits_json'], true) ?: []; } catch (\Throwable $e) { $splits = []; }
         }
 
-        DB::transaction(function () use ($rows, $splits, &$saved, $po) {
+        DB::transaction(function () use ($rows, $splits, &$saved, $poNumber, $usingPurchaseOrders, $purchaseOrdersTable, $poDocCol, $purchaseOrderColumns) {
+            if ($usingPurchaseOrders) {
+                $dateCols = array_filter([
+                    $purchaseOrderColumns['voyage_etd'] ?? null,
+                    $purchaseOrderColumns['voyage_eta'] ?? null,
+                ]);
+                foreach ($rows as $row) {
+                    $id = (int) ($row['line_id'] ?? 0);
+                    if ($id <= 0) { continue; }
+                    $update = [];
+                    foreach ([
+                        'voyage_bl' => 'bl',
+                        'voyage_factory' => 'factory',
+                        'voyage_status' => 'status',
+                        'voyage_etd' => 'etd',
+                        'voyage_eta' => 'eta',
+                        'voyage_remark' => 'remark',
+                    ] as $col => $key) {
+                        if (!isset($purchaseOrderColumns[$col])) { continue; }
+                        if (array_key_exists($key, $row)) {
+                            $update[$purchaseOrderColumns[$col]] = $row[$key];
+                        }
+                    }
+                    if (!empty($update)) {
+                        foreach ($update as $k => $v) {
+                            if (is_string($v)) { $v = trim($v); }
+                            if ($v === '') { $v = null; }
+                            if (in_array($k, $dateCols, true)) {
+                                if ($v !== null) {
+                                    try {
+                                        if (is_string($v) && preg_match('/^\d{2}-\d{2}-\d{4}$/', $v)) {
+                                            [$d,$m,$y] = explode('-', $v);
+                                            $v = sprintf('%04d-%02d-%02d', (int)$y, (int)$m, (int)$d);
+                                        } else {
+                                            $v = \Illuminate\Support\Carbon::parse((string)$v)->toDateString();
+                                        }
+                                    } catch (\Throwable $e) { $v = null; }
+                                }
+                            }
+                            $update[$k] = $v;
+                        }
+                        $query = DB::table($purchaseOrdersTable)->where('id', $id);
+                        if ($poDocCol) {
+                            $query->where($poDocCol, $poNumber);
+                        }
+                        $query->update(array_merge($update, Schema::hasColumn($purchaseOrdersTable, 'updated_at') ? ['updated_at' => now()] : []));
+                        $saved++;
+                    }
+                }
+                return;
+            }
+
             foreach ($rows as $row) {
                 $id = (int) ($row['line_id'] ?? 0);
                 if ($id <= 0) { continue; }
@@ -337,7 +584,7 @@ class PurchaseOrderVoyageController extends Controller
                             ->lockForUpdate()
                             ->first();
                         if ($splitRow) {
-                            $poModel = PurchaseOrder::where('po_doc', $po)->first();
+                            $poModel = PurchaseOrder::where('po_doc', $poNumber)->first();
 
                             if ($poModel) {
                                 $splitModel = PoLineVoyageSplit::find($splitRow->id);
@@ -352,12 +599,12 @@ class PurchaseOrderVoyageController extends Controller
                                         ->get();
 
                                     if ($hist->isNotEmpty()) {
-                                        $poDate = DB::table('po_headers')->where('po_number', $po)->value('po_date');
+                                        $poDate = DB::table('po_headers')->where('po_number', $poNumber)->value('po_date');
                                         $occ = $poDate ? new \DateTimeImmutable((string)$poDate) : null;
                                         $userId = Auth::id();
 
                                         Log::info('voyage_delete_split', [
-                                            'po_number' => $po,
+                                            'po_number' => $poNumber,
                                             'split_id' => $splitModel->id,
                                             'net_hist' => $hist->map(fn($r) => [
                                                 'quota_id' => $r->quota_id,
@@ -473,8 +720,7 @@ class PurchaseOrderVoyageController extends Controller
         }
         return back()->with('status', "Saved: $saved rows");
     }
-
-    public function moveSplitQuota(Request $request, string $po): RedirectResponse
+public function moveSplitQuota(Request $request, string $po): RedirectResponse
     {
         $data = $request->validate([
             'line_id' => ['required','integer','exists:po_lines,id'],
@@ -652,4 +898,34 @@ class PurchaseOrderVoyageController extends Controller
     }
 
     // Manual sanity test: start with PO 7971085247 all in 2025 quota. Split a line into 20/10, move 10 from 2025->2026, move back 2026->2025, then delete the split. Expected: purchase_order_quota remains only 2025; quota_histories net per split is 0; KPIs unchanged.
+
+    private function resolveTableName(string $table): ?string
+    {
+        if (Schema::hasTable($table)) {
+            return $table;
+        }
+        try {
+            $row = DB::selectOne("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE LOWER(TABLE_NAME) = LOWER(?)", [$table]);
+            if ($row) {
+                return $row->TABLE_NAME ?? $row->table_name ?? $table;
+            }
+        } catch (\Throwable $e) {
+        }
+        return null;
+    }
+
+    private function columnMap(?string $table): array
+    {
+        if (!$table) { return []; }
+        try {
+            $cols = Schema::getColumnListing($table);
+        } catch (\Throwable $e) {
+            $cols = [];
+        }
+        $map = [];
+        foreach ($cols as $col) {
+            $map[strtolower($col)] = $col;
+        }
+        return $map;
+    }
 }

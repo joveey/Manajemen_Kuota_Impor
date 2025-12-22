@@ -155,9 +155,12 @@ class OpenPoImportController extends Controller
         // Read publish mode as plain string (avoid Stringable so strict comparisons work)
         $mode = (string) $request->input('publish_mode', 'insert'); // 'insert' | 'replace'
         $inserted = 0; $skippedExisting = 0; $updatedExisting = 0; $replaced = 0; $leftoverAll = 0; $allocatedTotal = 0; $needsReallocCount = 0;
+        $poQtyColumn = Schema::hasColumn('purchase_orders', 'qty')
+            ? 'qty'
+            : (Schema::hasColumn('purchase_orders', 'quantity') ? 'quantity' : null);
 
         try {
-            DB::transaction(function () use ($groups, $modelMap, $mode, &$inserted, &$skippedExisting, &$updatedExisting, &$replaced, &$leftoverAll, &$allocatedTotal, &$needsReallocCount, &$sampleRows) {
+            DB::transaction(function () use ($groups, $modelMap, $mode, &$inserted, &$skippedExisting, &$updatedExisting, &$replaced, &$leftoverAll, &$allocatedTotal, &$needsReallocCount, &$sampleRows, $poQtyColumn) {
                 $hsTable = DB::getSchemaBuilder()->hasTable('hs_codes') ? 'hs_codes' : 'hs_code_pk_mappings';
                 $hsCodeCol = $hsTable === 'hs_codes' ? 'code' : 'hs_code';
                 $modelMapUpper = collect($modelMap ?? [])->mapWithKeys(fn($v,$k)=>[strtoupper((string)$k)=>$v])->all();
@@ -321,20 +324,35 @@ class OpenPoImportController extends Controller
 
                                 if ($delta !== 0) {
                                     $allocDate = $line['eta_date'] ?? ($payload['po_date'] ?? $po->order_date ?? now()->toDateString());
-                                    $quota = $this->resolveQuotaForDeliveryDate($allocDate, $product, $poNumberStr, (string)($line['line_no'] ?? ''), (string)($line['model_code'] ?? ''));
+                                    try {
+                                        $quota = $this->resolveQuotaForDeliveryDate(
+                                            $allocDate,
+                                            $product,
+                                            $poNumberStr,
+                                            (string)($line['line_no'] ?? ''),
+                                            (string)($line['model_code'] ?? ''),
+                                            $payload['po_date'] ?? null
+                                        );
+                                    } catch (\RuntimeException $e) {
+                                        $quota = null;
+                                    }
 
                                     if ($delta > 0) {
                                         // allocate additional quantity, no carry-over
                                         $left = $delta;
-                                        if ($quota) {
-                                            $avail = (int) max((int) ($quota->forecast_remaining ?? 0), 0);
-                                            $take = min($left, $avail);
-                                            if ($take > 0) {
-                                                $quota->decrementForecast($take, 'Forecast delta+ for PO '.$po->po_number.' (line '.$poLine->line_no.')', $po, new \DateTimeImmutable((string)$allocDate), Auth::id());
-                                                $this->applyPivotDelta($po, $quota, (int)$take, $allocDate, 'delta+', (string)($line['line_no'] ?? ''), (string)($line['model_code'] ?? ''));
-                                                $allocatedTotal += (int) $take;
-                                                $left -= (int) $take;
+                                        try {
+                                            if ($quota) {
+                                                $avail = (int) max((int) ($quota->forecast_remaining ?? 0), 0);
+                                                $take = min($left, $avail);
+                                                if ($take > 0) {
+                                                    $quota->decrementForecast($take, 'Forecast delta+ for PO '.$po->po_number.' (line '.$poLine->line_no.')', $po, new \DateTimeImmutable((string)$allocDate), Auth::id());
+                                                    $this->applyPivotDelta($po, $quota, (int)$take, $allocDate, 'delta+', (string)($line['line_no'] ?? ''), (string)($line['model_code'] ?? ''));
+                                                    $allocatedTotal += (int) $take;
+                                                    $left -= (int) $take;
+                                                }
                                             }
+                                        } catch (\RuntimeException $e) {
+                                            // mark for reallocation below
                                         }
                                         if ($left > 0) { $leftoverAll += (int)$left; $needsReallocCount++; DB::table('po_lines')->where('id',$poLine->id)->update(['needs_reallocation'=>true]); }
                                     } else { // $delta < 0, refund
@@ -384,7 +402,26 @@ class OpenPoImportController extends Controller
                                 'name' => (string)$line['model_code'],
                                 'sap_model' => (string)$line['model_code'],
                                 'is_active' => true,
+                                'hs_code' => $hsCode ?: null,
+                                'pk_capacity' => null,
                             ]);
+                        }
+                        // Ensure product carries HS/PK for quota matching
+                        $resolvedPk = null;
+                        if (!empty($hsCode)) {
+                            try { $resolvedPk = app(\App\Services\HsCodeResolver::class)->resolvePkForHsCode((string)$hsCode, $poYear); } catch (\Throwable $e) { $resolvedPk = null; }
+                        }
+                        $needsSave = false;
+                        if (!empty($hsCode) && (string) ($product->hs_code ?? '') !== (string) $hsCode) {
+                            $product->hs_code = (string) $hsCode;
+                            $needsSave = true;
+                        }
+                        if ($product->pk_capacity === null && $resolvedPk !== null) {
+                            $product->pk_capacity = $resolvedPk;
+                            $needsSave = true;
+                        }
+                        if ($needsSave) {
+                            try { $product->save(); } catch (\Throwable $e) { /* tolerate if product table pruned */ }
                         }
 
                         // PurchaseOrder keyed only by po_doc (table has unique on po_doc)
@@ -394,7 +431,14 @@ class OpenPoImportController extends Controller
                             ],
                             [
                                 'product_id' => $product->id,
-                                'quantity' => (int) max((int)($line['qty_ordered'] ?? 0), (int) (\App\Models\PurchaseOrder::where('po_doc',(string)$poNumber)->value('quantity') ?? 0)),
+                                'quantity' => (int) max(
+                                    (int)($line['qty_ordered'] ?? 0),
+                                    $poQtyColumn
+                                        ? (int) (DB::table('purchase_orders')
+                                            ->where('po_doc', (string) $poNumber)
+                                            ->value($poQtyColumn) ?? 0)
+                                        : 0
+                                ),
                                 'amount' => isset($line['amount']) ? (float)$line['amount'] : null,
                                 'order_date' => $payload['po_date'] ?? now()->toDateString(),
                                 'vendor_number' => $payload['vendor_number'] ?? null,
@@ -412,7 +456,18 @@ class OpenPoImportController extends Controller
                         if ($lineQty > 0 && (empty($poLine->forecast_allocated_at))) {
                             $allocDate = $line['eta_date'] ?? ($payload['po_date'] ?? $po->order_date ?? now()->toDateString());
                             // IMPORTANT: choose quota strictly by PK match AND delivery_date inside period, never overflow to next period/year here
-                            $quota = $this->resolveQuotaForDeliveryDate($allocDate, $product, $poNumberStr, (string)($line['line_no'] ?? ''), (string)($line['model_code'] ?? ''));
+                            try {
+                                $quota = $this->resolveQuotaForDeliveryDate(
+                                    $allocDate,
+                                    $product,
+                                    $poNumberStr,
+                                    (string)($line['line_no'] ?? ''),
+                                    (string)($line['model_code'] ?? ''),
+                                    $payload['po_date'] ?? null
+                                );
+                            } catch (\RuntimeException $e) {
+                                $quota = null;
+                            }
 
                             $left = $lineQty;
                             if ($quota) {
@@ -513,18 +568,19 @@ class OpenPoImportController extends Controller
      * All Open PO allocations must call this; allocating a PO line to a quota whose period does not
      * contain the delivery date is illegal and will throw.
      */
-    private function resolveQuotaForDeliveryDate($deliveryDate, Product $product, string $poNumber, string $lineNo, string $material = ''): Quota
+    private function resolveQuotaForDeliveryDate($deliveryDate, Product $product, string $poNumber, string $lineNo, string $material = '', ?string $poDate = null): Quota
     {
-        $dateStr = $this->normalizeDeliveryDate($deliveryDate, $poNumber, $lineNo);
+        $dateStr = $this->normalizeDeliveryDate($deliveryDate, $poNumber, $lineNo, $poDate);
 
-        $candidates = Quota::query()
+        $baseQuery = Quota::query()
             ->where('is_active', true)
             ->whereDate('period_start', '<=', $dateStr)
             ->whereDate('period_end', '>=', $dateStr)
             ->orderBy('period_start')
             ->orderBy('period_end')
-            ->orderBy('id')
-            ->get()
+            ->orderBy('id');
+
+        $candidates = $baseQuery->get()
             ->filter(function ($q) use ($product) { return $q->matchesProduct($product); })
             ->values();
 
@@ -544,20 +600,72 @@ class OpenPoImportController extends Controller
         }
 
         if ($candidates->isEmpty()) {
+            // Fallback 1: product-quota mapping (legacy) ignoring PK buckets
+            if (\Illuminate\Support\Facades\Schema::hasTable('product_quota_mappings')) {
+                $mapped = $baseQuery
+                    ->whereHas('products', fn($q) => $q->where('products.id', $product->id ?? 0))
+                    ->first();
+                if ($mapped) {
+                    Log::warning('resolveQuotaForDeliveryDate_fallback_mapped', [
+                        'po_number' => $poNumber,
+                        'line_no' => $lineNo,
+                        'material' => $material,
+                        'delivery_date' => $dateStr,
+                        'mapped_quota_id' => $mapped->id,
+                    ]);
+                    return $mapped;
+                }
+            }
+
+            // Fallback 2: any active quota covering the date (ignoring PK)
+            $any = $baseQuery->first();
+            if ($any) {
+                Log::warning('resolveQuotaForDeliveryDate_fallback_any', [
+                    'po_number' => $poNumber,
+                    'line_no' => $lineNo,
+                    'material' => $material,
+                    'delivery_date' => $dateStr,
+                    'quota_id' => $any->id,
+                ]);
+                return $any;
+            }
+
             throw new \RuntimeException('No quota found for delivery '.$dateStr.' (PO '.$poNumber.', line '.($lineNo ?: '-').').');
         }
 
         throw new \RuntimeException('Multiple overlapping quotas for delivery '.$dateStr.' (PO '.$poNumber.', line '.($lineNo ?: '-').').');
     }
 
-    private function normalizeDeliveryDate($deliveryDate, string $poNumber, string $lineNo): string
+    private function normalizeDeliveryDate($deliveryDate, string $poNumber, string $lineNo, ?string $poDate = null): string
     {
         if (empty($deliveryDate)) {
             throw new \RuntimeException('Delivery date missing for PO '.$poNumber.' (line '.($lineNo ?: '-').').');
         }
 
         try {
-            return \Illuminate\Support\Carbon::parse((string)$deliveryDate)->toDateString();
+            $parsed = \Illuminate\Support\Carbon::parse((string)$deliveryDate);
+            $parsedStr = $parsed->toDateString();
+            // Guard against outlier years (e.g., Excel 2-digit year) by snapping to PO year when available
+            if ($poDate) {
+                try {
+                    $poYear = \Illuminate\Support\Carbon::parse((string)$poDate)->year;
+                    if ($parsed->year > $poYear + 1) {
+                        $fallback = \Illuminate\Support\Carbon::parse((string)$poDate)->toDateString();
+                        \Log::warning('normalizeDeliveryDate_out_of_range', [
+                            'po_number' => $poNumber,
+                            'line_no' => $lineNo,
+                            'raw' => (string) $deliveryDate,
+                            'parsed' => $parsedStr,
+                            'po_date' => $fallback,
+                            'snap_to_po_year' => true,
+                        ]);
+                        return $fallback;
+                    }
+                } catch (\Throwable $e) {
+                    // ignore and return parsed
+                }
+            }
+            return $parsedStr;
         } catch (\Throwable $e) {
             throw new \RuntimeException('Invalid delivery date for PO '.$poNumber.' (line '.($lineNo ?: '-').').');
         }
