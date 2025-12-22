@@ -40,7 +40,7 @@
           <button type="submit" class="um-btn um-btn--primary w-100"><i class="fas fa-search me-2"></i>Search</button>
         </div>
         <div class="col-md-2 text-end">
-          <a class="um-btn um-btn--ghost" href="{{ route('admin.imports.hs_pk.index') }}">Go to HS -> PK Import</a>
+          <a class="um-btn um-btn--ghost" href="{{ route('admin.imports.hs_pk.index') }}">Go to Register HS &amp; PK</a>
         </div>
       </form>
     </div>
@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <td>${row.resolved_pk ?? ''}</td>
         <td><span class=\"um-badge um-badge--muted\">${row.reason}</span></td>
         <td>
-          <a href=\"{{ route('admin.imports.hs_pk.index') }}\" class=\"um-btn um-btn--ghost um-btn--sm\">HS -> PK Import</a>
+          <a href=\"{{ route('admin.imports.hs_pk.index') }}\" class=\"um-btn um-btn--ghost um-btn--sm\">Register HS &amp; PK</a>
         </td>
       `;
       rows.appendChild(tr);
@@ -212,4 +212,3 @@ document.addEventListener('DOMContentLoaded', () => {
 .um-badge--muted{ background:#e2e8f0; color:#475569; border:1px solid #d1d5db; }
 </style>
 @endpush
-

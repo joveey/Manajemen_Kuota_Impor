@@ -1,12 +1,12 @@
 {{-- resources/views/admin/imports/hs_pk/index.blade.php (manual only) --}}
 @extends('layouts.admin')
 
-@section('title', 'HS & PK Input')
-@section('page-title', 'HS & PK Input')
+@section('title', 'Register HS & PK')
+@section('page-title', 'Register HS & PK')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-    <li class="breadcrumb-item active">Input HS & PK</li>
+    <li class="breadcrumb-item active">Register HS & PK</li>
 @endsection
 
 @section('content')
@@ -18,7 +18,7 @@
         <div class="row gy-3">
             <div class="col-md-7">
                 <div class="hp-card">
-                    <div class="hp-card__header"><div class="hp-card__title">HS &amp; PK Input Form</div></div>
+                    <div class="hp-card__header"><div class="hp-card__title">Register HS &amp; PK Form</div></div>
                     <div class="hp-card__body">
                         @if (session('status'))
                             <div class="alert alert-success alert-dismissible fade show" role="alert">
