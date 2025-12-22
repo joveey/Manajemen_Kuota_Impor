@@ -761,10 +761,7 @@
                     $showPrep = (bool) $currentUser && ($currentUser->can('read master_data') || $currentUser->can('create'));
                     
                     $operationalActive = (
-                        request()->routeIs('admin.openpo.*') ||
                         request()->routeIs('admin.po_progress.index') ||
-                        
-                        request()->routeIs('admin.imports.gr.*') ||
                         ($canPORead && request()->is('admin/purchase-orders*'))
                     );
 
@@ -830,7 +827,7 @@
                         @can('create')
                             <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-file-import"></i></span>
-                                <span>Import HS > PK</span>
+                                <span>Register HS &amp; PK</span>
                             </a>
                             <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ request()->routeIs('admin.imports.quotas.*') ? 'active' : '' }}">
                                 <span class="nav-icon"><i class="fas fa-file-import"></i></span>
@@ -870,28 +867,15 @@
                             <span class="nav-group__caret"><i class="fas fa-chevron-right"></i></span>
                         </button>
                         <div class="nav-group__body" id="nav-group-operational">
-                            @can('po.create')
-                                <a href="{{ route('admin.openpo.form') }}" class="nav-link {{ request()->routeIs('admin.openpo.*') ? 'active' : '' }}">
-                                    <span class="nav-icon"><i class="fas fa-upload"></i></span>
-                                    <span>Upload Open PO</span>
-                                </a>
-                            @endcan
-                            @if($canPORead)
-                                <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') ? 'active' : '' }}">
-                                    <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
+                        @if($canPORead)
+                            <a href="{{ route('admin.purchase-orders.index') }}" class="nav-link {{ request()->routeIs('admin.purchase-orders.index') ? 'active' : '' }}">
+                                <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
                                     <span>Purchase Orders</span>
                                 </a>
                                 <a href="{{ route('admin.po_progress.index') }}" class="nav-link {{ request()->routeIs('admin.po_progress.index') ? 'active' : '' }}">
                                     <span class="nav-icon"><i class="fas fa-truck"></i></span>
                                     <span>Shipments &amp; Receipts</span>
                                 </a>
-                                @can('po.create')
-                                    
-                                    <a href="{{ route('admin.imports.gr.index') }}" class="nav-link {{ request()->routeIs('admin.imports.gr.*') ? 'active' : '' }}">
-                                        <span class="nav-icon"><i class="fas fa-receipt"></i></span>
-                                        <span>Import GR</span>
-                                    </a>
-                                @endcan
                             @endif
                             {{-- Quick HS creation removed along with Product system --}}
                         </div>

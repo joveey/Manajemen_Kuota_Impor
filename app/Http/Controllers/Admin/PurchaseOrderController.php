@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\PeriodSyncLog;
 use App\Models\PurchaseOrder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Quota;
 use App\Models\PoLine;
+use App\Services\PeriodSyncService;
+use App\Support\PeriodRange;
 
 class PurchaseOrderController extends Controller
 {
@@ -27,6 +30,19 @@ class PurchaseOrderController extends Controller
 
     public function index(Request $request): View
     {
+        [$selectedMonth, $selectedYear] = $this->resolveSelectedPeriod($request);
+        [$periodStart, $periodEnd] = PeriodRange::monthYear($selectedMonth, $selectedYear);
+        $periodKey = PeriodRange::periodKey($periodStart);
+
+        $sharedViewData = [
+            'monthOptions' => $this->monthOptions(),
+            'yearOptions' => $this->yearOptions(),
+            'selectedMonth' => $selectedMonth,
+            'selectedYear' => $selectedYear,
+            'periodKey' => $periodKey,
+            'periodSyncLog' => PeriodSyncLog::lastFor('purchase_orders', $periodStart),
+        ];
+
         $purchaseOrdersTable = $this->resolveTableName('purchase_orders');
         $poCols = $this->columnMap($purchaseOrdersTable);
         $poDocCol = $poCols['po_doc'] ?? ($poCols['po_number'] ?? null);
@@ -40,8 +56,10 @@ class PurchaseOrderController extends Controller
         }
 
         if ($usePurchaseOrders) {
+            [$selectedMonth, $selectedYear] = $this->resolveSelectedPeriod($request);
+            [$periodStart, $periodEnd] = PeriodRange::monthYear($selectedMonth, $selectedYear);
             $quote = fn (string $name) => $this->quoteIdentifier($name);
-            $poDateCol = $poCols['created_date'] ?? ($poCols['order_date'] ?? ($poCols['created_at'] ?? null));
+            $poDateCol = $poCols['created_date'] ?? 'created_date';
             $poLineCol = $poCols['line_no'] ?? null;
             $poVendorNoCol = $poCols['vendor_no'] ?? ($poCols['vendor_number'] ?? null);
             $poVendorNameCol = $poCols['vendor_name'] ?? null;
@@ -81,18 +99,8 @@ class PurchaseOrderController extends Controller
                     $poEtaCol ? DB::raw($quote($poEtaCol).' as eta_date') : DB::raw('NULL as eta_date'),
                 ]));
 
-            if ($request->filled('period') && $poDateCol) {
-                $period = (string) $request->string('period');
-                if (preg_match('/^\d{4}-\d{2}$/', $period)) {
-                    $start = Carbon::createFromFormat('Y-m', $period)->startOfMonth();
-                    $end   = Carbon::createFromFormat('Y-m', $period)->endOfMonth();
-                    $baseQuery->whereBetween($poDateCol, [$start->toDateString(), $end->toDateString()]);
-                } elseif (preg_match('/^\d{4}$/', $period)) {
-                    $start = Carbon::createFromDate((int) $period, 1, 1)->startOfYear();
-                    $end   = Carbon::createFromDate((int) $period, 12, 31)->endOfYear();
-                    $baseQuery->whereBetween($poDateCol, [$start->toDateString(), $end->toDateString()]);
-                }
-            }
+            $baseQuery->where($poDateCol, '>=', $periodStart)
+                ->where($poDateCol, '<', $periodEnd);
 
             if ($request->filled('search')) {
                 $term = '%'.$request->string('search').'%';
@@ -143,7 +151,7 @@ class PurchaseOrderController extends Controller
                     'completed'  => 0,
                 ];
 
-                return view('admin.purchase_order.index', compact('purchaseOrders', 'stats'));
+                return view('admin.purchase_order.index', array_merge(compact('purchaseOrders', 'stats'), $sharedViewData));
             }
 
             $grTable = $this->resolveTableName('gr_receipts');
@@ -284,7 +292,7 @@ class PurchaseOrderController extends Controller
                 'completed'  => $sorted->where('status_key', PurchaseOrder::STATUS_COMPLETED)->count(),
             ];
 
-            return view('admin.purchase_order.index', compact('purchaseOrders', 'stats'));
+            return view('admin.purchase_order.index', array_merge(compact('purchaseOrders', 'stats'), $sharedViewData));
         }
 
         $hasVendorNumber = Schema::hasColumn('po_headers', 'vendor_number');
@@ -314,18 +322,8 @@ class PurchaseOrderController extends Controller
                 $hasAmount ? 'pl.amount' : DB::raw('NULL as amount'),
             ]);
 
-        if ($request->filled('period')) {
-            $period = (string) $request->string('period');
-            if (preg_match('/^\d{4}-\d{2}$/', $period)) {
-                $start = Carbon::createFromFormat('Y-m', $period)->startOfMonth();
-                $end   = Carbon::createFromFormat('Y-m', $period)->endOfMonth();
-                $baseQuery->whereBetween('ph.po_date', [$start->toDateString(), $end->toDateString()]);
-            } elseif (preg_match('/^\d{4}$/', $period)) {
-                $start = Carbon::createFromDate((int) $period, 1, 1)->startOfYear();
-                $end   = Carbon::createFromDate((int) $period, 12, 31)->endOfYear();
-                $baseQuery->whereBetween('ph.po_date', [$start->toDateString(), $end->toDateString()]);
-            }
-        }
+        $baseQuery->where('ph.po_date', '>=', $periodStart)
+            ->where('ph.po_date', '<', $periodEnd);
 
         if ($request->filled('search')) {
             $term = '%'.$request->string('search').'%';
@@ -363,7 +361,7 @@ class PurchaseOrderController extends Controller
                 'completed'  => 0,
             ];
 
-            return view('admin.purchase_order.index', compact('purchaseOrders', 'stats'));
+            return view('admin.purchase_order.index', array_merge(compact('purchaseOrders', 'stats'), $sharedViewData));
         }
 
         // Use GR receipts as the single source of truth for received quantity per PO
@@ -488,7 +486,7 @@ class PurchaseOrderController extends Controller
             'completed'  => $sorted->where('status_key', PurchaseOrder::STATUS_COMPLETED)->count(),
         ];
 
-        return view('admin.purchase_order.index', compact('purchaseOrders', 'stats'));
+        return view('admin.purchase_order.index', array_merge(compact('purchaseOrders', 'stats'), $sharedViewData));
     }
 
     public function show(PurchaseOrder $purchaseOrder): \Illuminate\Http\RedirectResponse
@@ -801,6 +799,21 @@ class PurchaseOrderController extends Controller
             ->with('status', 'Purchase Order has been deleted successfully.');
     }
 
+    public function syncPeriod(Request $request, PeriodSyncService $syncService): RedirectResponse
+    {
+        $data = $request->validate([
+            'month' => ['required', 'integer', 'min:1', 'max:12'],
+            'year' => ['required', 'integer', 'min:2000', 'max:2100'],
+        ]);
+
+        [$start, $end] = PeriodRange::monthYear((int) $data['month'], (int) $data['year']);
+        $syncService->syncPurchaseOrders($start, $end);
+
+        return redirect()
+            ->route('admin.purchase-orders.index', ['month' => $data['month'], 'year' => $data['year']])
+            ->with('status', sprintf('Sync for %s triggered successfully.', $start->format('F Y')));
+    }
+
     public function export(Request $request)
     {
         $purchaseOrdersTable = $this->resolveTableName('purchase_orders');
@@ -836,10 +849,10 @@ class PurchaseOrderController extends Controller
             $poMatGrpCol = $poCols['mat_grp'] ?? ($poCols['material_group'] ?? null);
             $poSapStatusCol = $poCols['sap_order_status'] ?? null;
 
-            $query = DB::table($purchaseOrdersTable)
-                ->select(array_filter([
-                    DB::raw($quote($poDocCol).' as po_number'),
-                    $poDateCol ? DB::raw($quote($poDateCol).' as order_date') : DB::raw('NULL as order_date'),
+        $query = DB::table($purchaseOrdersTable)
+            ->select(array_filter([
+                DB::raw($quote($poDocCol).' as po_number'),
+                $poDateCol ? DB::raw($quote($poDateCol).' as order_date') : DB::raw('NULL as order_date'),
                     $poVendorNoCol ? DB::raw($quote($poVendorNoCol).' as vendor_number') : DB::raw('NULL as vendor_number'),
                     $poVendorNameCol ? DB::raw($quote($poVendorNameCol).' as vendor_name') : DB::raw('NULL as vendor_name'),
                     $poLineCol ? DB::raw($quote($poLineCol).' as line_number') : DB::raw('NULL as line_number'),
@@ -859,18 +872,8 @@ class PurchaseOrderController extends Controller
                     $poSapStatusCol ? DB::raw($quote($poSapStatusCol).' as sap_order_status') : DB::raw('NULL as sap_order_status'),
                 ]));
 
-            if ($request->filled('period') && $poDateCol) {
-                $period = (string) $request->string('period');
-                if (preg_match('/^\d{4}-\d{2}$/', $period)) {
-                    $start = Carbon::createFromFormat('Y-m', $period)->startOfMonth();
-                    $end   = Carbon::createFromFormat('Y-m', $period)->endOfMonth();
-                    $query->whereBetween($poDateCol, [$start->toDateString(), $end->toDateString()]);
-                } elseif (preg_match('/^\d{4}$/', $period)) {
-                    $start = Carbon::createFromDate((int) $period, 1, 1)->startOfYear();
-                    $end   = Carbon::createFromDate((int) $period, 12, 31)->endOfYear();
-                    $query->whereBetween($poDateCol, [$start->toDateString(), $end->toDateString()]);
-                }
-            }
+            $query->where($poDateCol, '>=', $periodStart)
+                ->where($poDateCol, '<', $periodEnd);
 
             if ($request->filled('search')) {
                 $term = '%'.$request->string('search').'%';
@@ -962,6 +965,9 @@ class PurchaseOrderController extends Controller
         $hasQtyToDeliver = Schema::hasColumn('po_lines', 'qty_to_deliver');
         $hasStorageLocation = Schema::hasColumn('po_lines', 'storage_location');
 
+        [$selectedMonth, $selectedYear] = $this->resolveSelectedPeriod($request);
+        [$periodStart, $periodEnd] = PeriodRange::monthYear($selectedMonth, $selectedYear);
+
         $query = DB::table('po_lines as pl')
             ->join('po_headers as ph', 'pl.po_header_id', '=', 'ph.id')
             ->select(array_filter([
@@ -985,16 +991,9 @@ class PurchaseOrderController extends Controller
                 $hasMatGrp ? DB::raw('pl.material_group') : null,
                 $hasSapStatus ? DB::raw('pl.sap_order_status') : null,
             ]))
-            ->orderByDesc('ph.po_date')->orderBy('ph.po_number')->orderBy('pl.line_no');
-
-        if ($request->filled('period')) {
-            $period = (string) $request->string('period');
-            if (preg_match('/^\\d{4}-\\d{2}$/', $period)) {
-                $query->whereRaw("to_char(ph.po_date, 'YYYY-MM') = ?", [$period]);
-            } elseif (preg_match('/^\\d{4}$/', $period)) {
-                $query->whereRaw("to_char(ph.po_date, 'YYYY') = ?", [$period]);
-            }
-        }
+            ->orderByDesc('ph.po_date')->orderBy('ph.po_number')->orderBy('pl.line_no')
+            ->where('ph.po_date', '>=', $periodStart)
+            ->where('ph.po_date', '<', $periodEnd);
 
         if ($request->filled('search')) {
             $term = '%'.$request->string('search').'%';
@@ -1268,6 +1267,46 @@ class PurchaseOrderController extends Controller
         }
 
         return $redir;
+    }
+
+    private function resolveSelectedPeriod(Request $request): array
+    {
+        $now = Carbon::now();
+        $month = (int) $request->query('month', 0);
+        $year = (int) $request->query('year', 0);
+
+        if ((!$month || !$year) && $request->filled('period')) {
+            $period = (string) $request->string('period');
+            if (preg_match('/^(\\d{4})-(\\d{2})$/', $period, $matches)) {
+                $year = (int) $matches[1];
+                $month = (int) $matches[2];
+            }
+        }
+
+        if ($month < 1 || $month > 12) {
+            $month = $now->month;
+        }
+
+        if ($year < 2000 || $year > 2100) {
+            $year = $now->year;
+        }
+
+        return [$month, $year];
+    }
+
+    private function monthOptions(): array
+    {
+        $months = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $months[$m] = Carbon::create(null, $m, 1)->format('F');
+        }
+        return $months;
+    }
+
+    private function yearOptions(): array
+    {
+        $current = Carbon::now()->year;
+        return range($current - 2, $current + 1);
     }
 
     private function resolveTableName(string $table): ?string

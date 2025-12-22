@@ -16,7 +16,6 @@ use App\Http\Controllers\Admin\MappingController;
 use App\Http\Controllers\Admin\HsPkImportPageController;
 use App\Http\Controllers\Admin\QuotaImportPageController;
 use App\Http\Controllers\Admin\MappingPageController;
-use App\Http\Controllers\Admin\OpenPoImportController;
 use App\Http\Controllers\Admin\SchemaCheckController;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Admin\ProductQuickController;
@@ -164,6 +163,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::post('master-data/store-hs', [ProductQuickController::class, 'store'])->name('master.quick_hs.store');
     });
 
+    Route::post('purchase-orders/sync', [PurchaseOrderController::class, 'syncPeriod'])->name('purchase-orders.sync');
     Route::get('purchase-orders/doc/{poNumber}', [PurchaseOrderController::class, 'showDocument'])
         ->name('purchase-orders.document');
 
@@ -220,25 +220,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         // Route::get('imports/quotas/{import}', [QuotaImportPageController::class, 'preview'])->name('imports.quotas.preview');
         // Route::post('imports/quotas/{import}/publish', [QuotaImportPageController::class, 'publishForm'])->name('imports.quotas.publish.form');
 
-        // ===== GR imports (restricted to po.create) =====
-        Route::middleware(['permission:po.create'])->group(function () {
-            Route::get('imports/gr', [\App\Http\Controllers\Admin\GrImportPageController::class, 'index'])->name('imports.gr.index');
-            Route::post('imports/gr/upload', [\App\Http\Controllers\Admin\GrImportPageController::class, 'uploadForm'])->name('imports.gr.upload');
-            Route::get('imports/gr/{import}/preview', [\App\Http\Controllers\Admin\GrImportPageController::class, 'preview'])->name('imports.gr.preview');
-            Route::post('imports/gr/{import}/publish', [\App\Http\Controllers\Admin\GrImportPageController::class, 'publishForm'])->name('imports.gr.publish');
-        });
     });
 
-    // =====================
-    // Open PO Import
-    // =====================
-    Route::middleware(['permission:po.create'])->prefix('open-po')->name('openpo.')->group(function () {
-        Route::get('/import', [OpenPoImportController::class, 'form'])->name('form');
-        Route::post('/preview', [OpenPoImportController::class, 'preview'])->name('preview');
-        // Allow reloading preview via GET (reads session)
-        Route::get('/preview', [OpenPoImportController::class, 'previewPage'])->name('preview.page');
-        Route::post('/publish', [OpenPoImportController::class, 'publish'])->name('publish');
-    });
 
     // Mapping diagnostics & UI
     Route::middleware(['permission:read master_data'])->group(function () {
@@ -257,6 +240,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('po-progress', [\App\Http\Controllers\Admin\PoProgressController::class, 'index'])
         ->middleware('permission:read purchase_orders')
         ->name('po_progress.index');
+    Route::post('po-progress/sync', [\App\Http\Controllers\Admin\PoProgressController::class, 'sync'])
+        ->middleware('permission:read purchase_orders')
+        ->name('po_progress.sync');
 });
 
 // Rute Otentikasi (dari Laravel Breeze atau UI)

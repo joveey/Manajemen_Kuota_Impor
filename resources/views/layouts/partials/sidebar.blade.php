@@ -28,12 +28,11 @@
         @php
           $isHsPk       = request()->routeIs('admin.imports.hs_pk.*');
           $isQuotas     = request()->routeIs('admin.imports.quotas.*');
-          $isGr         = request()->routeIs('admin.imports.gr.*');
           $isUnmapped   = request()->routeIs('admin.mapping.unmapped.*');
           $isMapped     = request()->routeIs('admin.mapping.mapped.page');
           $isQuickModel = request()->routeIs('admin.master.quick_hs.*') || request()->routeIs('admin.mapping.model_hs.*');
           // pastikan grup Data Preparation membuka saat salah satu aktif
-          $operationalOpen = ($isHsPk || $isQuotas || $isGr || $isUnmapped || $isMapped || $isQuickModel || ($operationalOpen ?? false));
+          $operationalOpen = ($isHsPk || $isQuotas || $isUnmapped || $isMapped || $isQuickModel || ($operationalOpen ?? false));
         @endphp
 
         <!-- Sidebar Menu -->
@@ -54,7 +53,7 @@
                         <li class="nav-item">
                             <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ $isHsPk ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Import HS -> PK</p>
+                                <p>Register HS &amp; PK</p>
                             </a>
                         </li>
                         
@@ -62,12 +61,6 @@
                             <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ $isQuotas ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Register Quota</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('admin.imports.gr.index') }}" class="nav-link {{ request()->routeIs('admin.imports.gr.*') ? 'active' : '' }}">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Import GR</p>
                             </a>
                         </li>
                         @endif
@@ -161,7 +154,7 @@
                         <li class="nav-item">
                             <a href="{{ route('admin.imports.hs_pk.index') }}" class="nav-link {{ request()->routeIs('admin.imports.hs_pk.*') ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>HS -> PK</p>
+                                <p>Register HS &amp; PK</p>
                             </a>
                         </li>
                         <li class="nav-item">

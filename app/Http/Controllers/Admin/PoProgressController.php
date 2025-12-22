@@ -3,8 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\PeriodSyncLog;
 use App\Models\PoHeader;
+use App\Services\PeriodSyncService;
+use App\Support\PeriodRange;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -15,6 +20,19 @@ class PoProgressController extends Controller
         $q = trim((string) $request->query('q', ''));
         $perPage = (int) ($request->integer('per_page') ?: 10);
         $perPage = max(5, min($perPage, 50));
+
+        [$selectedMonth, $selectedYear] = $this->resolveSelectedPeriod($request);
+        [$periodStart, $periodEnd] = PeriodRange::monthYear($selectedMonth, $selectedYear);
+        $periodKey = PeriodRange::periodKey($periodStart);
+
+        $sharedViewData = [
+            'monthOptions' => $this->monthOptions(),
+            'yearOptions' => $this->yearOptions(),
+            'selectedMonth' => $selectedMonth,
+            'selectedYear' => $selectedYear,
+            'periodKey' => $periodKey,
+            'periodSyncLog' => PeriodSyncLog::lastFor('gr_receipts', $periodStart),
+        ];
 
         $hasPoHeaders = false;
         try {
@@ -74,7 +92,9 @@ class PoProgressController extends Controller
             }
 
             if ($poDateCol) {
-                $headersQuery->orderByDesc('po_date');
+                $headersQuery->where($poDateCol, '>=', $periodStart)
+                    ->where($poDateCol, '<', $periodEnd)
+                    ->orderByDesc('po_date');
             }
             $headersQuery->orderBy('po_number');
 
@@ -94,6 +114,10 @@ class PoProgressController extends Controller
                         $poQtyCol ? DB::raw('COALESCE('.$quote($poQtyCol).',0) as qty_ordered') : DB::raw('0 as qty_ordered'),
                     ]))
                     ->whereIn($poDocCol, $poNumbers)
+                    ->when($poDateCol, function ($q) use ($poDateCol, $periodStart, $periodEnd) {
+                        $q->where($poDateCol, '>=', $periodStart)
+                            ->where($poDateCol, '<', $periodEnd);
+                    })
                     ->orderBy($poDocCol)
                     ->when($poLineCol, fn ($q) => $q->orderBy($poLineCol))
                     ->get();
@@ -121,6 +145,10 @@ class PoProgressController extends Controller
                             DB::raw($quote($invQtyCol).' as qty'),
                         ]))
                         ->whereIn($invPoCol, $poNumbers)
+                        ->when($invDateCol, function ($q) use ($invDateCol, $periodStart, $periodEnd) {
+                            $q->where($invDateCol, '>=', $periodStart)
+                                ->where($invDateCol, '<', $periodEnd);
+                        })
                         ->get();
 
                     foreach ($invoices as $row) {
@@ -149,6 +177,10 @@ class PoProgressController extends Controller
                             DB::raw($quote($grQtyCol).' as qty'),
                         ]))
                         ->whereIn($grPoCol, $poNumbers)
+                        ->when($grDateCol, function ($q) use ($grDateCol, $periodStart, $periodEnd) {
+                            $q->where($grDateCol, '>=', $periodStart)
+                                ->where($grDateCol, '<', $periodEnd);
+                        })
                         ->get();
 
                     foreach ($gr as $row) {
@@ -262,18 +294,20 @@ class PoProgressController extends Controller
                 ];
             }
 
-            return view('admin.po_progress.index', [
+            return view('admin.po_progress.index', array_merge([
                 'headers' => $headers,
                 'poData' => $poData,
                 'q' => $q,
                 'perPage' => $perPage,
-            ]);
+            ], $sharedViewData));
         }
 
         $headersQuery = PoHeader::query()
             ->with(['lines' => function ($q) {
                 $q->orderBy('line_no');
             }])
+            ->where('po_date', '>=', $periodStart)
+            ->where('po_date', '<', $periodEnd)
             ->orderByDesc('po_date')
             ->orderBy('po_number');
 
@@ -292,10 +326,14 @@ class PoProgressController extends Controller
         if (!empty($poNumbers)) {
             $invoices = DB::table('invoices')
                 ->whereIn('po_no', $poNumbers)
+                ->where('invoice_date', '>=', $periodStart)
+                ->where('invoice_date', '<', $periodEnd)
                 ->get(['po_no', 'line_no', 'invoice_date', 'qty']);
 
             $gr = DB::table('gr_receipts')
                 ->whereIn('po_no', $poNumbers)
+                ->where('receive_date', '>=', $periodStart)
+                ->where('receive_date', '<', $periodEnd)
                 ->get(['po_no', 'line_no', 'receive_date', 'qty']);
 
             $shipByLine = [];
@@ -408,12 +446,67 @@ class PoProgressController extends Controller
             }
         }
 
-        return view('admin.po_progress.index', [
+        return view('admin.po_progress.index', array_merge([
             'headers' => $headers,
             'poData' => $poData,
             'q' => $q,
             'perPage' => $perPage,
+        ], $sharedViewData));
+    }
+
+    public function sync(Request $request, PeriodSyncService $syncService): RedirectResponse
+    {
+        $data = $request->validate([
+            'month' => ['required', 'integer', 'min:1', 'max:12'],
+            'year' => ['required', 'integer', 'min:2000', 'max:2100'],
         ]);
+
+        [$start, $end] = PeriodRange::monthYear((int) $data['month'], (int) $data['year']);
+        $syncService->syncGoodsReceipts($start, $end);
+
+        return redirect()
+            ->route('admin.po_progress.index', ['month' => $data['month'], 'year' => $data['year']])
+            ->with('status', sprintf('GR sync for %s triggered.', $start->format('F Y')));
+    }
+
+    private function resolveSelectedPeriod(Request $request): array
+    {
+        $now = Carbon::now();
+        $month = (int) $request->query('month', 0);
+        $year = (int) $request->query('year', 0);
+
+        if ((!$month || !$year) && $request->filled('period')) {
+            $period = (string) $request->string('period');
+            if (preg_match('/^(\\d{4})-(\\d{2})$/', $period, $matches)) {
+                $year = (int) $matches[1];
+                $month = (int) $matches[2];
+            }
+        }
+
+        if ($month < 1 || $month > 12) {
+            $month = $now->month;
+        }
+
+        if ($year < 2000 || $year > 2100) {
+            $year = $now->year;
+        }
+
+        return [$month, $year];
+    }
+
+    private function monthOptions(): array
+    {
+        $months = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $months[$m] = Carbon::create(null, $m, 1)->format('F');
+        }
+        return $months;
+    }
+
+    private function yearOptions(): array
+    {
+        $current = Carbon::now()->year;
+        return range($current - 2, $current + 1);
     }
 
     private function resolveTableName(string $table): ?string

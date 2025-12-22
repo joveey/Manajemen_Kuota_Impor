@@ -359,10 +359,27 @@
         \App\Models\PurchaseOrder::STATUS_PARTIAL => ['label' => 'In Progress', 'class' => 'status-badge--in-transit'],
         \App\Models\PurchaseOrder::STATUS_COMPLETED => ['label' => 'Completed', 'class' => 'status-badge--completed'],
     ];
+    $lastSyncedAt = $periodSyncLog?->last_synced_at;
+    $lastSyncedLabel = $lastSyncedAt
+        ? $lastSyncedAt->timezone(config('app.timezone'))->format('d M Y H:i')
+        : 'Never synced';
 @endphp
 <div class="page-shell">
     <div class="page-header">
+        <div class="d-flex flex-column gap-1">
+            <span class="text-muted small">Period: {{ $periodKey }}</span>
+            <span class="text-muted small">Last synced: {{ $lastSyncedLabel }}</span>
+        </div>
         <div class="page-header__actions">
+            <form method="POST" action="{{ route('admin.purchase-orders.sync') }}">
+                @csrf
+                <input type="hidden" name="month" value="{{ $selectedMonth }}">
+                <input type="hidden" name="year" value="{{ $selectedYear }}">
+                <button type="submit" class="page-header__button page-header__button--primary">
+                    <i class="fas fa-sync"></i>
+                    Sync from SAP
+                </button>
+            </form>
             <a href="{{ route('admin.purchase-orders.export', request()->query()) }}" class="page-header__button page-header__button--outline">
                 <i class="fas fa-file-export"></i>
                 Export CSV
@@ -391,8 +408,20 @@
 
     <form method="GET" class="filter-panel">
         <div class="filter-panel__control">
-            <label class="form-label text-muted small mb-1">Period</label>
-            <input type="text" name="period" value="{{ request('period') }}" class="form-control" placeholder="MM-YYYY">
+            <label class="form-label text-muted small mb-1">Month</label>
+            <select name="month" class="form-select">
+                @foreach($monthOptions as $value => $label)
+                    <option value="{{ $value }}" @selected($selectedMonth === $value)>{{ $label }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="filter-panel__control">
+            <label class="form-label text-muted small mb-1">Year</label>
+            <select name="year" class="form-select">
+                @foreach($yearOptions as $year)
+                    <option value="{{ $year }}" @selected($selectedYear === $year)>{{ $year }}</option>
+                @endforeach
+            </select>
         </div>
         <div class="filter-panel__control">
             <label class="form-label text-muted small mb-1">Status</label>

@@ -3,11 +3,33 @@
 @section('title', 'Shipments & Receipts')
 
 @section('content')
+@php
+    $lastSyncedAt = $periodSyncLog?->last_synced_at;
+    $lastSyncedLabel = $lastSyncedAt
+        ? $lastSyncedAt->timezone(config('app.timezone'))->format('d M Y H:i')
+        : 'Never synced';
+@endphp
 <div class="container-fluid px-0">
     <div class="pp-card mb-3">
         <div class="pp-card__body">
             <form method="GET" class="row g-2 align-items-center">
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <label class="form-label text-muted small mb-1">Month</label>
+                    <select name="month" class="pp-select">
+                        @foreach($monthOptions as $value => $label)
+                            <option value="{{ $value }}" @selected($selectedMonth === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label text-muted small mb-1">Year</label>
+                    <select name="year" class="pp-select">
+                        @foreach($yearOptions as $year)
+                            <option value="{{ $year }}" @selected($selectedYear === $year)>{{ $year }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3">
                     <input type="text" name="q" value="{{ $q }}" class="pp-input" placeholder="Search PO No or Supplier...">
                 </div>
                 <div class="col-md-3">
@@ -17,13 +39,21 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                     <button class="pp-btn pp-btn--primary w-100" type="submit"><i class="fas fa-search me-2"></i>Search</button>
                 </div>
-                <div class="col-md-3 text-end small text-muted pp-hint">
-                    Read-only: Ordered | Shipped | Received | In-Transit | Remaining
-                </div>
             </form>
+            <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 gap-2">
+                <div class="text-muted small">Period: {{ $periodKey }} &middot; Last synced: {{ $lastSyncedLabel }}</div>
+                <form method="POST" action="{{ route('admin.po_progress.sync') }}">
+                    @csrf
+                    <input type="hidden" name="month" value="{{ $selectedMonth }}">
+                    <input type="hidden" name="year" value="{{ $selectedYear }}">
+                    <button type="submit" class="pp-btn pp-btn--primary">
+                        <i class="fas fa-sync me-2"></i>Sync from SAP
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 
