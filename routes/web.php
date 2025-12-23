@@ -20,6 +20,8 @@ use App\Http\Controllers\Admin\SchemaCheckController;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Admin\ProductQuickController;
 use App\Http\Controllers\Admin\HsPkManualController;
+use App\Http\Controllers\Admin\PurchaseOrderImportController;
+use App\Http\Controllers\Admin\GrImportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -173,7 +175,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         ->name('purchase-orders.lines.voyage.update');
 
     // Voyage page (dedicated management page)
-    Route::middleware(['auth', 'can:purchase.manage'])->group(function () {
+    Route::middleware(['auth', 'permission:read purchase_orders'])->group(function () {
         Route::get('purchase-orders/{po}/voyage', [\App\Http\Controllers\Admin\PurchaseOrderVoyageController::class, 'index'])
             ->name('purchase-orders.voyage.index');
         Route::post('purchase-orders/{po}/voyage/bulk', [\App\Http\Controllers\Admin\PurchaseOrderVoyageController::class, 'bulkUpdate'])
@@ -183,6 +185,16 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     });
     Route::get('purchase-orders/export/csv', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
     Route::post('purchase-orders/{purchaseOrder}/reallocate-quota', [PurchaseOrderController::class, 'reallocateQuota'])->name('purchase-orders.reallocate_quota');
+    Route::middleware(['permission:create purchase_orders'])->group(function () {
+        Route::get('import/po', [PurchaseOrderImportController::class, 'index'])->name('purchase-orders.import.form');
+        Route::post('import/po', [PurchaseOrderImportController::class, 'store'])->name('purchase-orders.import.store');
+    });
+    Route::middleware(['permission:read quota'])->group(function () {
+        Route::get('import/gr', [GrImportController::class, 'index'])->name('imports.gr.index');
+    });
+    Route::middleware(['permission:create quota'])->group(function () {
+        Route::post('import/gr', [GrImportController::class, 'store'])->name('imports.gr.store');
+    });
 
     // HS→PK Imports upload (backend only)
     Route::middleware(['permission:read quota', 'forbid-role:user'])->group(function () {
