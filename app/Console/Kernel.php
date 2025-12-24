@@ -17,6 +17,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\RebuildForecast::class,
         \App\Console\Commands\AllocBackfillForecastV2::class,
         \App\Console\Commands\RebuildActual::class,
+        \App\Console\Commands\AllocBackfillForecastSap::class,
     ];
 
     protected function commands(): void

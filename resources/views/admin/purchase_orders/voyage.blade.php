@@ -82,7 +82,22 @@
         </thead>
         <tbody id="voyage-rows">
           @foreach ($lines as $ln)
-          <tr data-line-id="{{ $ln->id }}">
+          @php
+            $meta = $allocationMetaByLine[$ln->id] ?? [];
+            $sliceBundle = $voyageSlicesByLine[$ln->id] ?? [
+              'base' => [
+                'slice_id' => null,
+                'qty' => $ln->qty_remaining ?? ($ln->qty_ordered ?? 0),
+                'period_key' => $meta['period_key'] ?? null,
+              ],
+              'children' => [],
+            ];
+            $childSlices = $sliceBundle['children'] ?? [];
+            $defaultQuotaMeta = $sourceQuotaByLine[$ln->id] ?? null;
+            $defaultQuotaLabel = $defaultQuotaMeta['label'] ?? 'Quota not linked';
+            $defaultQuotaId = $defaultQuotaMeta['id'] ?? null;
+          @endphp
+          <tr class="voyage-line" data-line-id="{{ $ln->id }}" data-allocation-id="{{ $meta['allocation_id'] ?? '' }}" data-po-doc="{{ $meta['po_doc'] ?? $poNumber }}" data-line-no="{{ $meta['line_no'] ?? ($ln->line_no ?? '') }}" data-period-key="{{ $meta['period_key'] ?? '' }}" data-target-qty="{{ $meta['target_qty'] ?? ($ln->qty_ordered ?? 0) }}">
             <td class="sticky-col line sticky-shadow">{{ $ln->line_no ?: '-' }}</td>
             <td class="sticky-col mat  sticky-shadow">{{ $ln->material ?? '-' }}</td>
             <td class="text-truncate" title="{{ $ln->item_desc }}">{{ $ln->item_desc ?? '-' }}</td>
@@ -104,59 +119,66 @@
             </td>
             <td><input type="text"  class="form-control form-control-sm v-remark"  value="{{ $ln->remark ?? '' }}"></td>
           </tr>
-          @if (!$usingPurchaseOrders)
-            @php $subs = ($splitsByLine[$ln->id] ?? []); @endphp
-            @if(!empty($subs))
-              @foreach ($subs as $sp)
-                <tr class="split-row text-muted" data-line-id="{{ $ln->id }}" data-split-id="{{ $sp->id }}">
-                  <td></td>
-                  <td colspan="2">Split</td>
-                  <td>{{ number_format((float)($sp->qty ?? 0),0) }}</td>
-                  <td>{{ $ln->delivery_date ? \Illuminate\Support\Carbon::parse($ln->delivery_date)->format('d-m-Y') : '-' }}</td>
-                  <td><input type="text" class="form-control form-control-sm s-bl" value="{{ $sp->voyage_bl ?? '' }}"></td>
-                  <td><input type="text" class="form-control form-control-sm s-etd datepicker" value="{{ $sp->voyage_etd ?? '' }}" placeholder="dd-mm-yyyy"></td>
-                  <td><input type="text" class="form-control form-control-sm s-eta datepicker" value="{{ $sp->voyage_eta ?? '' }}" placeholder="dd-mm-yyyy"></td>
-                  <td><input type="text" class="form-control form-control-sm s-factory" value="{{ $sp->voyage_factory ?? '' }}"></td>
-                  <td>
-                    @php $s = strtolower((string)($sp->voyage_status ?? '')); @endphp
-                    <select class="form-select form-select-sm s-status">
-                      <option value=""></option>
-                      <option value="Finish" {{ $s==='finish' ? 'selected' : '' }}>Finish</option>
-                      <option value="Not Ship Yet" {{ $s==='not ship yet' ? 'selected' : '' }}>Not Ship Yet</option>
-                      <option value="Shipping" {{ $s==='shipping' ? 'selected' : '' }}>Shipping</option>
-                    </select>
-                  </td>
-                  <td>
-                    <div class="d-flex gap-2">
-                      <input type="text" class="form-control form-control-sm s-remark" value="{{ $sp->voyage_remark ?? '' }}">
-                      <button type="button" class="btn btn-sm btn-outline-primary btn-split-move" data-line-id="{{ $ln->id }}" data-split-id="{{ $sp->id }}" data-qty="{{ (int)($sp->qty ?? 0) }}">Move</button>
-                      <button type="button" class="btn btn-sm btn-outline-danger btn-split-delete" title="Delete this split">Delete</button>
-                    </div>
-                  </td>
-                </tr>
-                
-              @endforeach
-            @endif
-            <tr class="split-row split-new" data-line-id="{{ $ln->id }}" data-split-id="">
+          @foreach ($childSlices as $slice)
+            @php
+              $sliceEtd = $slice['etd'] ? \Illuminate\Support\Carbon::parse($slice['etd'])->format('d-m-Y') : '';
+              $sliceEta = $slice['eta'] ? \Illuminate\Support\Carbon::parse($slice['eta'])->format('d-m-Y') : '';
+              $sliceQuotaLabel = $slice['quota_label'] ?? $defaultQuotaLabel;
+              $slicePeriod = $slice['period_key'] ?? ($meta['period_key'] ?? '');
+            @endphp
+            <tr class="split-row text-muted" data-line-id="{{ $ln->id }}" data-slice-id="{{ $slice['slice_id'] ?? '' }}" data-quota-id="{{ $slice['quota_id'] ?? '' }}" data-qty="{{ $slice['qty'] ?? 0 }}">
               <td></td>
-              <td colspan="2"><em class="text-muted">Add split</em></td>
-              <td><input type="number" min="0" step="1" class="form-control form-control-sm s-qty" value=""></td>
+              <td colspan="2">Split</td>
+              <td>{{ number_format((float)($slice['qty'] ?? 0),0) }}</td>
               <td>{{ $ln->delivery_date ? \Illuminate\Support\Carbon::parse($ln->delivery_date)->format('d-m-Y') : '-' }}</td>
-              <td><input type="text"  class="form-control form-control-sm s-bl"       value=""></td>
-              <td><input type="text" class="form-control form-control-sm s-etd datepicker"      value="" placeholder="dd-mm-yyyy"></td>
-              <td><input type="text" class="form-control form-control-sm s-eta datepicker"      value="" placeholder="dd-mm-yyyy"></td>
-              <td><input type="text"  class="form-control form-control-sm s-factory" value=""></td>
+              <td><input type="text" class="form-control form-control-sm s-bl" value="{{ $slice['bl'] ?? '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm s-etd datepicker" value="{{ $sliceEtd }}" placeholder="dd-mm-yyyy"></td>
+              <td><input type="text" class="form-control form-control-sm s-eta datepicker" value="{{ $sliceEta }}" placeholder="dd-mm-yyyy"></td>
+              <td><input type="text" class="form-control form-control-sm s-factory" value="{{ $slice['factory'] ?? '' }}"></td>
               <td>
+                @php $s = strtolower((string)($slice['status'] ?? '')); @endphp
                 <select class="form-select form-select-sm s-status">
                   <option value=""></option>
-                  <option value="Finish">Finish</option>
-                  <option value="Not Ship Yet">Not Ship Yet</option>
-                  <option value="Shipping">Shipping</option>
+                  <option value="Finish" {{ $s==='finish' ? 'selected' : '' }}>Finish</option>
+                  <option value="Not Ship Yet" {{ $s==='not ship yet' ? 'selected' : '' }}>Not Ship Yet</option>
+                  <option value="Shipping" {{ $s==='shipping' ? 'selected' : '' }}>Shipping</option>
                 </select>
               </td>
-              <td><input type="text"  class="form-control form-control-sm s-remark"  value=""></td>
+              <td>
+                <div class="d-flex gap-2">
+                  <input type="text" class="form-control form-control-sm s-remark" value="{{ $slice['remark'] ?? '' }}">
+                  <button type="button" class="btn btn-sm btn-outline-primary btn-split-move" data-line-id="{{ $ln->id }}" data-qty="{{ (int)($slice['qty'] ?? 0) }}">Move</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-split-delete" title="Delete this split">Delete</button>
+                </div>
+                <input type="hidden" class="slice-period" value="{{ $slicePeriod }}">
+              </td>
             </tr>
-          @endif
+          @endforeach
+          <tr class="split-row split-new" data-line-id="{{ $ln->id }}" data-quota-id="{{ $defaultQuotaId ?? '' }}">
+            <td></td>
+            <td colspan="2"><em class="text-muted">Add split</em></td>
+            <td><input type="number" min="0" step="1" class="form-control form-control-sm s-qty" value=""></td>
+            <td>{{ $ln->delivery_date ? \Illuminate\Support\Carbon::parse($ln->delivery_date)->format('d-m-Y') : '-' }}</td>
+            <td><input type="text"  class="form-control form-control-sm s-bl"       value=""></td>
+            <td><input type="text" class="form-control form-control-sm s-etd datepicker"      value="" placeholder="dd-mm-yyyy"></td>
+            <td><input type="text" class="form-control form-control-sm s-eta datepicker"      value="" placeholder="dd-mm-yyyy"></td>
+            <td><input type="text"  class="form-control form-control-sm s-factory" value=""></td>
+            <td>
+              <select class="form-select form-select-sm s-status">
+                <option value=""></option>
+                <option value="Finish">Finish</option>
+                <option value="Not Ship Yet">Not Ship Yet</option>
+                <option value="Shipping">Shipping</option>
+              </select>
+            </td>
+            <td>
+              <div class="d-flex gap-2">
+                <input type="text"  class="form-control form-control-sm s-remark"  value="">
+                <button type="button" class="btn btn-sm btn-outline-primary btn-split-move" data-line-id="{{ $ln->id }}">Move</button>
+              </div>
+              <input type="hidden" class="slice-period" value="{{ $meta['period_key'] ?? '' }}">
+            </td>
+          </tr>
           @endforeach
         </tbody>
       </table>
