@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\ProductQuickController;
 use App\Http\Controllers\Admin\HsPkManualController;
 use App\Http\Controllers\Admin\PurchaseOrderImportController;
 use App\Http\Controllers\Admin\GrImportController;
+use App\Http\Controllers\Admin\ModelHsImportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -195,6 +196,12 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::middleware(['permission:create quota'])->group(function () {
         Route::post('import/gr', [GrImportController::class, 'store'])->name('imports.gr.store');
     });
+    Route::middleware(['permission:read quota'])->group(function () {
+        Route::get('import/model-hs', [ModelHsImportController::class, 'index'])->name('imports.model_hs.index');
+    });
+    Route::middleware(['permission:create quota'])->group(function () {
+        Route::post('import/model-hs', [ModelHsImportController::class, 'store'])->name('imports.model_hs.store');
+    });
 
     // HS→PK Imports upload (backend only)
     Route::middleware(['permission:read quota', 'forbid-role:user'])->group(function () {
@@ -255,6 +262,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::post('po-progress/sync', [\App\Http\Controllers\Admin\PoProgressController::class, 'sync'])
         ->middleware('permission:read purchase_orders')
         ->name('po_progress.sync');
+    Route::post('sync/gr', [\App\Http\Controllers\Admin\PoProgressController::class, 'sync'])
+        ->middleware('permission:read purchase_orders')
+        ->name('sync.gr');
 });
 
 // Rute Otentikasi (dari Laravel Breeze atau UI)

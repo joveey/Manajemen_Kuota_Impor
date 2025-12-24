@@ -105,7 +105,12 @@ return new class extends Migration
 
             // Drop legacy unique index before removing the old column
             $driver = DB::connection()->getDriverName();
-            $candidates = ['purchase_orders_po_number_unique', 'po_number_unique', 'purchase_orders_po_number_key'];
+            $candidates = [
+                'purchase_orders_po_number_unique',
+                'po_number_unique',
+                'purchase_orders_po_number_key',
+                'purchase_orders_po_doc_unique',
+            ];
             foreach ($candidates as $idx) {
                 try {
                     if ($driver === 'sqlsrv') {
@@ -157,13 +162,6 @@ return new class extends Migration
                     if (Schema::hasColumn('purchase_orders', $col)) {
                         $table->dropColumn($col);
                     }
-                }
-            });
-
-            // New unique constraint on PO_DOC
-            Schema::table('purchase_orders', function (Blueprint $table) {
-                if (Schema::hasColumn('purchase_orders', 'po_doc')) {
-                    try { $table->unique('po_doc', 'purchase_orders_po_doc_unique'); } catch (\Throwable $e) {}
                 }
             });
         }

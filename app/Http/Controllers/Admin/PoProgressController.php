@@ -39,7 +39,6 @@ class PoProgressController extends Controller
                 DB::raw('MIN(created_date) as po_date'),
                 DB::raw('MAX(vendor_name) as supplier'),
                 DB::raw('SUM(qty) as qty_ordered'),
-                DB::raw('SUM(quantity_received) as qty_received'),
             ])
             ->whereNotNull('po_doc')
             ->whereBetween('created_date', [$periodStart, $periodEnd])
@@ -61,6 +60,10 @@ class PoProgressController extends Controller
         $poNumbers = collect($headers->items())->pluck('po_doc')->filter()->values()->all();
 
         $linesByPo = collect();
+        $lineReceiptTotals = [];
+        $lineEventsByKey = collect();
+        $shipByLine = [];
+
         if (!empty($poNumbers)) {
             $lines = PurchaseOrder::query()
                 ->select([
@@ -70,7 +73,6 @@ class PoProgressController extends Controller
                     'item_code',
                     DB::raw('NULL as uom'),
                     'qty',
-                    'quantity_received',
                 ])
                 ->whereIn('po_doc', $poNumbers)
                 ->whereBetween('created_date', [$periodStart, $periodEnd])
@@ -79,11 +81,30 @@ class PoProgressController extends Controller
                 ->get();
 
             $linesByPo = $lines->groupBy('po_doc');
-        }
 
-        $shipByLine = [];
-        $grByLine = [];
-        if (!empty($poNumbers)) {
+            $lineReceiptTotals = DB::table('gr_receipts')
+                ->select('po_no', 'line_no', DB::raw('SUM(qty) as total_qty'))
+                ->whereIn('po_no', $poNumbers)
+                ->whereBetween('receive_date', [$periodStart, $periodEnd])
+                ->groupBy('po_no', 'line_no')
+                ->get()
+                ->mapWithKeys(function ($row) {
+                    $key = $row->po_no.'#'.(string) $row->line_no;
+                    return [$key => (float) $row->total_qty];
+                })
+                ->all();
+
+            $lineEventsByKey = DB::table('gr_receipts')
+                ->select('po_no', 'line_no', 'receive_date', 'qty', 'invoice_no', 'id')
+                ->whereIn('po_no', $poNumbers)
+                ->whereBetween('receive_date', [$periodStart, $periodEnd])
+                ->orderBy('receive_date')
+                ->orderBy('id')
+                ->get()
+                ->groupBy(function ($row) {
+                    return $row->po_no.'#'.(string) $row->line_no;
+                });
+
             $invoices = DB::table('invoices')
                 ->select(['po_no', 'line_no', 'invoice_date', 'qty'])
                 ->whereIn('po_no', $poNumbers)
@@ -94,22 +115,6 @@ class PoProgressController extends Controller
                 $key = $row->po_no.'#'.(string) $row->line_no;
                 $shipByLine[$key][] = [
                     'date' => $row->invoice_date,
-                    'type' => 'shipment',
-                    'qty'  => (float) $row->qty,
-                ];
-            }
-
-            $gr = DB::table('gr_receipts')
-                ->select(['po_no', 'line_no', 'receive_date', 'qty'])
-                ->whereIn('po_no', $poNumbers)
-                ->whereBetween('receive_date', [$periodStart, $periodEnd])
-                ->get();
-
-            foreach ($gr as $row) {
-                $key = $row->po_no.'#'.(string) $row->line_no;
-                $grByLine[$key][] = [
-                    'date' => $row->receive_date,
-                    'type' => 'gr',
                     'qty'  => (float) $row->qty,
                 ];
             }
@@ -120,57 +125,26 @@ class PoProgressController extends Controller
             $poNo = $header->po_doc;
             $summary = [
                 'ordered_total' => (float) $header->qty_ordered,
-                'received_total'=> (float) $header->qty_received,
+                'received_total'=> 0.0,
                 'shipped_total' => 0.0,
                 'in_transit'    => 0.0,
-                'remaining'     => max((float) $header->qty_ordered - (float) $header->qty_received, 0.0),
-                'status'        => $this->determineStatus((float) $header->qty_ordered, (float) $header->qty_received),
+                'remaining'     => 0.0,
+                'status'        => 'Ordered',
+                'over_receipt'  => false,
             ];
 
             $linesOut = [];
             $linesForPo = $linesByPo->get($poNo, collect());
             foreach ($linesForPo as $line) {
                 $ordered = (float) ($line->qty ?? 0);
-                $received = (float) ($line->quantity_received ?? 0);
                 $key = $poNo.'#'.(string) $line->line_no;
 
-                $events = array_merge($shipByLine[$key] ?? [], $grByLine[$key] ?? []);
-                usort($events, function ($a, $b) {
-                    $da = $a['date'] ?? '';
-                    $db = $b['date'] ?? '';
-                    if ($da === $db) {
-                        if ($a['type'] === $b['type']) {
-                            return 0;
-                        }
-                        return $a['type'] === 'shipment' ? -1 : 1;
-                    }
-                    return strcmp((string) $da, (string) $db);
-                });
-
-                $shippedCum = 0.0;
-                $receivedCum = $received;
-                $computedRows = [];
-                foreach ($events as $ev) {
-                    if ($ev['type'] === 'shipment') {
-                        $shippedCum += (float) $ev['qty'];
-                    } else {
-                        $receivedCum += (float) $ev['qty'];
-                    }
-                    $inTransit = max($shippedCum - $receivedCum, 0.0);
-                    $remaining = max($ordered - $receivedCum, 0.0);
-                    $computedRows[] = [
-                        'date' => $ev['date'],
-                        'type' => $ev['type'],
-                        'qty'  => (float) $ev['qty'],
-                        'ship_sum' => $shippedCum,
-                        'gr_sum'   => $receivedCum,
-                        'in_transit' => $inTransit,
-                        'remaining'  => $remaining,
-                    ];
-                }
+                $lineReceived = (float) ($lineReceiptTotals[$key] ?? 0.0);
+                $events = $lineEventsByKey->get($key, collect());
 
                 $shippedTotal = array_sum(array_map(fn ($e) => (float) $e['qty'], $shipByLine[$key] ?? []));
                 $summary['shipped_total'] += $shippedTotal;
+                $summary['received_total'] += $lineReceived;
 
                 $linesOut[] = [
                     'line_no' => $line->line_no,
@@ -179,23 +153,19 @@ class PoProgressController extends Controller
                     'uom' => $line->uom,
                     'ordered' => $ordered,
                     'shipped_total' => $shippedTotal,
-                    'received_total' => $received,
-                    'in_transit' => max($shippedTotal - $received, 0.0),
-                    'remaining' => max($ordered - $received, 0.0),
-                    'events' => $computedRows,
+                    'received_total' => $lineReceived,
+                    'in_transit' => max($shippedTotal - $lineReceived, 0.0),
+                    'remaining' => max($ordered - $lineReceived, 0.0),
+                    'events' => $this->buildGrEventsTimeline($events, $ordered, $shippedTotal),
                 ];
             }
 
+            $summary['remaining'] = max($summary['ordered_total'] - $summary['received_total'], 0.0);
             $summary['in_transit'] = max($summary['shipped_total'] - $summary['received_total'], 0.0);
+            $summary['status'] = $this->determineStatus($summary['ordered_total'], $summary['received_total']);
+            $summary['over_receipt'] = $summary['received_total'] > $summary['ordered_total'];
 
-            $poDate = null;
-            if (!empty($header->po_date)) {
-                try {
-                    $poDate = Carbon::parse($header->po_date)->toDateString();
-                } catch (\Throwable $e) {
-                    $poDate = (string) $header->po_date;
-                }
-            }
+            $poDate = $this->formatDateValue($header->po_date ?? null);
 
             $poData[$poNo] = [
                 'summary' => $summary,
@@ -223,11 +193,20 @@ class PoProgressController extends Controller
         ]);
 
         [$start, $end] = PeriodRange::monthYear((int) $data['month'], (int) $data['year']);
-        $syncService->syncGoodsReceipts($start, $end);
+        $summary = $syncService->syncGoodsReceipts($start, $end);
+
+        $message = sprintf(
+            'Sync GR %s selesai. Inserted: %d, Updated: %d, Skipped: %d.',
+            $start->format('F Y'),
+            (int) ($summary['inserted'] ?? 0),
+            (int) ($summary['updated'] ?? 0),
+            (int) ($summary['skipped'] ?? 0)
+        );
 
         return redirect()
             ->route('admin.po_progress.index', ['month' => $data['month'], 'year' => $data['year']])
-            ->with('status', sprintf('GR sync for %s triggered.', $start->format('F Y')));
+            ->with('status', $message)
+            ->with('gr_sync_summary', $summary);
     }
 
     private function resolveSelectedPeriod(Request $request): array
@@ -281,5 +260,43 @@ class PoProgressController extends Controller
         }
 
         return 'Completed';
+    }
+
+    private function buildGrEventsTimeline($events, float $ordered, float $shippedTotal): array
+    {
+        if ($events instanceof \Illuminate\Support\Collection) {
+            $events = $events->all();
+        }
+
+        $receivedCum = 0.0;
+        $rows = [];
+        foreach ($events as $event) {
+            $qty = (float) ($event->qty ?? 0);
+            $receivedCum += $qty;
+            $rows[] = [
+                'date' => $this->formatDateValue($event->receive_date ?? null),
+                'type' => 'gr',
+                'qty'  => $qty,
+                'ship_sum' => $shippedTotal,
+                'gr_sum'   => $receivedCum,
+                'in_transit' => max($shippedTotal - $receivedCum, 0.0),
+                'remaining'  => max($ordered - $receivedCum, 0.0),
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function formatDateValue($value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->toDateString();
+        } catch (\Throwable $e) {
+            return (string) $value;
+        }
     }
 }

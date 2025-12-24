@@ -45,7 +45,7 @@
             </form>
             <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 gap-2">
                 <div class="text-muted small">Period: {{ $periodKey }} &middot; Last synced: {{ $lastSyncedLabel }}</div>
-                <form method="POST" action="{{ route('admin.po_progress.sync') }}">
+                <form method="POST" action="{{ route('admin.sync.gr') }}">
                     @csrf
                     <input type="hidden" name="month" value="{{ $selectedMonth }}">
                     <input type="hidden" name="year" value="{{ $selectedYear }}">
@@ -59,7 +59,7 @@
 
     @forelse($headers as $header)
         @php
-            $poNo = $header->po_number;
+            $poNo = $header->po_doc;
             $meta = $poData[$poNo]['meta'] ?? ['po_date'=>null,'supplier'=>null,'currency'=>null];
             $sum = $poData[$poNo]['summary'] ?? ['ordered_total'=>0,'shipped_total'=>0,'received_total'=>0,'in_transit'=>0,'remaining'=>0];
             $lines = $poData[$poNo]['lines'] ?? [];

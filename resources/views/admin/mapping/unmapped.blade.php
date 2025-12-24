@@ -40,7 +40,7 @@
           <button type="submit" class="um-btn um-btn--primary w-100"><i class="fas fa-search me-2"></i>Search</button>
         </div>
         <div class="col-md-2 text-end">
-          <a class="um-btn um-btn--ghost" href="{{ route('admin.imports.hs_pk.index') }}">Go to Register HS &amp; PK</a>
+          <a class="um-btn um-btn--ghost" id="register-link" href="{{ route('admin.master.quick_hs.index') }}">Go to Register HS &amp; PK</a>
         </div>
       </form>
     </div>
@@ -94,20 +94,60 @@ document.addEventListener('DOMContentLoaded', () => {
   const nextBtn = document.getElementById('next-btn');
   const pagerTop = document.getElementById('pager-top');
   const pagerBottom = document.getElementById('pager-bottom');
+  const registerLink = document.getElementById('register-link');
+  const addModelRoute = @json(route('admin.master.quick_hs.index'));
 
   let currentPage = Number(new URLSearchParams(window.location.search).get('page') || 1);
+  if (!Number.isFinite(currentPage) || currentPage < 1) {
+    currentPage = 1;
+  }
+
+  function buildQueryParams(pageOverride) {
+    return new URLSearchParams({
+      period: periodInput.value || '',
+      reason: reasonInput.value || '',
+      per_page: perPageInput.value || '20',
+      page: String(pageOverride ?? currentPage),
+    });
+  }
+
+  function buildReturnUrl(pageOverride) {
+    const params = buildQueryParams(pageOverride);
+    const base = `${window.location.origin}${window.location.pathname}`;
+    const qs = params.toString();
+    return qs ? `${base}?${qs}` : base;
+  }
+
+  function syncUrlToState() {
+    const target = buildReturnUrl();
+    if (window.location.href !== target) {
+      history.replaceState(null, '', target);
+    }
+  }
+
+  function buildRegisterUrl(modelValue) {
+    const dest = new URL(addModelRoute, window.location.origin);
+    const normalizedModel = typeof modelValue === 'string' ? modelValue.trim() : '';
+    if (normalizedModel) {
+      dest.searchParams.set('model', normalizedModel);
+    }
+    const periodValue = periodInput.value || '';
+    if (periodValue) {
+      dest.searchParams.set('period_key', periodValue);
+    }
+    dest.searchParams.set('return', buildReturnUrl());
+    return dest.toString();
+  }
+
+  function updateRegisterShortcut() {
+    if (registerLink) {
+      registerLink.setAttribute('href', buildRegisterUrl(''));
+    }
+  }
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     currentPage = 1;
-    const params = new URLSearchParams({
-      period: periodInput.value || '',
-      reason: reasonInput.value || '',
-      per_page: perPageInput.value || '20',
-      page: String(currentPage),
-    });
-    const newUrl = `${window.location.pathname}?${params}`;
-    history.replaceState(null, '', newUrl);
     fetchData();
   });
 
@@ -126,13 +166,10 @@ document.addEventListener('DOMContentLoaded', () => {
     tableWrap.classList.add('d-none');
     empty.classList.add('d-none');
 
-    const params = new URLSearchParams({
-      period: periodInput.value || '',
-      reason: reasonInput.value || '',
-      per_page: perPageInput.value || '20',
-      page: String(currentPage),
-    });
+    const params = buildQueryParams();
     const url = `{{ route('admin.mapping.unmapped') }}?${params.toString()}`;
+    syncUrlToState();
+    updateRegisterShortcut();
 
     try {
       const res = await fetch(url);
@@ -161,6 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
     data.forEach(row => {
       const tr = document.createElement('tr');
       const model = row.model ?? '';
+      const registerUrl = buildRegisterUrl(model);
       tr.innerHTML = `
         <td>${row.product_id}</td>
         <td>${model}</td>
@@ -168,9 +206,13 @@ document.addEventListener('DOMContentLoaded', () => {
         <td>${row.resolved_pk ?? ''}</td>
         <td><span class=\"um-badge um-badge--muted\">${row.reason}</span></td>
         <td>
-          <a href=\"{{ route('admin.imports.hs_pk.index') }}\" class=\"um-btn um-btn--ghost um-btn--sm\">Register HS &amp; PK</a>
+          <a data-action=\"register-hs\" class=\"um-btn um-btn--ghost um-btn--sm\">Register HS &amp; PK</a>
         </td>
       `;
+      const actionLink = tr.querySelector('[data-action=\"register-hs\"]');
+      if (actionLink) {
+        actionLink.setAttribute('href', registerUrl);
+      }
       rows.appendChild(tr);
     });
 

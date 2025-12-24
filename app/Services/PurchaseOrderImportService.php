@@ -4,10 +4,12 @@ namespace App\Services;
 
 use App\Models\Product;
 use App\Models\PurchaseOrder;
+use App\Models\Quota;
 use App\Services\QuotaAllocationService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\QueryException;
 use Maatwebsite\Excel\Facades\Excel;
@@ -85,10 +87,13 @@ class PurchaseOrderImportService
 
                     $payload = $this->buildPayload($data);
                     $poModel = null;
+                    $productChanged = false;
 
                     if ($existing) {
+                        $originalProductId = (int) ($existing->product_id ?? 0);
                         $existing->fill($payload['update'])->save();
                         $poModel = $existing->fresh();
+                        $productChanged = $originalProductId !== (int) ($poModel->product_id ?? 0);
                         $result['updated']++;
                     } else {
                         $poModel = PurchaseOrder::create($payload['insert']);
@@ -96,7 +101,7 @@ class PurchaseOrderImportService
                     }
 
                     if ($poModel) {
-                        $this->allocateForecastIfNeeded($poModel, $data, $allocationService);
+                        $this->allocateForecastIfNeeded($poModel, $data, $allocationService, $productChanged);
                     }
                 });
             } catch (\Throwable $e) {
@@ -383,25 +388,139 @@ class PurchaseOrderImportService
         return $this->productCache[$normalized] = $product->id;
     }
 
-    private function allocateForecastIfNeeded(PurchaseOrder $po, array $data, QuotaAllocationService $service): void
+    private function allocateForecastIfNeeded(PurchaseOrder $po, array $data, QuotaAllocationService $service, bool $forceReallocation = false): void
     {
         if (!$po->product_id) {
             return;
         }
 
-        $qty = isset($data['qty']) ? (int) round((float) $data['qty']) : 0;
-        if ($qty <= 0 || empty($data['created_date'])) {
+        $targetQty = isset($data['qty'])
+            ? (int) round((float) $data['qty'])
+            : (int) round((float) ($po->quantity ?? 0));
+
+        $orderDate = $this->resolveOrderDate($data['created_date'] ?? null, $po);
+        $currentAllocated = $this->sumAllocatedQuantity($po->id);
+
+        if ($forceReallocation && $currentAllocated > 0) {
+            $this->releaseForecast($po, $currentAllocated, $orderDate);
+            $currentAllocated = 0;
+        }
+
+        if ($targetQty <= 0) {
+            if ($currentAllocated > 0) {
+                $this->releaseForecast($po, $currentAllocated, $orderDate);
+                $this->updateForecastTimestamp($po, 0);
+            }
             return;
         }
 
-        $hasPivot = DB::table('purchase_order_quota')
-            ->where('purchase_order_id', $po->id)
-            ->exists();
+        $delta = $targetQty - $currentAllocated;
 
-        if ($hasPivot) {
+        if ($delta > 0) {
+            $service->allocateForecast($po->product_id, $delta, $orderDate, $po);
+        } elseif ($delta < 0) {
+            $this->releaseForecast($po, abs($delta), $orderDate);
+        }
+
+        $newAllocated = $this->sumAllocatedQuantity($po->id);
+        $this->updateForecastTimestamp($po, $newAllocated);
+    }
+
+    private function sumAllocatedQuantity(int $purchaseOrderId): int
+    {
+        return (int) DB::table('purchase_order_quota')
+            ->where('purchase_order_id', $purchaseOrderId)
+            ->sum('allocated_qty');
+    }
+
+    private function resolveOrderDate(?string $rawDate, PurchaseOrder $po): string
+    {
+        if (!empty($rawDate)) {
+            try {
+                return Carbon::parse($rawDate)->toDateString();
+            } catch (\Throwable $e) {
+            }
+        }
+
+        $orderDate = $po->order_date;
+        if ($orderDate instanceof Carbon) {
+            return $orderDate->toDateString();
+        }
+
+        return now()->toDateString();
+    }
+
+    private function releaseForecast(PurchaseOrder $po, int $quantity, string $occurredOn): void
+    {
+        if ($quantity <= 0) {
             return;
         }
 
-        $service->allocateForecast($po->product_id, $qty, $data['created_date'], $po);
+        $remaining = $quantity;
+        $userId = Auth::id();
+
+        $pivots = DB::table('purchase_order_quota as poq')
+            ->join('quotas as q', 'q.id', '=', 'poq.quota_id')
+            ->select(['poq.id', 'poq.quota_id', 'poq.allocated_qty'])
+            ->where('poq.purchase_order_id', $po->id)
+            ->orderByDesc('q.period_start')
+            ->orderByDesc('poq.id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($pivots as $pivot) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $allocated = (int) $pivot->allocated_qty;
+            if ($allocated <= 0) {
+                continue;
+            }
+
+            $release = min($allocated, $remaining);
+
+            /** @var Quota|null $quota */
+            $quota = Quota::lockForUpdate()->find($pivot->quota_id);
+            if ($quota) {
+                $quota->incrementForecast(
+                    $release,
+                    sprintf('Forecast release for PO %s import sync', (string) $po->po_number),
+                    $po,
+                    new \DateTimeImmutable($occurredOn),
+                    $userId
+                );
+            }
+
+            $remaining -= $release;
+
+            $nextQty = $allocated - $release;
+            if ($nextQty > 0) {
+                DB::table('purchase_order_quota')
+                    ->where('id', $pivot->id)
+                    ->update([
+                        'allocated_qty' => $nextQty,
+                        'updated_at' => now(),
+                    ]);
+            } else {
+                DB::table('purchase_order_quota')
+                    ->where('id', $pivot->id)
+                    ->delete();
+            }
+        }
+    }
+
+    private function updateForecastTimestamp(PurchaseOrder $po, int $allocatedQty): void
+    {
+        if ($allocatedQty > 0) {
+            if ($po->forecast_deducted_at === null) {
+                $po->forceFill(['forecast_deducted_at' => now()])->save();
+            }
+            return;
+        }
+
+        if ($po->forecast_deducted_at !== null) {
+            $po->forceFill(['forecast_deducted_at' => null])->save();
+        }
     }
 }

@@ -25,10 +25,6 @@
 </style>
 <div class="container-fluid audit-page">
     <div class="d-flex align-items-center justify-content-between mb-3 page-header">
-        <div>
-            <h1 class="h3 mb-1">Audit Logs</h1>
-            <div class="text-muted" style="font-size: 12px;">User activity records</div>
-        </div>
     </div>
 
     <div class="card mb-4 filter-card">

@@ -32,9 +32,10 @@
           $isUnmapped   = request()->routeIs('admin.mapping.unmapped.*');
           $isMapped     = request()->routeIs('admin.mapping.mapped.page');
           $isQuickModel = request()->routeIs('admin.master.quick_hs.*') || request()->routeIs('admin.mapping.model_hs.*');
+          $isModelHsImport = request()->routeIs('admin.imports.model_hs.*');
           $isPoImport   = request()->routeIs('admin.purchase-orders.import.*');
           // pastikan grup Data Preparation membuka saat salah satu aktif
-          $operationalOpen = ($isHsPk || $isQuotas || $isGrImport || $isUnmapped || $isMapped || $isQuickModel || ($operationalOpen ?? false));
+          $operationalOpen = ($isHsPk || $isQuotas || $isGrImport || $isUnmapped || $isMapped || $isQuickModel || $isModelHsImport || ($operationalOpen ?? false));
         @endphp
 
         <!-- Sidebar Menu -->
@@ -63,6 +64,12 @@
                             <a href="{{ route('admin.imports.quotas.index') }}" class="nav-link {{ $isQuotas ? 'active' : '' }}">
                                 <i class="far fa-circle nav-icon"></i>
                                 <p>Register Quota</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('admin.imports.model_hs.index') }}" class="nav-link {{ $isModelHsImport ? 'active' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Import Model → HS</p>
                             </a>
                         </li>
                         @endif

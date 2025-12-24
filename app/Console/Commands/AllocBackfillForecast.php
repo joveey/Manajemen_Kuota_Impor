@@ -2,9 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Models\PoHeader;
-use App\Models\PoLine;
-use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Services\QuotaAllocationService;
 use Carbon\Carbon;
@@ -37,88 +34,98 @@ class AllocBackfillForecast extends Command
             return Command::INVALID;
         }
 
-        $processed = 0; $allocated = 0; $leftover = 0; $skipped = 0; $unmapped = 0;
+        $startStr = $start->toDateString();
+        $endStr = $end->toDateString();
 
-        PoHeader::whereBetween('po_date', [$start->toDateString(), $end->toDateString()])
-            ->orderBy('id')
-            ->chunkById(100, function ($headers) use (&$processed, &$allocated, &$leftover, &$skipped, &$unmapped) {
-                foreach ($headers as $hdr) {
-                    $lines = PoLine::where('po_header_id', $hdr->id)
-                        ->whereNull('forecast_allocated_at')
-                        ->orderBy('id')->get();
-                    foreach ($lines as $ln) {
-                        $processed++;
-                        $model = (string) $ln->model_code;
-                        $product = Product::query()
-                            ->whereRaw('LOWER(sap_model) = ?', [strtolower($model)])
-                            ->orWhereRaw('LOWER(code) = ?', [strtolower($model)])
-                            ->first();
-                            if (!$product) { $unmapped++; $skipped++; continue; }
+        $this->info(sprintf('Backfilling forecast for %s (%s .. %s)', $period, $startStr, $endStr));
 
-                        // Ensure product has HS/PK mapping; prefer non-ACC when dual
-                        $hsRow = DB::table('po_lines as pl')
-                            ->leftJoin('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
-                            ->where('pl.id', $ln->id)
-                            ->select('hs.hs_code','hs.pk_capacity')
-                            ->first();
-                        $hsFromLine = $hsRow ? strtoupper((string)($hsRow->hs_code ?? '')) : '';
-                        $prodHs = strtoupper((string) ($product->hs_code ?? ''));
-                        $useHs = $prodHs;
-                        $usePk = $product->pk_capacity;
-                        if ($hsFromLine !== '') {
-                            if ($prodHs === '' || $prodHs === 'ACC') {
-                                $useHs = $hsFromLine !== '' ? $hsFromLine : $prodHs;
-                                $usePk = $hsRow->pk_capacity ?? $usePk;
-                            }
-                            if ($prodHs !== 'ACC' && $prodHs !== '') {
-                                $useHs = $prodHs; // keep non-ACC
-                            } elseif ($hsFromLine !== 'ACC' && $hsFromLine !== '') {
-                                $useHs = $hsFromLine;
-                                $usePk = $hsRow->pk_capacity ?? $usePk;
-                            }
-                        }
-                        // Persist if product missing HS or better mapping available (non-ACC)
-                        if ($useHs !== $prodHs || ($product->pk_capacity === null && $usePk !== null)) {
-                            $product->hs_code = $useHs ?: $product->hs_code;
-                            if ($usePk !== null) { $product->pk_capacity = $usePk; }
-                            try { $product->save(); } catch (\Throwable $e) {}
-                        }
+        $query = PurchaseOrder::query()
+            ->whereBetween('created_date', [$startStr, $endStr])
+            ->where('qty', '>', 0)
+            ->whereNotNull('product_id')
+            ->orderBy('id');
 
-                        $delivery = $ln->eta_date ? $ln->eta_date->toDateString() : ($hdr->po_date?->toDateString() ?? now()->toDateString());
-                        $po = PurchaseOrder::updateOrCreate([
-                            'po_number' => (string) $hdr->po_number,
-                        ], [
-                            'product_id' => $product->id,
-                            'quantity' => (int) ($ln->qty_ordered ?? 0),
-                            'order_date' => $delivery,
-                            'vendor_name' => (string) $hdr->supplier,
-                            'status' => \App\Models\PurchaseOrder::STATUS_ORDERED,
-                            'plant_name' => 'Backfill',
-                            'plant_detail' => 'Backfill Forecast Allocation',
-                        ]);
+        $total = (int) $query->count();
+        if ($total === 0) {
+            $this->info('No purchase orders found for allocation.');
+            return Command::SUCCESS;
+        }
 
-                        $need = (int) ($ln->qty_ordered ?? 0);
-                        if ($need <= 0) { $skipped++; continue; }
+        $processed = 0;
+        $allocatedUnits = 0;
+        $leftoverUnits = 0;
+        $skippedNoProduct = 0;
+        $skippedZeroQty = 0;
+        $skippedAlready = 0;
+        $errors = 0;
 
-                        [$allocs, $left] = app(QuotaAllocationService::class)
-                            ->allocateForecast($product->id, $need, $delivery, $po);
-                        $allocated += array_sum(array_map(fn($a) => (int)$a['qty'], $allocs));
-                        $leftover += (int) $left;
+        $allocService = app(QuotaAllocationService::class);
 
-                        // mark processed
-                        DB::table('po_lines')->where('id', $ln->id)->update(['forecast_allocated_at' => now()]);
-                    }
+        $query->chunkById(200, function ($chunk) use (
+            &$processed,
+            &$allocatedUnits,
+            &$leftoverUnits,
+            &$skippedNoProduct,
+            &$skippedZeroQty,
+            &$skippedAlready,
+            &$errors,
+            $allocService
+        ) {
+            foreach ($chunk as $po) {
+                $processed++;
+
+                if (!$po->product_id) {
+                    $skippedNoProduct++;
+                    continue;
                 }
-            });
+
+                $targetQty = (int) round((float) ($po->quantity ?? $po->qty ?? 0));
+                if ($targetQty <= 0) {
+                    $skippedZeroQty++;
+                    continue;
+                }
+
+                $currentAllocated = (int) DB::table('purchase_order_quota')
+                    ->where('purchase_order_id', $po->id)
+                    ->sum('allocated_qty');
+
+                if ($currentAllocated >= $targetQty) {
+                    $skippedAlready++;
+                    continue;
+                }
+
+                $need = $targetQty - $currentAllocated;
+                $orderDate = $this->resolveOrderDate($po);
+
+                try {
+                    [$allocs, $left] = $allocService->allocateForecast(
+                        (int) $po->product_id,
+                        $need,
+                        $orderDate,
+                        $po
+                    );
+
+                    $allocatedUnits += array_sum(array_map(fn ($row) => (int) $row['qty'], $allocs));
+                    $leftoverUnits += (int) $left;
+                } catch (\Throwable $e) {
+                    $errors++;
+                    $this->warn(sprintf(
+                        'Allocation failed for PO %s line %s: %s',
+                        (string) $po->po_number,
+                        (string) ($po->line_no ?? $po->line_number ?? '-'),
+                        $e->getMessage()
+                    ));
+                }
+            }
+        });
 
         // Safety net: ensure pivot purchase_order_quota reflects forecast histories for the same period
-        // SQL Server does not allow GROUP BY on column aliases; group by reference_id directly.
-        $hist = \Illuminate\Support\Facades\DB::table('quota_histories')
+        $hist = DB::table('quota_histories')
             ->where('change_type', \App\Models\QuotaHistory::TYPE_FORECAST_DECREASE)
-            ->whereBetween('occurred_on', [$start->toDateString(), $end->toDateString()])
+            ->whereBetween('occurred_on', [$startStr, $endStr])
             ->where('reference_type', \App\Models\PurchaseOrder::class)
             ->whereNotNull('reference_id')
-            ->select('reference_id', 'quota_id', \Illuminate\Support\Facades\DB::raw('SUM(ABS(quantity_change)) as qty'))
+            ->select('reference_id', 'quota_id', DB::raw('SUM(ABS(quantity_change)) as qty'))
             ->groupBy('reference_id', 'quota_id')
             ->get();
 
@@ -133,11 +140,43 @@ class AllocBackfillForecast extends Command
             ];
         }
         if (!empty($rows)) {
-            \Illuminate\Support\Facades\DB::table('purchase_order_quota')
-                ->upsert($rows, ['purchase_order_id','quota_id'], ['allocated_qty','updated_at']);
+            DB::table('purchase_order_quota')
+                ->upsert($rows, ['purchase_order_id', 'quota_id'], ['allocated_qty', 'updated_at']);
         }
 
-        $this->info("Processed: $processed, Allocated: $allocated, Leftover: $leftover, Skipped: $skipped, Unmapped model: $unmapped");
-        return Command::SUCCESS;
+        $this->info(sprintf(
+            'Processed: %d, Allocated units: %d, Leftover: %d, Skipped (no product: %d, zero qty: %d, already allocated: %d), Errors: %d',
+            $processed,
+            $allocatedUnits,
+            $leftoverUnits,
+            $skippedNoProduct,
+            $skippedZeroQty,
+            $skippedAlready,
+            $errors
+        ));
+
+        return $errors > 0 ? Command::FAILURE : Command::SUCCESS;
+    }
+
+    private function resolveOrderDate(PurchaseOrder $po): string
+    {
+        $orderDate = $po->order_date;
+        if ($orderDate instanceof Carbon) {
+            return $orderDate->toDateString();
+        }
+
+        $created = $po->created_date;
+        if ($created instanceof Carbon) {
+            return $created->toDateString();
+        }
+
+        if (!empty($created)) {
+            try {
+                return Carbon::parse((string) $created)->toDateString();
+            } catch (\Throwable $e) {
+            }
+        }
+
+        return now()->toDateString();
     }
 }
