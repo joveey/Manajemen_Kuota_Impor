@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'sap' => [
+        'connection' => env('SAP_DB_CONNECTION', env('DB_CONNECTION', 'sqlsrv')),
+        'gr_receipts_table' => env('SAP_GR_RECEIPTS_TABLE', 'sap_gr_receipts_view'),
+    ],
+
 ];

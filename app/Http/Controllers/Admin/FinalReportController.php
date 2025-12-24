@@ -4,11 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\GrReceipt;
-use App\Models\Product;
-use App\Models\PoHeader;
-use App\Models\PoLine;
+use App\Models\PurchaseOrder;
 use App\Models\Quota;
-use App\Support\PkCategoryParser;
 use App\Support\DbExpression;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -280,36 +277,30 @@ class FinalReportController extends Controller
         $endString = $end->toDateString();
         $driver = DB::connection()->getDriverName();
         $hasGrUnique = Schema::hasColumn('gr_receipts', 'gr_unique');
+        $lineNoExpr = DbExpression::lineNoTrimmed('line_no');
         $grDocExpr = $driver === 'sqlsrv'
             ? (
                 $hasGrUnique
-                    ? "COUNT(DISTINCT COALESCE(gr_unique, CONCAT(po_no,'|',".DbExpression::lineNoTrimmed('line_no').",'|', CONVERT(varchar(50), receive_date, 126))))"
-                    : "COUNT(DISTINCT CONCAT(po_no,'|',".DbExpression::lineNoTrimmed('line_no').",'|', CONVERT(varchar(50), receive_date, 126)))"
+                    ? "COUNT(DISTINCT COALESCE(gr_unique, CONCAT(po_no,'|',{$lineNoExpr},'|', CONVERT(varchar(50), receive_date, 126))))"
+                    : "COUNT(DISTINCT CONCAT(po_no,'|',{$lineNoExpr},'|', CONVERT(varchar(50), receive_date, 126)))"
             )
             : (
                 $hasGrUnique
-                    ? "COUNT(DISTINCT COALESCE(gr_unique, po_no || '|' || ".DbExpression::lineNoTrimmed('line_no')." || '|' || receive_date::text))"
-                    : "COUNT(DISTINCT (po_no || '|' || ".DbExpression::lineNoTrimmed('line_no')." || '|' || receive_date::text))"
+                    ? "COUNT(DISTINCT COALESCE(gr_unique, po_no || '|' || {$lineNoExpr} || '|' || receive_date::text))"
+                    : "COUNT(DISTINCT (po_no || '|' || {$lineNoExpr} || '|' || receive_date::text))"
             );
 
-        $poHeaders = PoHeader::query()
-            ->with(['lines' => function ($query) {
-                $query->select(
-                    'id',
-                    'po_header_id',
-                    'line_no',
-                    'model_code',
-                    'item_desc',
-                    'qty_ordered',
-                    'eta_date',
-                    'sap_order_status'
-                );
-            }])
-            ->whereBetween('po_date', [$startString, $endString])
-            ->orderBy('po_date')
-            ->get(['id', 'po_number', 'po_date', 'supplier']);
+        $purchaseOrders = PurchaseOrder::query()
+            ->whereNotNull('po_doc')
+            ->whereBetween('created_date', [$startString, $endString])
+            ->orderBy('po_doc')
+            ->orderBy('line_no')
+            ->get();
 
-        $poNumbers = $poHeaders->pluck('po_number')->filter()->unique()->values();
+        $poGroups = $purchaseOrders
+            ->groupBy(fn (PurchaseOrder $po) => (string) $po->po_doc)
+            ->filter(fn ($group, $doc) => $doc !== '');
+        $poNumbers = $poGroups->keys()->values();
 
         $poReceipts = $poNumbers->isEmpty()
             ? collect()
@@ -351,30 +342,29 @@ class FinalReportController extends Controller
         }
 
         $rows = [];
-        $totalOrdered = 0.0;
-        $totalReceived = 0.0;
-        $totalOutstanding = 0.0;
         $totalDocuments = 0;
+        $totalReceivedQty = 0.0;
+        $totalOutstandingQty = 0.0;
 
-        foreach ($poHeaders as $header) {
-            $ordered = (float) $header->lines->sum(function (PoLine $line) {
-                return (float) ($line->qty_ordered ?? 0);
-            });
-
-            $receipt = $poReceipts->get($header->po_number);
-            $received = $receipt ? (float) $receipt->total_qty : 0.0;
+        foreach ($poGroups as $poNumber => $lines) {
+            $ordered = (float) $lines->sum(fn (PurchaseOrder $line) => (float) ($line->qty ?? 0));
+            $receivedFromLines = (float) $lines->sum(fn (PurchaseOrder $line) => (float) ($line->quantity_received ?? 0));
+            $receipt = $poReceipts->get($poNumber);
+            $received = $receipt ? (float) $receipt->total_qty : $receivedFromLines;
             $outstanding = max($ordered - $received, 0.0);
 
-            $poDate = $header->po_date ? Carbon::parse($header->po_date) : null;
+            $poDateValue = $lines->min('created_date');
+            $poDate = $poDateValue ? Carbon::parse($poDateValue) : null;
             $lastReceiptDate = $receipt && $receipt->last_receipt_date
                 ? Carbon::parse($receipt->last_receipt_date)
                 : null;
 
             $rows[] = [
-                'po_number' => $header->po_number,
+                'po_number' => $poNumber,
                 'po_date' => $poDate?->toDateString(),
                 'po_date_label' => $poDate?->format('d M Y'),
-                'supplier' => $header->supplier,
+                'supplier' => $lines->max('vendor_name'),
+                'vendor_number' => $lines->max('vendor_no'),
                 'qty_ordered' => $ordered,
                 'qty_received' => $received,
                 'qty_outstanding' => $outstanding,
@@ -383,10 +373,9 @@ class FinalReportController extends Controller
                 'receipt_documents' => (int) ($receipt->document_count ?? 0),
             ];
 
-            $totalOrdered += $ordered;
-            $totalReceived += $received;
-            $totalOutstanding += $outstanding;
             $totalDocuments += (int) ($receipt->document_count ?? 0);
+            $totalReceivedQty += $received;
+            $totalOutstandingQty += $outstanding;
         }
 
         $quotaQuery = Quota::query()
@@ -409,157 +398,32 @@ class FinalReportController extends Controller
             });
 
         $quotas = $quotaQuery->get();
-
-        // Chart placeholders populated later using KPI-aligned values
         $quotaCategories = [];
         $quotaAllocations = [];
         $quotaRemaining = [];
 
-        $quotaTotalAllocation = (float) $quotas->sum('total_allocation');
-        $quotaTotalRemaining = (float) $quotas->sum('actual_remaining');
+        foreach ($quotas as $quota) {
+            $quotaCategories[] = (string) ($quota->quota_number ?? '');
+            $quotaAllocations[] = (float) ($quota->total_allocation ?? 0);
+            $quotaRemaining[] = (float) ($quota->actual_remaining ?? 0);
+        }
+
+        $quotaTotalAllocation = array_sum($quotaAllocations);
+        $quotaTotalRemaining = array_sum($quotaRemaining);
 
         $monthlyReceipts = $this->buildMonthlyReceipts($startString, $endString);
-        $poStatus = $this->buildPoStatus($poHeaders->pluck('id')->all());
-        $outstandingLines = $this->buildOutstandingLines($poHeaders, $lineReceiptIndex);
+        $poStatus = $this->buildPoStatus($poGroups);
+        $outstandingLines = $this->buildOutstandingLines($purchaseOrders, $lineReceiptIndex);
 
-        // KPI summary aligned with Dashboard/Analytics:
-        // Allocation from quotas; Forecast = allocation - forecast_remaining (includes moves);
-        // Actual = GR by quota PK/period; In-transit = Forecast - Actual.
-        try {
-            $summaryYear = (int) $start->year;
-            $yearStart = Carbon::create($summaryYear, 1, 1)->startOfDay()->toDateString();
-            $yearEnd   = Carbon::create($summaryYear, 12, 31)->endOfDay()->toDateString();
-
-            $quotaCards = Quota::query()
-                ->where(function ($q) use ($yearStart, $yearEnd) {
-                    $q->where(function ($qq) use ($yearStart) {
-                        $qq->whereNull('period_end')->orWhere('period_end', '>=', $yearStart);
-                    })->where(function ($qq) use ($yearEnd) {
-                        $qq->whereNull('period_start')->orWhere('period_start', '<=', $yearEnd);
-                    });
-                })
-                ->orderBy('quota_number')
-                ->get([
-                    'id','quota_number','government_category','period_start','period_end',
-                    'total_allocation','forecast_remaining','min_pk','max_pk','is_min_inclusive','is_max_inclusive'
-                ]);
-
-            $totalForecast = 0.0;
-            $totalActual = 0.0;
-            $quotaTotalAllocationYear = 0.0;
-
-            // Distinct PO count within the year (exclude ACC)
-            $poBase = DB::table('po_headers as ph')
-                ->join('po_lines as pl', 'pl.po_header_id', '=', 'ph.id')
-                ->join('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
-                ->whereBetween('ph.po_date', [$yearStart, $yearEnd])
-                ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'");
-            $totalPoCount = (int) (clone $poBase)->distinct('ph.po_number')->count('ph.po_number');
-
-            foreach ($quotaCards as $q) {
-                $alloc = (float) ($q->total_allocation ?? 0);
-                $quotaTotalAllocationYear += $alloc;
-
-                $forecastRemaining = (float) ($q->forecast_remaining ?? $alloc);
-                $forecastConsumed = max($alloc - min($forecastRemaining, $alloc), 0.0);
-
-                $bounds = PkCategoryParser::parse((string) ($q->government_category ?? ''));
-                $quotaIsAcc = str_contains(strtoupper((string) ($q->government_category ?? '')), 'ACC');
-                $minPk = $q->min_pk ?? $bounds['min_pk'];
-                $maxPk = $q->max_pk ?? $bounds['max_pk'];
-                $minIncl = ($q->is_min_inclusive ?? $bounds['min_incl']) ?? true;
-                $maxIncl = ($q->is_max_inclusive ?? $bounds['max_incl']) ?? true;
-
-                // Actual per quota: GR receipts in year filtered by quota PK/ACC and period
-                $actualQuery = DB::table('gr_receipts as gr')
-                    ->join('po_headers as ph', 'ph.po_number', '=', 'gr.po_no')
-                    ->join('po_lines as pl', function($j){
-                        $j->on('pl.po_header_id', '=', 'ph.id')
-                          ->whereRaw(DbExpression::lineNoTrimmed('pl.line_no').' = '.DbExpression::lineNoTrimmed('gr.line_no'));
-                    })
-                    ->join('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
-                    ->whereNotNull('pl.hs_code_id')
-                    ->whereBetween('gr.receive_date', [$yearStart, $yearEnd]);
-
-                if ($quotaIsAcc) {
-                    $actualQuery->whereRaw("COALESCE(UPPER(hs.hs_code),'') = 'ACC'");
-                } else {
-                    $actualQuery->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'");
-                }
-                if ($minPk !== null) {
-                    $actualQuery->where('hs.pk_capacity', $minIncl ? '>=' : '>', $minPk);
-                }
-                if ($maxPk !== null) {
-                    $actualQuery->where('hs.pk_capacity', $maxIncl ? '<=' : '<', $maxPk);
-                }
-                if (!empty($q->period_start) && !empty($q->period_end)) {
-                    $actualQuery->whereBetween('gr.receive_date', [
-                        $q->period_start->toDateString(),
-                        $q->period_end->toDateString(),
-                    ]);
-                }
-
-                $actualConsumed = (float) $actualQuery->sum('gr.qty');
-                $totalForecast += $forecastConsumed;
-                $totalActual += $actualConsumed;
-
-                // Charts use forecast allocation vs. actual remaining (alloc - actual)
-                $quotaCategories[] = (string) ($q->quota_number ?? '');
-                $quotaAllocations[] = $alloc;
-                $quotaRemaining[] = max($alloc - $actualConsumed, 0.0);
-
-            }
-
-            $quotaTotalAllocation = $quotaTotalAllocationYear;
-            $quotaTotalRemaining = max($quotaTotalAllocationYear - $totalActual, 0.0);
-
-            // GR (documents) within selected year, exclude ACC using PO line mapping
-            $grBase = DB::table('gr_receipts as gr')
-                ->join('po_headers as ph', 'ph.po_number', '=', 'gr.po_no')
-                ->join('po_lines as pl', function($j){
-                    $j->on('pl.po_header_id', '=', 'ph.id')
-                      ->whereRaw(DbExpression::lineNoTrimmed('pl.line_no').' = '.DbExpression::lineNoTrimmed('gr.line_no'));
-                })
-                ->join('hs_code_pk_mappings as hs','pl.hs_code_id','=','hs.id')
-                ->whereBetween('gr.receive_date', [$yearStart, $yearEnd])
-                ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'");
-            $grDocs = (int) (clone $grBase)
-                ->selectRaw(
-                    $driver === 'sqlsrv'
-                        ? (
-                            $hasGrUnique
-                                ? "COUNT(DISTINCT COALESCE(gr.gr_unique, CONCAT(gr.po_no,'|',".DbExpression::lineNoTrimmed('gr.line_no').",'|', CONVERT(varchar(50), gr.receive_date, 126)))) as c"
-                                : "COUNT(DISTINCT CONCAT(gr.po_no,'|',".DbExpression::lineNoTrimmed('gr.line_no').",'|', CONVERT(varchar(50), gr.receive_date, 126))) as c"
-                        )
-                        : (
-                            $hasGrUnique
-                                ? "COUNT(DISTINCT COALESCE(gr.gr_unique, gr.po_no || '|' || ".DbExpression::lineNoTrimmed('gr.line_no')." || '|' || gr.receive_date::text)) as c"
-                                : "COUNT(DISTINCT (gr.po_no || '|' || ".DbExpression::lineNoTrimmed('gr.line_no')." || '|' || gr.receive_date::text)) as c"
-                        )
-                )
-                ->value('c');
-
-            $summary = [
-                'po_total' => $totalPoCount,
-                'po_ordered_total' => $totalForecast, // Forecast
-                'po_outstanding_total' => max($totalForecast - $totalActual, 0.0), // In-transit/outstanding
-                'gr_total_qty' => $totalActual, // Actual
-                'gr_document_total' => $grDocs,
-                'quota_total_allocation' => $quotaTotalAllocationYear,
-                'quota_total_remaining' => max($quotaTotalAllocationYear - $totalActual, 0.0),
-            ];
-        } catch (\Throwable $e) {
-            // Fallback to previous aggregate if anything fails
-            $summary = [
-                'po_total' => $poHeaders->count(),
-                'po_ordered_total' => $totalOrdered,
-                'po_outstanding_total' => $totalOutstanding,
-                'gr_total_qty' => $totalReceived,
-                'gr_document_total' => $totalDocuments,
-                'quota_total_allocation' => $quotaTotalAllocation,
-                'quota_total_remaining' => $quotaTotalRemaining,
-            ];
-        }
+        $summary = [
+            'po_total' => $poGroups->count(),
+            'po_ordered_total' => $poStatus['Ordered'] ?? 0,
+            'po_outstanding_total' => $poStatus['In Transit'] ?? 0,
+            'gr_total_qty' => $totalReceivedQty,
+            'gr_document_total' => $totalDocuments,
+            'quota_total_allocation' => $quotaTotalAllocation,
+            'quota_total_remaining' => $quotaTotalRemaining,
+        ];
 
         return [
             'filters' => [
@@ -594,7 +458,7 @@ class FinalReportController extends Controller
                 ],
                 'po_status' => [
                     'labels' => array_keys($poStatus),
-                    'series' => array_values($poStatus),
+                    'series' => array_map('intval', array_values($poStatus)),
                 ],
                 'receipt_donut' => [
                     'labels' => ['Received', 'Outstanding'],
@@ -609,24 +473,35 @@ class FinalReportController extends Controller
     }
 
     /**
-     * @param  array<int,int>  $headerIds
+     * @param  Collection<string,\Illuminate\Support\Collection<int,PurchaseOrder>>  $poGroups
      * @return array<string,int>
      */
-    private function buildPoStatus(array $headerIds): array
+    private function buildPoStatus(Collection $poGroups): array
     {
-        if (empty($headerIds)) {
+        if ($poGroups->isEmpty()) {
             return [];
         }
 
-        return PoLine::query()
-            ->whereIn('po_header_id', $headerIds)
-            ->selectRaw("COALESCE(NULLIF(sap_order_status, ''), 'Unknown') as status")
-            ->selectRaw('COUNT(*) as total')
-            ->groupByRaw("COALESCE(NULLIF(sap_order_status, ''), 'Unknown')")
-            ->orderByRaw("COALESCE(NULLIF(sap_order_status, ''), 'Unknown')")
-            ->pluck('total', 'status')
-            ->map(fn ($value) => (int) $value)
-            ->toArray();
+        $counts = [
+            'Ordered' => 0,
+            'In Transit' => 0,
+            'Completed' => 0,
+        ];
+
+        foreach ($poGroups as $lines) {
+            $ordered = max((float) $lines->sum(fn (PurchaseOrder $line) => (float) ($line->qty ?? 0)), 0.0);
+            $received = max((float) $lines->sum(fn (PurchaseOrder $line) => (float) ($line->quantity_received ?? 0)), 0.0);
+
+            if ($received <= 0 || $ordered <= 0) {
+                $counts['Ordered']++;
+            } elseif ($received >= $ordered) {
+                $counts['Completed']++;
+            } else {
+                $counts['In Transit']++;
+            }
+        }
+
+        return array_filter($counts, fn ($value) => $value > 0);
     }
 
     /**
@@ -658,48 +533,50 @@ class FinalReportController extends Controller
     }
 
     /**
-     * @param  Collection<int,PoHeader>  $poHeaders
+     * @param  Collection<int,PurchaseOrder>  $purchaseOrders
      * @param  array<string,array<string,array{qty:float,last:?string}>>  $lineReceipts
      * @return array<int,array<string,mixed>>
      */
-    private function buildOutstandingLines(Collection $poHeaders, array $lineReceipts): array
+    private function buildOutstandingLines(Collection $purchaseOrders, array $lineReceipts): array
     {
         $items = [];
 
-        foreach ($poHeaders as $header) {
-            $poNumber = (string) $header->po_number;
-
-            foreach ($header->lines as $line) {
-                $lineKey = (string) ($line->line_no ?? '');
-                $receipt = $lineReceipts[$poNumber][$lineKey] ?? null;
-
-                $ordered = (float) ($line->qty_ordered ?? 0);
-                $received = $receipt ? (float) ($receipt['qty'] ?? 0) : 0.0;
-                $outstanding = max($ordered - $received, 0.0);
-
-                if ($outstanding <= 0) {
-                    continue;
-                }
-
-                $lastReceipt = null;
-                if (!empty($receipt['last'])) {
-                    $lastReceiptCarbon = Carbon::parse($receipt['last']);
-                    $lastReceipt = $lastReceiptCarbon->format('d M Y');
-                }
-
-                $items[] = [
-                    'po_number' => $poNumber,
-                    'line_no' => $line->line_no ?? '-',
-                    'model_code' => $line->model_code,
-                    'item_desc' => $line->item_desc,
-                    'qty_ordered' => $ordered,
-                    'qty_received' => $received,
-                    'outstanding' => $outstanding,
-                    'eta_date' => $line->eta_date ? Carbon::parse($line->eta_date)->format('d M Y') : null,
-                    'sap_order_status' => $line->sap_order_status,
-                    'last_receipt_date' => $lastReceipt,
-                ];
+        foreach ($purchaseOrders as $line) {
+            $poNumber = (string) $line->po_doc;
+            if ($poNumber === '') {
+                continue;
             }
+
+            $lineKey = (string) ($line->line_no ?? '');
+            $receipt = $lineReceipts[$poNumber][$lineKey] ?? null;
+
+            $ordered = (float) ($line->qty ?? 0);
+            $received = $receipt
+                ? (float) ($receipt['qty'] ?? 0)
+                : (float) ($line->quantity_received ?? 0);
+            $outstanding = max($ordered - $received, 0.0);
+
+            if ($outstanding <= 0) {
+                continue;
+            }
+
+            $lastReceipt = null;
+            if (!empty($receipt['last'])) {
+                $lastReceipt = Carbon::parse($receipt['last'])->format('d M Y');
+            }
+
+            $items[] = [
+                'po_number' => $poNumber,
+                'line_no' => $line->line_no ?? '-',
+                'model_code' => $line->item_code,
+                'item_desc' => $line->item_desc,
+                'qty_ordered' => $ordered,
+                'qty_received' => $received,
+                'outstanding' => $outstanding,
+                'eta_date' => $line->voyage_eta ? Carbon::parse($line->voyage_eta)->format('d M Y') : null,
+                'sap_order_status' => $line->sap_order_status,
+                'last_receipt_date' => $lastReceipt,
+            ];
         }
 
         usort($items, function (array $a, array $b) {

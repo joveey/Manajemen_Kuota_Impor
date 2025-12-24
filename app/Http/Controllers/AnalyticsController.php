@@ -10,6 +10,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use App\Support\DbExpression;
 
 class AnalyticsController extends Controller
@@ -659,7 +660,7 @@ class AnalyticsController extends Controller
             ->groupBy('pl.hs_code_id')
             ->pluck(DB::raw('SUM(gr.qty) as total'), 'pl.hs_code_id');
 
-        // Next-year consumption via pivot MOVE (purchase_order_quota → next-year quotas), grouped per HS
+        // Next-year consumption via pivot MOVE (purchase_order_quota ? next-year quotas), grouped per HS
         $selectedYear = (int) $yearStart->year;
         $nextYear = $selectedYear + 1;
         $nextYearQuotaIds = [];
@@ -676,22 +677,35 @@ class AnalyticsController extends Controller
         $nextYearByHs = collect();
         try {
             if (!empty($nextYearQuotaIds)) {
-                // Unique map Purchase Order → HS (exclude ACC) to avoid line-multiplication
-                $poHsMap = DB::table('purchase_orders as po')
-                    ->join('po_headers as ph', 'ph.po_number', '=', 'po.po_doc')
-                    ->join('po_lines as pl', 'pl.po_header_id', '=', 'ph.id')
-                    ->join('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
-                    ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")
-                    ->select('po.id as purchase_order_id', 'hs.id as hs_id')
-                    ->groupBy('po.id', 'hs.id');
+                $purchaseOrdersTable = $this->resolveTableName('purchase_orders');
+                $poNumberCol = null;
+                if ($purchaseOrdersTable) {
+                    $poCols = $this->columnMap($purchaseOrdersTable);
+                    $poNumberCol = $poCols['po_doc'] ?? ($poCols['po_number'] ?? ($poCols['po_no'] ?? null));
+                }
 
-                $nextYearByHs = DB::table('purchase_order_quota as pq')
-                    ->joinSub($poHsMap, 'map', function ($join) {
-                        $join->on('map.purchase_order_id', '=', 'pq.purchase_order_id');
-                    })
-                    ->whereIn('pq.quota_id', $nextYearQuotaIds)
-                    ->groupBy('map.hs_id')
-                    ->pluck(DB::raw('SUM(COALESCE(pq.allocated_qty, 0)) as qty'), 'map.hs_id');
+                if ($purchaseOrdersTable && $poNumberCol) {
+                    // Unique map Purchase Order ? HS (exclude ACC) to avoid line-multiplication
+                    $poHsMap = DB::table($purchaseOrdersTable.' as po')
+                        ->join('po_headers as ph', function ($join) use ($poNumberCol) {
+                            $join->on('ph.po_number', '=', 'po.'.$poNumberCol);
+                        })
+                        ->join('po_lines as pl', 'pl.po_header_id', '=', 'ph.id')
+                        ->join('hs_code_pk_mappings as hs', 'pl.hs_code_id', '=', 'hs.id')
+                        ->whereRaw("COALESCE(UPPER(hs.hs_code),'') <> 'ACC'")
+                        ->select('po.id as purchase_order_id', 'hs.id as hs_id')
+                        ->groupBy('po.id', 'hs.id');
+
+                    $nextYearByHs = DB::table('purchase_order_quota as pq')
+                        ->joinSub($poHsMap, 'map', function ($join) {
+                            $join->on('map.purchase_order_id', '=', 'pq.purchase_order_id');
+                        })
+                        ->whereIn('pq.quota_id', $nextYearQuotaIds)
+                        ->groupBy('map.hs_id')
+                        ->pluck(DB::raw('SUM(COALESCE(pq.allocated_qty, 0)) as qty'), 'map.hs_id');
+                } else {
+                    $nextYearByHs = collect();
+                }
             }
         } catch (\Throwable $e) { $nextYearByHs = collect(); }
 
@@ -752,4 +766,43 @@ class AnalyticsController extends Controller
         ];
     }
 
+    private function resolveTableName(string $table): ?string
+    {
+        if (Schema::hasTable($table)) {
+            return $table;
+        }
+
+        try {
+            $row = DB::selectOne("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE LOWER(TABLE_NAME) = LOWER(?)", [$table]);
+            if ($row) {
+                return $row->TABLE_NAME ?? $row->table_name ?? $table;
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    private function columnMap(?string $table): array
+    {
+        if (!$table) {
+            return [];
+        }
+
+        try {
+            $cols = Schema::getColumnListing($table);
+        } catch (\Throwable $e) {
+            $cols = [];
+        }
+
+        $map = [];
+        foreach ($cols as $col) {
+            $map[strtolower($col)] = $col;
+        }
+
+        return $map;
+    }
 }
