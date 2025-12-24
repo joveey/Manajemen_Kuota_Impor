@@ -3,17 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Quota;
+use App\Models\SapPurchaseOrderAllocation;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Auth;
-use App\Models\Quota;
-use App\Models\PurchaseOrder;
-use App\Models\PoLineVoyageSplit;
-    use App\Models\QuotaHistory;
-    use Illuminate\Support\Facades\Log;
 
     class PurchaseOrderVoyageController extends Controller
     {
@@ -113,14 +111,45 @@ use App\Models\PoLineVoyageSplit;
                 $lines = $q->orderBy($lineNoCol ?? 'id')->paginate((int) min(max((int) $request->query('per_page', 25), 5), 100))
                     ->appends($request->query());
 
-                $splitsByLine = [];
-                $sumByLine = [];
+                $allocationMetaByLine = [];
+                $voyageSlicesByLine = [];
 
                 $lines->setCollection(
-                    $lines->getCollection()->map(function ($ln) use ($sumByLine) {
-                        $ordered = (float) ($ln->qty_ordered ?? 0);
-                        $used = (float) ($sumByLine[$ln->id] ?? 0);
-                        $ln->qty_remaining = max($ordered - $used, 0);
+                    $lines->getCollection()->map(function ($ln) use (
+                        &$allocationMetaByLine,
+                        &$voyageSlicesByLine,
+                        $poNumber,
+                        $summary
+                    ) {
+                        $lineNoKey = $this->normalizeLineKey($ln->line_no ?? '');
+                        $targetQty = (float) ($ln->qty_ordered ?? 0);
+                        $periodKey = $this->deriveLinePeriodKey($ln->delivery_date ?? null, $ln->eta ?? null, $ln->etd ?? null);
+
+                        $allocation = $this->resolveVoyageAllocation($poNumber, $lineNoKey, [
+                            'po_line_no_raw' => $ln->line_no ?? null,
+                            'item_code' => $ln->material ?? null,
+                            'vendor_no' => $summary['vendor_number'] ?? null,
+                            'vendor_name' => $summary['vendor_name'] ?? null,
+                            'order_date' => $ln->delivery_date ?? null,
+                            'target_qty' => $targetQty,
+                            'period_key' => $periodKey,
+                        ]);
+
+                        $slices = $this->normalizeVoyageSlicesForLine($allocation, $targetQty, $periodKey);
+                        $voyageSlicesByLine[$ln->id] = $slices;
+                        $allocationMetaByLine[$ln->id] = [
+                            'allocation_id' => $allocation->id,
+                            'po_doc' => $poNumber,
+                            'line_no' => $lineNoKey,
+                            'period_key' => $allocation->period_key ?? $periodKey,
+                            'target_qty' => (float) ($allocation->target_qty ?? $targetQty),
+                            'base_slice_id' => $slices['base']['slice_id'] ?? null,
+                            'base_quota_id' => $slices['base']['quota_id'] ?? null,
+                        ];
+
+                        $ln->qty_remaining = max((float) ($slices['base']['qty'] ?? $targetQty), 0);
+                        $ln->voyage_period_key = $allocationMetaByLine[$ln->id]['period_key'];
+
                         return $ln;
                     })
                 );
@@ -178,13 +207,15 @@ use App\Models\PoLineVoyageSplit;
                             $label = $top->quota_number.' ('.($top->period_start ? \Illuminate\Support\Carbon::parse($top->period_start)->format('Y-m-d') : '-')
                                 .'..'.($top->period_end ? \Illuminate\Support\Carbon::parse($top->period_end)->format('Y-m-d') : '-').')';
                             $sourceQuotaByLine[$ln->id] = ['id'=>(int)$top->quota_id,'label'=>$label];
-                        }
-                    });
                 }
+            });
+        }
 
-                return view('admin.purchase_orders.voyage', compact('summary', 'lines', 'poNumber', 'splitsByLine','quotaOptionsByLine','sourceQuotaByLine'))
-                    ->with('usingPurchaseOrders', true);
-            }
+        $this->attachQuotaLabelsToSlices($voyageSlicesByLine, $sourceQuotaByLine, $allQuotas);
+
+        return view('admin.purchase_orders.voyage', compact('summary', 'lines', 'poNumber', 'voyageSlicesByLine','quotaOptionsByLine','sourceQuotaByLine','allocationMetaByLine'))
+            ->with('usingPurchaseOrders', true);
+    }
 
             $hasVoyage = [
                 'bl' => Schema::hasColumn('po_lines', 'voyage_bl'),
@@ -273,27 +304,39 @@ use App\Models\PoLineVoyageSplit;
         $lines = $q->orderBy('pl.line_no')->paginate((int) min(max((int) $request->query('per_page', 25), 5), 100))
             ->appends($request->query());
 
-        // Fetch existing split voyages per line
-        $lineIds = collect($lines->items())->pluck('id')->all();
-        $splitsByLine = [];
-        $sumByLine = [];
-        if (!empty($lineIds) && \Illuminate\Support\Facades\Schema::hasTable('po_line_voyage_splits')) {
-            $rows = DB::table('po_line_voyage_splits')
-                ->whereIn('po_line_id', $lineIds)
-                ->orderBy('po_line_id')->orderBy('seq_no')->orderBy('id')
-                ->get();
-            foreach ($rows as $r) {
-                $splitsByLine[$r->po_line_id][] = $r;
-                $sumByLine[$r->po_line_id] = ($sumByLine[$r->po_line_id] ?? 0) + (float) ($r->qty ?? 0);
-            }
-        }
+        $allocationMetaByLine = [];
+        $voyageSlicesByLine = [];
 
-        // Derive remaining qty (ordered - sum of split qty) for display
         $lines->setCollection(
-            $lines->getCollection()->map(function ($ln) use ($sumByLine) {
-                $ordered = (float) ($ln->qty_ordered ?? 0);
-                $used = (float) ($sumByLine[$ln->id] ?? 0);
-                $ln->qty_remaining = max($ordered - $used, 0);
+            $lines->getCollection()->map(function ($ln) use (&$allocationMetaByLine, &$voyageSlicesByLine, $poNumber, $summary) {
+                $lineNoKey = $this->normalizeLineKey($ln->line_no ?? '');
+                $targetQty = (float) ($ln->qty_ordered ?? 0);
+                $periodKey = $this->deriveLinePeriodKey($ln->delivery_date ?? null, $ln->eta ?? null, $ln->etd ?? null);
+
+                $allocation = $this->resolveVoyageAllocation($poNumber, $lineNoKey, [
+                    'po_line_no_raw' => $ln->line_no ?? null,
+                    'item_code' => $ln->material ?? null,
+                    'vendor_no' => $summary['vendor_number'] ?? null,
+                    'vendor_name' => $summary['vendor_name'] ?? null,
+                    'order_date' => $ln->delivery_date ?? null,
+                    'target_qty' => $targetQty,
+                    'period_key' => $periodKey,
+                ]);
+
+                $slices = $this->normalizeVoyageSlicesForLine($allocation, $targetQty, $periodKey);
+                $voyageSlicesByLine[$ln->id] = $slices;
+                $allocationMetaByLine[$ln->id] = [
+                    'allocation_id' => $allocation->id,
+                    'po_doc' => $poNumber,
+                    'line_no' => $lineNoKey,
+                    'period_key' => $allocation->period_key ?? $periodKey,
+                    'target_qty' => (float) ($allocation->target_qty ?? $targetQty),
+                    'base_slice_id' => $slices['base']['slice_id'] ?? null,
+                ];
+
+                $ln->qty_remaining = max((float) ($slices['base']['qty'] ?? $targetQty), 0);
+                $ln->voyage_period_key = $allocationMetaByLine[$ln->id]['period_key'];
+
                 return $ln;
             })
         );
@@ -363,7 +406,9 @@ use App\Models\PoLineVoyageSplit;
             });
         }
 
-        return view('admin.purchase_orders.voyage', compact('summary', 'lines', 'poNumber', 'splitsByLine','quotaOptionsByLine','sourceQuotaByLine'))
+        $this->attachQuotaLabelsToSlices($voyageSlicesByLine, $sourceQuotaByLine, $allQuotas);
+
+        return view('admin.purchase_orders.voyage', compact('summary', 'lines', 'poNumber', 'voyageSlicesByLine','quotaOptionsByLine','sourceQuotaByLine','allocationMetaByLine'))
             ->with('usingPurchaseOrders', false);
     }
 
@@ -388,10 +433,6 @@ use App\Models\PoLineVoyageSplit;
             ? ['required','integer','exists:'.$purchaseOrdersTable.',id']
             : ['required','integer','exists:po_lines,id'];
 
-        $splitLineRule = $usingPurchaseOrders
-            ? ['nullable','integer']
-            : ['required_without:splits.*.id','integer','exists:po_lines,id'];
-
         $payload = $request->validate([
             'rows' => ['sometimes','array'],
             'rows.*.line_id' => $lineExistsRule,
@@ -401,20 +442,14 @@ use App\Models\PoLineVoyageSplit;
             'rows.*.etd' => ['nullable','date'],
             'rows.*.eta' => ['nullable','date'],
             'rows.*.remark' => ['nullable','string','max:500'],
-            // optional split rows (insert/update/delete) can be passed as JSON via splits_json
-            'splits' => ['sometimes','array'],
-            'splits.*.id' => ['nullable','integer'],
-            'splits.*.line_id' => $splitLineRule,
-            'splits.*.qty' => ['nullable','numeric'],
-            'splits.*.seq_no' => ['nullable','integer','min:1'],
-            'splits.*.bl' => ['nullable','string','max:100'],
-            'splits.*.factory' => ['nullable','string','max:100'],
-            'splits.*.status' => ['nullable','string','max:50'],
-            'splits.*.etd' => ['nullable','date'],
-            'splits.*.eta' => ['nullable','date'],
-            'splits.*.remark' => ['nullable','string','max:500'],
-            'splits.*.delete' => ['nullable','boolean'],
-            'splits_json' => ['sometimes','string'],
+            'allocations' => ['sometimes','array'],
+            'allocations.*.allocation_id' => ['nullable','integer','exists:sap_purchase_order_allocations,id'],
+            'allocations.*.po_doc' => ['required_with:allocations.*.line_no','string','max:50'],
+            'allocations.*.line_no' => ['required_with:allocations.*.po_doc','string','max:30'],
+            'allocations.*.period_key' => ['nullable','string','max:7'],
+            'allocations.*.target_qty' => ['nullable','numeric'],
+            'allocations.*.slices' => ['sometimes','array'],
+            'allocations_json' => ['sometimes','string'],
             'rows_json' => ['sometimes','string'],
         ]);
 
@@ -424,13 +459,12 @@ use App\Models\PoLineVoyageSplit;
             try { $rows = json_decode((string) $request->input('rows_json'), true) ?: []; } catch (\Throwable $e) { $rows = []; }
         }
         $saved = 0;
-        // Parse splits JSON if provided
-        $splits = $payload['splits'] ?? [];
-        if (empty($splits) && !empty($payload['splits_json'] ?? '')) {
-            try { $splits = json_decode((string) $payload['splits_json'], true) ?: []; } catch (\Throwable $e) { $splits = []; }
+        $allocationPayloads = $payload['allocations'] ?? [];
+        if (empty($allocationPayloads) && $request->filled('allocations_json')) {
+            try { $allocationPayloads = json_decode((string) $request->input('allocations_json'), true) ?: []; } catch (\Throwable $e) { $allocationPayloads = []; }
         }
 
-        DB::transaction(function () use ($rows, $splits, &$saved, $poNumber, $usingPurchaseOrders, $purchaseOrdersTable, $poDocCol, $purchaseOrderColumns) {
+        DB::transaction(function () use ($rows, $allocationPayloads, &$saved, $poNumber, $usingPurchaseOrders, $purchaseOrdersTable, $poDocCol, $purchaseOrderColumns) {
             if ($usingPurchaseOrders) {
                 $dateCols = array_filter([
                     $purchaseOrderColumns['voyage_etd'] ?? null,
@@ -479,6 +513,12 @@ use App\Models\PoLineVoyageSplit;
                         $saved++;
                     }
                 }
+                // Persist voyage allocations
+                foreach ($allocationPayloads as $allocPayload) {
+                    if ($this->persistVoyageAllocation($poNumber, $allocPayload)) {
+                        $saved++;
+                    }
+                }
                 return;
             }
 
@@ -521,187 +561,9 @@ use App\Models\PoLineVoyageSplit;
                 }
             }
 
-            // Upsert/delete splits
-            if (!empty($splits) && \Illuminate\Support\Facades\Schema::hasTable('po_line_voyage_splits')) {
-                foreach ($splits as $sp) {
-                    $sid = (int) ($sp['id'] ?? 0);
-                    $delete = (bool) ($sp['delete'] ?? false);
-
-                    $parentLineId = (int) ($sp['line_id'] ?? 0);
-                    if ($parentLineId <= 0) { continue; }
-
-                    // Lock parent line to compute current remaining and enforce invariants (never update parent qty)
-                    $parentLine = DB::table('po_lines')->where('id', $parentLineId)->lockForUpdate()->first();
-                    if (!$parentLine) { continue; }
-                    $existingSum = (float) DB::table('po_line_voyage_splits')
-                        ->where('po_line_id', $parentLineId)
-                        ->sum('qty');
-                    $orderedQty = (float) ($parentLine->qty_ordered ?? 0);
-
-                    // Build base data (always use parent po_line_id)
-                    $data = [
-                        'po_line_id' => $parentLineId,
-                        'voyage_bl' => ($sp['bl'] ?? '') !== '' ? trim((string)$sp['bl']) : null,
-                        'voyage_etd' => null,
-                        'voyage_eta' => null,
-                        'voyage_factory' => ($sp['factory'] ?? '') !== '' ? trim((string)$sp['factory']) : null,
-                        'voyage_status' => ($sp['status'] ?? '') !== '' ? trim((string)$sp['status']) : null,
-                        'voyage_remark' => ($sp['remark'] ?? '') !== '' ? trim((string)$sp['remark']) : null,
-                        'updated_at' => now(),
-                    ];
-                    if (array_key_exists('seq_no', $sp)) {
-                        $data['seq_no'] = (int) max((int) $sp['seq_no'], 1);
-                    }
-                    if (array_key_exists('qty', $sp)) {
-                        $q = (float) $sp['qty'];
-                        if ($sid > 0) {
-                            if ($q > 0) { $data['qty'] = $q; }
-                        } else {
-                            $data['qty'] = max($q, 0);
-                        }
-                    }
-                    foreach (['etd' => 'voyage_etd', 'eta' => 'voyage_eta'] as $src => $dst) {
-                        $val = $sp[$src] ?? null;
-                        if (is_string($val)) { $val = trim($val); }
-                        if ($val === '' || $val === null) { $data[$dst] = null; }
-                        else {
-                            try {
-                                if (preg_match('/^\d{2}-\d{2}-\d{4}$/', (string)$val)) {
-                                    [$d,$m,$y] = explode('-', (string)$val);
-                                    $data[$dst] = sprintf('%04d-%02d-%02d', (int)$y, (int)$m, (int)$d);
-                                } else {
-                                    $data[$dst] = \Illuminate\Support\Carbon::parse((string)$val)->toDateString();
-                                }
-                            } catch (\Throwable $e) { $data[$dst] = null; }
-                        }
-                    }
-
-                    if ($sid > 0 && $delete) {
-                        // Delete split and roll back any net forecast/pivot effects derived from DB history.
-                        $splitRow = DB::table('po_line_voyage_splits')
-                            ->where('id', $sid)
-                            ->where('po_line_id', $parentLineId)
-                            ->lockForUpdate()
-                            ->first();
-                        if ($splitRow) {
-                            $poModel = PurchaseOrder::where('po_doc', $poNumber)->first();
-
-                            if ($poModel) {
-                                $splitModel = PoLineVoyageSplit::find($splitRow->id);
-                                if ($splitModel) {
-                                    // Aggregate net forecast change per quota for this split
-                                    $hist = DB::table('quota_histories')
-                                        ->select('quota_id', DB::raw('SUM(quantity_change) as net_qty'))
-                                        ->whereIn('change_type', [QuotaHistory::TYPE_FORECAST_DECREASE, QuotaHistory::TYPE_FORECAST_INCREASE])
-                                        ->where('reference_type', PoLineVoyageSplit::class)
-                                        ->where('reference_id', $splitModel->id)
-                                        ->groupBy('quota_id')
-                                        ->get();
-
-                                    if ($hist->isNotEmpty()) {
-                                        $poDate = DB::table('po_headers')->where('po_number', $poNumber)->value('po_date');
-                                        $occ = $poDate ? new \DateTimeImmutable((string)$poDate) : null;
-                                        $userId = Auth::id();
-
-                                        Log::info('voyage_delete_split', [
-                                            'po_number' => $poNumber,
-                                            'split_id' => $splitModel->id,
-                                            'net_hist' => $hist->map(fn($r) => [
-                                                'quota_id' => $r->quota_id,
-                                                'net_qty' => (int) $r->net_qty,
-                                            ])->all(),
-                                        ]);
-
-                                        foreach ($hist as $row) {
-                                            $quotaId = (int) $row->quota_id;
-                                            $net = (int) $row->net_qty;
-                                            if ($net === 0) {
-                                                continue;
-                                            }
-                                            $quota = Quota::lockForUpdate()->find($quotaId);
-                                            if (!$quota) {
-                                                continue;
-                                            }
-
-                                            if ($net > 0) {
-                                                $quota->decrementForecast($net, 'Voyage split delete (rollback)', $splitModel, $occ, $userId);
-                                            } else {
-                                                $quota->incrementForecast(-$net, 'Voyage split delete (rollback)', $splitModel, $occ, $userId);
-                                            }
-
-                                            // Restore pivot allocation for this PO/quota pair by adding the net.
-                                            $pivotRow = DB::table('purchase_order_quota')
-                                                ->where('purchase_order_id', $poModel->id)
-                                                ->where('quota_id', $quotaId)
-                                                ->lockForUpdate()
-                                                ->first();
-                                            $newAlloc = ($pivotRow ? (int) $pivotRow->allocated_qty : 0) + $net;
-                                            if ($newAlloc > 0) {
-                                                if ($pivotRow) {
-                                                    DB::table('purchase_order_quota')->where('id', $pivotRow->id)->update([
-                                                        'allocated_qty' => $newAlloc,
-                                                        'updated_at' => now(),
-                                                    ]);
-                                                } else {
-                                                    DB::table('purchase_order_quota')->insert([
-                                                        'purchase_order_id' => $poModel->id,
-                                                        'quota_id' => $quotaId,
-                                                        'allocated_qty' => $newAlloc,
-                                                        'created_at' => now(),
-                                                        'updated_at' => now(),
-                                                    ]);
-                                                }
-                                            } elseif ($pivotRow) {
-                                                DB::table('purchase_order_quota')->where('id', $pivotRow->id)->delete();
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Finally remove the split row. If the split never left its
-                            // original quota (no history), quotas/pivots remain unchanged.
-                            DB::table('po_line_voyage_splits')->where('id', $sid)->delete();
-                        }
-                        continue;
-                    }
-                    if ($sid > 0) {
-                        // Update split quantity with validation against remaining; do not touch parent qty
-                        $prev = DB::table('po_line_voyage_splits')
-                            ->where('id', $sid)
-                            ->where('po_line_id', $parentLineId)
-                            ->lockForUpdate()
-                            ->first();
-                        if (!$prev) { continue; }
-                        $prevQty = (float) ($prev->qty ?? 0);
-                        if (array_key_exists('qty', $sp)) {
-                            $raw = $sp['qty'];
-                            // If user didn't touch qty (empty/null), skip qty update
-                            if (!($raw === '' || $raw === null)) {
-                                $newQty = (float) $raw;
-                                if ($newQty > 0) {
-                                    $sumOther = max(0, $existingSum - $prevQty); // other splits on this line
-                                    $cap = max(0, $orderedQty - $sumOther);
-                                    if ($newQty > $cap) { $newQty = $cap; }
-                                    $data['qty'] = $newQty;
-                                }
-                                // If <= 0 and not explicitly deleting, keep previous qty (no-op)
-                            }
-                        }
-                        DB::table('po_line_voyage_splits')->where('id', $sid)->update($data);
-                    } else {
-                        // Insert new split against remaining parent
-                        if (!array_key_exists('qty', $sp) || (float) $sp['qty'] <= 0) { continue; }
-                        $splitQty = max(0, (float) $sp['qty']);
-                        $remainingBefore = max(0, $orderedQty - $existingSum);
-                        if ($splitQty > $remainingBefore) { $splitQty = $remainingBefore; }
-                        if ($splitQty <= 0) { continue; }
-                        $data['qty'] = $splitQty;
-                        if (!array_key_exists('seq_no', $sp)) { $data['seq_no'] = 1; }
-                        $data['created_at'] = now();
-                        $data['created_by'] = Auth::id();
-                        DB::table('po_line_voyage_splits')->insert($data);
-                    }
+            foreach ($allocationPayloads as $allocPayload) {
+                if ($this->persistVoyageAllocation($poNumber, $allocPayload)) {
+                    $saved++;
                 }
             }
         });
@@ -711,7 +573,7 @@ use App\Models\PoLineVoyageSplit;
             $request->attributes->set('audit_extra', [
                 'saved_rows' => (int) $saved,
                 'rows_count' => is_array($rows) ? count($rows) : 0,
-                'splits' => is_array($splits) ? array_values($splits) : [],
+                'allocations_count' => is_array($allocationPayloads) ? count($allocationPayloads) : 0,
             ]);
         } catch (\Throwable $e) { /* ignore */ }
 
@@ -720,184 +582,407 @@ use App\Models\PoLineVoyageSplit;
         }
         return back()->with('status', "Saved: $saved rows");
     }
-public function moveSplitQuota(Request $request, string $po): RedirectResponse
+
+    private function resolveVoyageAllocation(string $poNumber, string $lineNoKey, array $context = []): SapPurchaseOrderAllocation
     {
-        $data = $request->validate([
-            'line_id' => ['required','integer','exists:po_lines,id'],
-            'split_id' => ['required','integer','exists:po_line_voyage_splits,id'],
-            // source_quota_id is accepted for basic sanity/UX but the actual
-            // CURRENT quota for the split is derived from persisted DB state
-            // (quota_histories + purchase_order_quota), not from this field.
-            'source_quota_id' => ['required','integer','exists:quotas,id'],
-            // target_quota_id must exist; no-op check is done manually against the
-            // split's CURRENT quota derived from DB, so moving back to the original
-            // quota (A->B->A) is allowed.
-            'target_quota_id' => ['required','integer','exists:quotas,id'],
-            'move_qty' => ['nullable','numeric','min:1'],
-            'eta_date' => ['nullable','date'],
+        $poNumber = trim($poNumber);
+        $lineNoKey = $lineNoKey !== '' ? $lineNoKey : '0';
+
+        $allocation = SapPurchaseOrderAllocation::firstOrNew([
+            'po_doc' => $poNumber,
+            'po_line_no' => $lineNoKey,
         ]);
 
-        // Verify line belongs to PO number in route
-        $poHeader = DB::table('po_headers')->where('po_number', $po)->first();
-        abort_unless($poHeader, 404);
-        $line = DB::table('po_lines')->where('id', $data['line_id'])->where('po_header_id', $poHeader->id)->first();
-        abort_unless($line, 404);
-        $splitRow = DB::table('po_line_voyage_splits')->where('id', $data['split_id'])->where('po_line_id', $line->id)->first();
-        abort_unless($splitRow, 404);
-
-        $splitModel = PoLineVoyageSplit::findOrFail((int) $splitRow->id);
-
-        $poModel = PurchaseOrder::where('po_doc', $po)->first();
-        if (!$poModel) {
-            // Create a minimal PO record to satisfy references if needed
-            $prod = \App\Models\Product::query()->firstOrCreate(['code' => (string)($line->model_code ?? 'UNKNOWN')], [
-                'name' => (string)($line->model_code ?? 'UNKNOWN'),
-                'sap_model' => (string)($line->model_code ?? 'UNKNOWN'),
-                'is_active' => true,
-            ]);
-            $poModel = PurchaseOrder::create([
-                'po_number' => (string) $po,
-                'product_id' => $prod->id,
-                'quantity' => (int) max((int)($line->qty_ordered ?? 0), 0),
-                'order_date' => $poHeader->po_date ?? now()->toDateString(),
-                'vendor_name' => (string) ($poHeader->supplier ?? ''),
-                'status' => PurchaseOrder::STATUS_ORDERED,
-                'plant_name' => 'Voyage',
-                'plant_detail' => 'Voyage Move Quota',
-            ]);
-        }
-        $targetQuotaId = (int) $data['target_quota_id'];
-
-        $eta = $data['eta_date'] ?? ($splitRow->voyage_eta ?? null);
-        $occurredOn = $eta ? new \DateTimeImmutable((string)$eta) : null;
-        $userId = Auth::id();
-
-        // Qty defaults to split qty when not provided
-        $qty = (float) ($data['move_qty'] ?? $splitRow->qty ?? 0);
-        $qty = max(0, (float)$qty);
-        if ($qty <= 0) { return back()->withErrors(['move_qty' => 'Quantity to move must be > 0']); }
-
-        // Resolve CURRENT quota purely from persisted history:
-        // - Sum quantity_change per quota for forecast inc/dec rows of this split
-        // - If any net is negative, pick the most negative as CURRENT
-        // - If all nets are zero, fall back to source_quota_id only when that
-        //   quota exists in purchase_order_quota for this purchase order
-        $hist = DB::table('quota_histories')
-            ->select('quota_id', DB::raw('SUM(quantity_change) as net_qty'))
-            ->whereIn('change_type', [QuotaHistory::TYPE_FORECAST_DECREASE, QuotaHistory::TYPE_FORECAST_INCREASE])
-            ->where('reference_type', PoLineVoyageSplit::class)
-            ->where('reference_id', $splitModel->id)
-            ->groupBy('quota_id')
-            ->get();
-
-        $currentQuotaId = null;
-        if ($hist->isNotEmpty()) {
-            $neg = $hist->filter(fn($row) => (float) $row->net_qty < 0);
-            if ($neg->isNotEmpty()) {
-                $row = $neg->sortBy('net_qty')->first(); // most negative net qty
-                $currentQuotaId = (int) $row->quota_id;
-            }
-        }
-        if ($currentQuotaId === null) {
-            $candidate = (int) $data['source_quota_id'];
-            // Fallback to the original quota (typically the line's PO quota) when net history is zeroed out (A->B->A or never moved)
-            if ($poModel) {
-                $inPivot = DB::table('purchase_order_quota')
-                    ->where('purchase_order_id', $poModel->id)
-                    ->where('quota_id', $candidate)
-                    ->exists();
-                if ($inPivot) {
-                    $currentQuotaId = $candidate;
-                }
-            }
-            // Even if pivot row was removed after an A->B->A sequence, allow using the provided source quota as the current reference
-            if ($currentQuotaId === null) {
-                $currentQuotaId = $candidate;
+        foreach ([
+            'po_line_no_raw' => 'po_line_no_raw',
+            'item_code' => 'item_code',
+            'vendor_no' => 'vendor_no',
+            'vendor_name' => 'vendor_name',
+        ] as $ctxKey => $attr) {
+            if (array_key_exists($ctxKey, $context) && $context[$ctxKey] !== null && $context[$ctxKey] !== '') {
+                $allocation->{$attr} = (string) $context[$ctxKey];
             }
         }
 
-        if ($currentQuotaId === null) {
-            return back()->withErrors([
-                'target_quota_id' => 'Unable to resolve current quota for this split. Please reload the page and try again.',
-            ]);
+        if (array_key_exists('target_qty', $context) && $context['target_qty'] !== null) {
+            $allocation->target_qty = (float) $context['target_qty'];
         }
 
-        // Block only true no-op: when target equals CURRENT quota. Moving back to
-        // the original quota (A->B->A) is allowed because histories will sum to zero.
-        if ($targetQuotaId === $currentQuotaId) {
-            return back()->withErrors([
-                'target_quota_id' => 'Target quota must be different from the current quota.',
-            ]);
+        if (array_key_exists('order_date', $context)) {
+            $orderDate = $this->normalizeDateValue($context['order_date']);
+            if ($orderDate) {
+                $allocation->order_date = $orderDate;
+            }
         }
 
-        $sourceQuota = null;
-        $targetQuota = null;
+        $periodKey = $this->normalizePeriodKey($context['period_key'] ?? null);
+        if ($periodKey) {
+            $allocation->period_key = $periodKey;
+        }
 
-        DB::transaction(function () use ($poModel, $currentQuotaId, $targetQuotaId, $qty, $occurredOn, $userId, $splitModel, &$sourceQuota, &$targetQuota, $po) {
-            // Lock quotas in deterministic order to reduce deadlock risk
-            $ids = [$currentQuotaId, $targetQuotaId];
-            sort($ids);
-            $locked = Quota::whereIn('id', $ids)->lockForUpdate()->get()->keyBy('id');
+        $allocations = $allocation->allocations ?? [];
+        if (!is_array($allocations)) {
+            $allocations = [];
+        }
+        $voyage = $allocations['voyage'] ?? [];
+        if (!is_array($voyage)) {
+            $voyage = [];
+        }
+        if (!isset($voyage['period_key']) || !$voyage['period_key']) {
+            $voyage['period_key'] = $allocation->period_key ?? $periodKey;
+        }
+        if (!isset($voyage['slices']) || !is_array($voyage['slices'])) {
+            $voyage['slices'] = [];
+        }
+        $allocations['voyage'] = $voyage;
+        $allocation->allocations = $allocations;
+        $allocation->last_seen_at = now();
+        if (!$allocation->exists) {
+            $allocation->is_active = true;
+        }
+        $allocation->save();
 
-            $sourceQuota = $locked->get($currentQuotaId);
-            $targetQuota = $locked->get($targetQuotaId);
-
-            if (!$sourceQuota || !$targetQuota) {
-                throw new \RuntimeException('Unable to lock quotas for split move.');
-            }
-
-            $sourceQuota->incrementForecast((int)$qty, 'Voyage split reallocation (refund)', $splitModel, $occurredOn, $userId);
-            $targetQuota->decrementForecast((int)$qty, 'Voyage split reallocation (reserve)', $splitModel, $occurredOn, $userId);
-
-            // Pivot update scoped to this purchase order
-            $pivotSrc = DB::table('purchase_order_quota')
-                ->where('purchase_order_id', $poModel->id)
-                ->where('quota_id', $sourceQuota->id)
-                ->first();
-            if ($pivotSrc) {
-                $newAlloc = max(0, (int)$pivotSrc->allocated_qty - (int)$qty);
-                if ($newAlloc > 0) {
-                    DB::table('purchase_order_quota')->where('id', $pivotSrc->id)->update([
-                        'allocated_qty' => $newAlloc,
-                        'updated_at' => now(),
-                    ]);
-                } else {
-                    DB::table('purchase_order_quota')->where('id', $pivotSrc->id)->delete();
-                }
-            }
-
-            $pivotTgt = DB::table('purchase_order_quota')
-                ->where('purchase_order_id', $poModel->id)
-                ->where('quota_id', $targetQuota->id)
-                ->first();
-            if ($pivotTgt) {
-                DB::table('purchase_order_quota')->where('id', $pivotTgt->id)->update([
-                    'allocated_qty' => (int)$pivotTgt->allocated_qty + (int)$qty,
-                    'updated_at' => now(),
-                ]);
-            } else {
-                DB::table('purchase_order_quota')->insert([
-                    'purchase_order_id' => $poModel->id,
-                    'quota_id' => $targetQuota->id,
-                    'allocated_qty' => (int) $qty,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-
-            Log::info('voyage_move_split', [
-                'po_number' => $po,
-                'split_id' => $splitModel->id,
-                'qty' => (int) $qty,
-                'source_quota_id' => $sourceQuota->id,
-                'target_quota_id' => $targetQuota->id,
-            ]);
-        });
-
-        return back()->with('status', sprintf('Moved %s units (forecast) from quota %s to %s for split #%d.', number_format($qty), $sourceQuota->quota_number, $targetQuota->quota_number, (int)$splitModel->id));
+        return $allocation;
     }
 
-    // Manual sanity test: start with PO 7971085247 all in 2025 quota. Split a line into 20/10, move 10 from 2025->2026, move back 2026->2025, then delete the split. Expected: purchase_order_quota remains only 2025; quota_histories net per split is 0; KPIs unchanged.
+    private function normalizeVoyageSlicesForLine(SapPurchaseOrderAllocation $allocation, float $targetQty, ?string $defaultPeriodKey = null): array
+    {
+        $bucket = $allocation->getVoyageBucket();
+        $periodKey = $this->normalizePeriodKey($bucket['period_key'] ?? $allocation->period_key ?? $defaultPeriodKey);
+        $rawSlices = is_array($bucket['slices'] ?? null) ? $bucket['slices'] : [];
+        $children = [];
+        $total = 0.0;
+
+        foreach ($rawSlices as $raw) {
+            if (!is_array($raw)) {
+                continue;
+            }
+            $slice = $this->normalizeVoyageSliceState($raw, $periodKey);
+            if (!$slice) {
+                continue;
+            }
+            $children[] = $slice;
+            $total += $slice['qty'];
+        }
+
+        usort($children, function ($a, $b) {
+            $seqA = $a['seq'] ?? 0;
+            $seqB = $b['seq'] ?? 0;
+            if ($seqA === $seqB) {
+                return strcmp($a['slice_id'] ?? '', $b['slice_id'] ?? '');
+            }
+            return $seqA <=> $seqB;
+        });
+
+        foreach ($children as $index => &$child) {
+            $child['seq'] = $index + 1;
+        }
+        unset($child);
+
+        $baseQty = max(0, round($targetQty - $total, 4));
+
+        return [
+            'period_key' => $periodKey,
+            'base' => [
+                'slice_id' => 'base-'.$allocation->id,
+                'qty' => $baseQty,
+                'period_key' => $periodKey,
+            ],
+            'children' => $children,
+        ];
+    }
+
+    private function normalizeVoyageSliceState(array $raw, ?string $defaultPeriodKey): ?array
+    {
+        $qty = isset($raw['qty']) ? (float) $raw['qty'] : 0.0;
+        if ($qty <= 0) {
+            return null;
+        }
+        $sliceId = trim((string) ($raw['slice_id'] ?? ''));
+        if ($sliceId === '') {
+            $sliceId = (string) Str::uuid();
+        }
+        return [
+            'slice_id' => $sliceId,
+            'qty' => round($qty, 4),
+            'period_key' => $this->normalizePeriodKey($raw['period_key'] ?? $defaultPeriodKey),
+            'quota_id' => isset($raw['quota_id']) && (int) $raw['quota_id'] > 0 ? (int) $raw['quota_id'] : null,
+            'status' => $this->sanitizeSliceString($raw['status'] ?? null, 50),
+            'bl' => $this->sanitizeSliceString($raw['bl'] ?? null, 100),
+            'etd' => $this->normalizeDateValue($raw['etd'] ?? null),
+            'eta' => $this->normalizeDateValue($raw['eta'] ?? null),
+            'factory' => $this->sanitizeSliceString($raw['factory'] ?? null, 100),
+            'remark' => $this->sanitizeSliceString($raw['remark'] ?? null, 500),
+            'seq' => isset($raw['seq']) ? (int) $raw['seq'] : null,
+        ];
+    }
+
+    private function attachQuotaLabelsToSlices(array &$voyageSlicesByLine, array $sourceQuotaByLine, $quotaCollection): void
+    {
+        $labelIndex = [];
+        if ($quotaCollection instanceof \Illuminate\Support\Collection) {
+            $labelIndex = $quotaCollection->mapWithKeys(function (Quota $quota) {
+                return [$quota->id => $this->formatQuotaLabel($quota)];
+            })->all();
+        } elseif (is_iterable($quotaCollection)) {
+            foreach ($quotaCollection as $quota) {
+                if ($quota instanceof Quota) {
+                    $labelIndex[$quota->id] = $this->formatQuotaLabel($quota);
+                }
+            }
+        }
+
+        foreach ($voyageSlicesByLine as $lineId => &$sliceData) {
+            if (empty($sliceData['children']) || !is_array($sliceData['children'])) {
+                continue;
+            }
+            foreach ($sliceData['children'] as &$slice) {
+                $quotaId = $slice['quota_id'] ?? null;
+                $slice['quota_label'] = $quotaId && isset($labelIndex[$quotaId])
+                    ? $labelIndex[$quotaId]
+                    : ($sourceQuotaByLine[$lineId]['label'] ?? 'Quota not linked');
+            }
+        }
+        unset($sliceData, $slice);
+    }
+
+    private function persistVoyageAllocation(string $poNumber, array $payload): bool
+    {
+        $lineNoKey = $this->normalizeLineKey($payload['line_no'] ?? '');
+        if ($lineNoKey === '') {
+            return false;
+        }
+
+        $poDoc = trim((string) ($payload['po_doc'] ?? $poNumber));
+        if ($poDoc === '' || strcasecmp($poDoc, $poNumber) !== 0) {
+            return false;
+        }
+
+        $periodKey = $this->normalizePeriodKey($payload['period_key'] ?? null);
+        $targetQty = array_key_exists('target_qty', $payload) && $payload['target_qty'] !== null
+            ? (float) $payload['target_qty']
+            : null;
+
+        $allocation = SapPurchaseOrderAllocation::where('po_doc', $poNumber)
+            ->where('po_line_no', $lineNoKey)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$allocation) {
+            $allocation = $this->resolveVoyageAllocation($poNumber, $lineNoKey, [
+                'po_line_no_raw' => $payload['line_no'] ?? null,
+                'target_qty' => $targetQty,
+                'period_key' => $periodKey,
+            ]);
+            $allocation = SapPurchaseOrderAllocation::where('po_doc', $poNumber)
+                ->where('po_line_no', $lineNoKey)
+                ->lockForUpdate()
+                ->first();
+        }
+
+        if (!$allocation) {
+            return false;
+        }
+
+        $existingBucket = $allocation->getVoyageBucket();
+        $defaultPeriodKey = $periodKey ?? ($existingBucket['period_key'] ?? $allocation->period_key ?? null);
+        $incomingSlices = is_array($payload['slices'] ?? null) ? $payload['slices'] : [];
+        $normalized = [];
+        $position = 1;
+        foreach ($incomingSlices as $slicePayload) {
+            if (!empty($slicePayload['_delete'])) {
+                continue;
+            }
+            $slice = $this->normalizeVoyageSlicePayload($slicePayload, $defaultPeriodKey, $position);
+            if (!$slice) {
+                continue;
+            }
+            $normalized[] = $slice;
+            $position++;
+        }
+
+        $nextBucket = [
+            'period_key' => $periodKey ?? $defaultPeriodKey,
+            'slices' => $normalized,
+        ];
+
+        $changed = !$this->voyageBucketsEqual($existingBucket, $nextBucket);
+
+        if ($targetQty !== null && (float) $allocation->target_qty !== (float) $targetQty) {
+            $allocation->target_qty = $targetQty;
+            $changed = true;
+        }
+
+        if ($periodKey && $allocation->period_key !== $periodKey) {
+            $allocation->period_key = $periodKey;
+            $changed = true;
+        }
+
+        if (!$changed) {
+            return false;
+        }
+
+        $allocation->setVoyageBucket($nextBucket);
+        $allocation->last_seen_at = now();
+        $allocation->save();
+
+        return true;
+    }
+
+    private function normalizeVoyageSlicePayload(array $slicePayload, ?string $defaultPeriodKey, int $position): ?array
+    {
+        $qty = isset($slicePayload['qty']) ? (float) $slicePayload['qty'] : 0.0;
+        if ($qty <= 0) {
+            return null;
+        }
+
+        $sliceId = trim((string) ($slicePayload['slice_id'] ?? ''));
+        if ($sliceId === '') {
+            $sliceId = (string) Str::uuid();
+        }
+
+        return [
+            'slice_id' => $sliceId,
+            'seq' => $position,
+            'qty' => round($qty, 4),
+            'period_key' => $this->normalizePeriodKey($slicePayload['period_key'] ?? $defaultPeriodKey),
+            'quota_id' => isset($slicePayload['quota_id']) && (int) $slicePayload['quota_id'] > 0 ? (int) $slicePayload['quota_id'] : null,
+            'status' => $this->sanitizeSliceString($slicePayload['status'] ?? null, 50),
+            'bl' => $this->sanitizeSliceString($slicePayload['bl'] ?? null, 100),
+            'etd' => $this->normalizeDateValue($slicePayload['etd'] ?? null),
+            'eta' => $this->normalizeDateValue($slicePayload['eta'] ?? null),
+            'factory' => $this->sanitizeSliceString($slicePayload['factory'] ?? null, 100),
+            'remark' => $this->sanitizeSliceString($slicePayload['remark'] ?? null, 500),
+        ];
+    }
+
+    private function voyageBucketsEqual(?array $current, array $next): bool
+    {
+        return $this->canonicalizeVoyageBucket($current ?? []) === $this->canonicalizeVoyageBucket($next);
+    }
+
+    private function canonicalizeVoyageBucket(array $bucket): string
+    {
+        $periodKey = $this->normalizePeriodKey($bucket['period_key'] ?? null);
+        $slices = [];
+        if (isset($bucket['slices']) && is_array($bucket['slices'])) {
+            foreach ($bucket['slices'] as $slice) {
+                if (!is_array($slice)) {
+                    continue;
+                }
+                $slices[] = [
+                    'slice_id' => (string) ($slice['slice_id'] ?? ''),
+                    'seq' => (int) ($slice['seq'] ?? 0),
+                    'qty' => round((float) ($slice['qty'] ?? 0), 4),
+                    'period_key' => $this->normalizePeriodKey($slice['period_key'] ?? $periodKey),
+                    'quota_id' => isset($slice['quota_id']) && (int) $slice['quota_id'] > 0 ? (int) $slice['quota_id'] : null,
+                    'status' => $this->sanitizeSliceString($slice['status'] ?? null, 50),
+                    'bl' => $this->sanitizeSliceString($slice['bl'] ?? null, 100),
+                    'etd' => $this->normalizeDateValue($slice['etd'] ?? null),
+                    'eta' => $this->normalizeDateValue($slice['eta'] ?? null),
+                    'factory' => $this->sanitizeSliceString($slice['factory'] ?? null, 100),
+                    'remark' => $this->sanitizeSliceString($slice['remark'] ?? null, 500),
+                ];
+            }
+        }
+
+        usort($slices, function ($a, $b) {
+            if ($a['seq'] === $b['seq']) {
+                return strcmp($a['slice_id'], $b['slice_id']);
+            }
+            return $a['seq'] <=> $b['seq'];
+        });
+
+        return json_encode(['period_key' => $periodKey, 'slices' => $slices]);
+    }
+
+    private function deriveLinePeriodKey($deliveryDate = null, $etaDate = null, $etdDate = null): ?string
+    {
+        foreach ([$etaDate, $deliveryDate, $etdDate] as $candidate) {
+            $key = $this->normalizePeriodKey($candidate);
+            if ($key) {
+                return $key;
+            }
+        }
+        return now()->format('Y-m');
+    }
+
+    private function normalizePeriodKey($value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        $string = trim((string) $value);
+        if ($string === '') {
+            return null;
+        }
+        if (preg_match('/^\d{4}-\d{2}$/', $string)) {
+            return $string;
+        }
+        try {
+            return Carbon::parse($string)->format('Y-m');
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function normalizeDateValue($value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        $string = trim((string) $value);
+        if ($string === '') {
+            return null;
+        }
+        if (preg_match('/^(\d{2})-(\d{2})-(\d{4})$/', $string, $m)) {
+            return sprintf('%04d-%02d-%02d', (int) $m[3], (int) $m[2], (int) $m[1]);
+        }
+        try {
+            return Carbon::parse($string)->toDateString();
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    private function sanitizeSliceString($value, int $maxLength = 255): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $string = trim((string) $value);
+        if ($string === '') {
+            return null;
+        }
+        return mb_substr($string, 0, $maxLength);
+    }
+
+    private function formatQuotaLabel(Quota $quota): string
+    {
+        $number = trim((string) ($quota->quota_number ?? $quota->display_number ?? ''));
+        if ($number === '') {
+            $number = sprintf('QUOTA-%06d', (int) $quota->id);
+        }
+        $start = $quota->period_start ? $quota->period_start->format('Y-m-d') : '-';
+        $end = $quota->period_end ? $quota->period_end->format('Y-m-d') : '-';
+
+        return sprintf('%s (%s..%s)', $number, $start, $end);
+    }
+
+
+    private function normalizeLineKey($value): string
+    {
+        $trim = trim((string) $value);
+        if ($trim === '') {
+            return '';
+        }
+
+        if (is_numeric($trim)) {
+            return (string) (int) round((float) $trim);
+        }
+
+        return $trim;
+    }
 
     private function resolveTableName(string $table): ?string
     {
@@ -929,3 +1014,4 @@ public function moveSplitQuota(Request $request, string $po): RedirectResponse
         return $map;
     }
 }
+

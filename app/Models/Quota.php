@@ -83,7 +83,7 @@ class Quota extends Model
         return $this->hasMany(QuotaHistory::class);
     }
 
-    public function decrementForecast(int $quantity, ?string $description = null, ?Model $reference = null, ?\DateTimeInterface $occurredOn = null, ?int $userId = null): void
+    public function decrementForecast(int $quantity, ?string $description = null, ?Model $reference = null, ?\DateTimeInterface $occurredOn = null, ?int $userId = null, ?array $meta = null): void
     {
         $this->forecast_remaining = max(0, $this->forecast_remaining - $quantity);
         $this->updateStatus();
@@ -97,10 +97,11 @@ class Quota extends Model
             'reference_type' => $reference ? get_class($reference) : null,
             'reference_id' => $reference?->getKey(),
             'created_by' => $userId,
+            'meta' => $meta,
         ]);
     }
 
-    public function incrementForecast(int $quantity, ?string $description = null, ?Model $reference = null, ?\DateTimeInterface $occurredOn = null, ?int $userId = null): void
+    public function incrementForecast(int $quantity, ?string $description = null, ?Model $reference = null, ?\DateTimeInterface $occurredOn = null, ?int $userId = null, ?array $meta = null): void
     {
         $newVal = (int) $this->forecast_remaining + (int) $quantity;
         if ($this->total_allocation !== null) {
@@ -118,6 +119,7 @@ class Quota extends Model
             'reference_type' => $reference ? get_class($reference) : null,
             'reference_id' => $reference?->getKey(),
             'created_by' => $userId,
+            'meta' => $meta,
         ]);
     }
 

@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -86,6 +87,7 @@ class GrImportService
             }
 
             $summary['total_rows']++;
+            $poNormalized = $this->normalizePoDoc($rawPo);
             $dateValue = $sheet->getCell([$reqMap['RECEIVE_DATE'], $row])->getValue();
             $qtyValue = $sheet->getCell([$reqMap['QTY'], $row])->getValue();
             $catValue = trim((string) $sheet->getCell([$reqMap['CAT_PO'], $row])->getFormattedValue());
@@ -96,7 +98,7 @@ class GrImportService
             $lineNorm = $this->normalizeLineNumber($rawLine);
 
             $rowErrors = [];
-            if ($rawPo === '') { $rowErrors[] = 'PO_DOC wajib diisi'; }
+            if ($poNormalized === '') { $rowErrors[] = 'PO_DOC wajib diisi'; }
             if ($lineNorm === '') { $rowErrors[] = 'LINE_NO wajib diisi'; }
             if (!$date) { $rowErrors[] = 'RECEIVE_DATE tidak valid'; }
             if ($qty <= 0) { $rowErrors[] = 'QTY harus > 0'; }
@@ -108,7 +110,7 @@ class GrImportService
                 $extras[$key] = $colIndex ? trim((string) $sheet->getCell([$colIndex, $row])->getFormattedValue()) : null;
             }
 
-            $unique = $this->buildSignature($rawPo, $lineNorm, $date, $invoice, $row);
+            $unique = $this->buildSignature($poNormalized, $lineNorm, $date, $invoice, $row);
             if (isset($fileUniques[$unique])) {
                 $rowErrors[] = 'Duplikat GR (PO/Line/Date/Invoice)';
             }
@@ -122,8 +124,10 @@ class GrImportService
             $fileUniques[$unique] = true;
             $normalized[] = [
                 'row' => $row,
-                'po' => $rawPo,
-                'line' => $lineNorm,
+                'po_normalized' => $poNormalized,
+                'po_raw' => $rawPo,
+                'line_normalized' => $lineNorm,
+                'line_raw' => $rawLine,
                 'date' => $date,
                 'qty' => $qty,
                 'cat' => $catValue,
@@ -142,17 +146,24 @@ class GrImportService
                         continue;
                     }
 
-                    $poModel = $this->locatePurchaseOrder($entry['po'], $entry['line']);
+                    $poModel = $this->locatePurchaseOrder($entry['po_normalized'], $entry['line_normalized']);
                     if (!$poModel) {
+                        Log::debug('GR import: purchase order lookup failed', [
+                            'po_raw' => $entry['po_raw'] ?? null,
+                            'po_normalized' => $entry['po_normalized'],
+                            'line_raw' => $entry['line_raw'] ?? null,
+                            'line_normalized' => $entry['line_normalized'],
+                        ]);
                         $summary['skipped']++;
                         $this->pushError($summary['errors'], $entry['row'], 'PO / Line tidak ditemukan di sistem');
                         continue;
                     }
 
-                    $product = $this->resolveProductForPurchaseOrder($poModel);
-                    if (!$product) {
+                    try {
+                        $product = $this->resolveProductForPurchaseOrder($poModel);
+                    } catch (\RuntimeException $e) {
                         $summary['skipped']++;
-                        $this->pushError($summary['errors'], $entry['row'], 'Produk tidak ditemukan di purchase_orders');
+                        $this->pushError($summary['errors'], $entry['row'], $e->getMessage());
                         continue;
                     }
 
@@ -164,8 +175,8 @@ class GrImportService
                     }
 
                     $gr = GrReceipt::create([
-                        'po_no' => $entry['po'],
-                        'line_no' => $entry['line'],
+                        'po_no' => $entry['po_normalized'],
+                        'line_no' => $entry['line_normalized'],
                         'invoice_no' => $entry['invoice'],
                         'receive_date' => $entry['date'],
                         'qty' => $entry['qty'],
@@ -192,14 +203,14 @@ class GrImportService
 
                     $quota->decrementActual(
                         (int) round($entry['qty']),
-                        sprintf('GR import %s/%s pada %s', $entry['po'], $entry['line'], $entry['date']),
+                        sprintf('GR import %s/%s pada %s', $entry['po_normalized'], $entry['line_normalized'], $entry['date']),
                         $gr,
                         new \DateTimeImmutable($entry['date']),
                         Auth::id(),
                         [
                             'gr_unique' => $entry['unique'],
-                            'po_no' => $entry['po'],
-                            'line_no' => $entry['line'],
+                            'po_no' => $entry['po_normalized'],
+                            'line_no' => $entry['line_normalized'],
                         ]
                     );
 
@@ -282,6 +293,16 @@ class GrImportService
         }
     }
 
+    private function normalizePoDoc(?string $value): string
+    {
+        $trimmed = trim((string) $value);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        return strtoupper(preg_replace('/\s+/', '', $trimmed));
+    }
+
     private function normalizeLineNumber(?string $value): string
     {
         $trimmed = trim((string) $value);
@@ -289,8 +310,9 @@ class GrImportService
             return '';
         }
 
-        if (is_numeric($trimmed)) {
-            return (string) ((int) $trimmed);
+        $standardized = str_replace(',', '.', $trimmed);
+        if (is_numeric($standardized)) {
+            return (string) (int) ((float) $standardized);
         }
 
         return $trimmed;
@@ -313,28 +335,60 @@ class GrImportService
 
     private function locatePurchaseOrder(string $poDoc, string $lineNumber): ?PurchaseOrder
     {
-        return PurchaseOrder::query()
-            ->where('po_doc', $poDoc)
-            ->where('line_no', $lineNumber)
+        $candidates = PurchaseOrder::withTrashed()
+            ->where(function ($query) use ($poDoc) {
+                $query->where('po_doc', $poDoc)
+                    ->orWhereRaw("REPLACE(UPPER(po_doc), ' ', '') = ?", [$poDoc]);
+            })
             ->lockForUpdate()
-            ->first();
+            ->get();
+
+        if ($candidates->isEmpty()) {
+            return null;
+        }
+
+        $match = $candidates->first(function (PurchaseOrder $po) use ($lineNumber) {
+            $normalized = $this->normalizeLineNumber($po->line_no !== null ? (string) $po->line_no : '');
+            if ($normalized === '') {
+                return trim((string) $po->line_no) === $lineNumber;
+            }
+            return $normalized === $lineNumber;
+        });
+
+        return $match ?: null;
     }
 
-    private function resolveProductForPurchaseOrder(PurchaseOrder $po): ?Product
+    private function resolveProductForPurchaseOrder(PurchaseOrder $po): Product
     {
-        if (!$po->product_id) {
-            return null;
+        return $this->resolveProductIdFromPurchaseOrder($po);
+    }
+
+    private function resolveProductIdFromPurchaseOrder(PurchaseOrder $po): Product
+    {
+        if ($po->product_id) {
+            $product = $po->relationLoaded('product')
+                ? $po->product
+                : Product::find($po->product_id);
+
+            if ($product) {
+                return $product;
+            }
         }
 
-        $product = $po->relationLoaded('product')
-            ? $po->product
-            : Product::find($po->product_id);
+        $itemCode = trim((string) $po->item_code);
+        if ($itemCode === '') {
+            throw new \RuntimeException('Produk tidak ditemukan di master: (item_code kosong)');
+        }
+
+        $product = Product::query()
+            ->where('code', $itemCode)
+            ->first();
 
         if (!$product) {
-            return null;
+            throw new \RuntimeException(sprintf('Produk tidak ditemukan di master: %s', $itemCode));
         }
 
-        return ($product->pk_capacity !== null && !empty($product->hs_code)) ? $product : null;
+        return $product;
     }
 
     private function resolveQuotaForProduct(?Product $product, string $date): ?Quota
